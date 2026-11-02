@@ -1,0 +1,57 @@
+SYSTÈME DU CHASSEUR — DÉPLOIEMENT
+
+Deux façons de faire marcher la discussion IA (Royaume → Conseil).
+
+================================================================
+A. LE PLUS SIMPLE : glisser-déposer, comme d'habitude
+================================================================
+1. Dézippe le fichier, puis glisse le dossier sur Netlify (onglet Deploys).
+2. Ouvre ton site, va dans Réglages → Discussion IA.
+3. Colle ta clé API Anthropic (elle commence par sk-ant-).
+   Pour en créer une : https://console.anthropic.com → API Keys → Create Key.
+   Il faut avoir ajouté du crédit sur le compte Anthropic.
+4. Laisse le mode sur « Automatique » et appuie sur « Tester la connexion ».
+
+Dans ce mode, la clé est enregistrée dans ton navigateur, sur ton appareil.
+Elle n'est pas visible par les autres visiteurs du site, mais quiconque
+utilise ton navigateur peut s'en servir. Ne l'enregistre pas sur un
+appareil partagé. Il faut la recoller sur chaque appareil (téléphone, PC).
+
+Important : avec le glisser-déposer, Netlify ne lance PAS le fichier
+netlify/functions/chat.js. C'est normal, l'appli passe alors en mode direct.
+
+================================================================
+B. LE PLUS SÛR : passer par GitHub (clé cachée sur le serveur)
+================================================================
+Aucune ligne de code, seulement des clics.
+
+1. Crée un compte gratuit sur https://github.com si tu n'en as pas.
+2. En haut à droite : « + » → New repository.
+   Nom : systeme-du-chasseur. Laisse « Private » si tu veux. Create repository.
+3. Sur la page du dépôt vide : clique « uploading an existing file ».
+   Glisse TOUT le contenu du dossier dézippé (index.html, sw.js,
+   manifest.webmanifest, netlify.toml, package.json, et les dossiers
+   icons et netlify). Clique « Commit changes ».
+4. Sur Netlify, ouvre ton projet musculation-game, puis :
+   Project configuration (ou Site configuration) → Build & deploy
+   → « Link repository » (relier un dépôt) → GitHub → autorise Netlify
+   → choisis systeme-du-chasseur.
+   Commande de build : laisser vide. Dossier de publication : « . ».
+5. Toujours dans Project configuration → Environment variables
+   → Add a variable :
+      Key   : ANTHROPIC_API_KEY
+      Value : ta clé sk-ant-...
+   Enregistre.
+   (Facultatif) ANTHROPIC_MODEL = claude-haiku-5-5 pour forcer un modèle
+   plus économique pour tout le monde.
+6. Deploys → Trigger deploy → Deploy project (ou Deploy site).
+7. Dans l'appli : Réglages → Discussion IA → mode « Serveur Netlify
+   uniquement », puis « Tester la connexion ». Tu peux effacer la clé
+   enregistrée sur l'appareil (« Oublier la clé »).
+
+Pour les mises à jour suivantes : sur GitHub, « Add file → Upload files »,
+glisse les nouveaux fichiers, « Commit changes ». Netlify redéploie seul.
+
+Coût : chaque message est facturé par Anthropic selon le modèle choisi.
+Haiku est le plus économique, Sonnet le meilleur rapport qualité/prix,
+Opus le plus fin et le plus cher.

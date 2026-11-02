@@ -1,0 +1,14 @@
+# Configuration Netlify — Système du Chasseur
+[build]
+  publish = "."
+  functions = "netlify/functions"
+  command = ""
+
+[functions]
+  node_bundler = "esbuild"
+
+# La page et le service worker ne doivent pas rester en cache trop longtemps
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
