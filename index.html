@@ -1014,6 +1014,532 @@ function registerTome(def) {
 registerTome({ id: 'I', num: 'I', title: 'Le Livre de l’Ombre', sub: 'L’éveil du Joueur, la Porte et l’Architecte', chapters: CHAPTERS, nodes: NODES, endings: ENDINGS, start: 'p1' });
 
 /* ==========================================================================
+   TOME I — INTERLUDES (1/2) : respirations, vie quotidienne, personnages
+   Insérés entre les nœuds existants sans modifier choix, drapeaux ni fins.
+   ========================================================================== */
+
+function addInterlude(tomeId, nodes, wires) {
+  const T = TOMES[tomeId];
+  for (const id in nodes) { const n = nodes[id]; n.tome = tomeId; n.id = id; T.nodes[id] = n; ALL_NODES[id] = n; }
+  for (const [from, oldTo, newTo] of wires || []) {
+    const n = ALL_NODES[from];
+    for (const c of (n && n.choices) || []) if (c.to === oldTo) c.to = newTo;
+  }
+}
+
+const I_SHADOW = [['arch:AR23', '!=', true]];
+const I_LETTER = [['arch:AR23', '==', true]];
+
+addInterlude('I', {
+  /* ----- Prologue → Chapitre I : la remontée ----- */
+  i0_1: { ch: 0, text: [
+    `Vous remontez à l’aube.`,
+    `Le tunnel de la gare fait quatre cents mètres. Hier, vous l’aviez descendu en dernier, courbé sous trois sacs, ceux de l’équipe Delta : la corde, les rations, les fusées éclairantes que personne n’a allumées. Aujourd’hui, vous le remontez sans rien sur le dos, et c’est ça qui vous paraît le plus étrange. Vos mains ne savent pas quoi faire d’elles-mêmes.`,
+    `Votre jambe tient. Elle ne devrait pas. Vous l’avez entendue se briser. Maintenant elle vous porte, simplement, avec un petit tiraillement au-dessus du genou, comme une vieille douleur qui se souvient d’avoir eu raison.`,
+    { if: I_SHADOW, t: `Basile marche derrière vous. Ou plutôt ce qu’il est devenu : une silhouette d’ombre, plus grande que lui, qui pose les pieds exactement dans vos traces. Il ne fait aucun bruit. Il ne respire pas. De temps en temps, vous vous retournez pour vérifier qu’il est encore là, et il est encore là, et il attend que vous repartiez.` },
+    { if: I_LETTER, t: `Vous avez laissé Basile en bas, sur le ballast, les yeux fermés, les mains croisées sur la poitrine. Vous avez mis votre veste sous sa tête. C’est idiot : il ne sent plus rien. Mais c’était la seule chose que vous aviez à donner. Sa lettre est dans votre poche de poitrine, pliée en quatre, et vous sentez son coin contre votre cœur à chaque marche.` },
+    `À la sortie du tunnel, sur le quai désaffecté, il y a une lampe tempête posée par terre et un homme en uniforme de l’Association, assis sur une caisse, qui fume en regardant le jour se lever. Il a un registre sur les genoux. Il vous voit sortir et sa cigarette lui tombe des lèvres.`,
+    `« Delta ? dit-il. On vous a comptés disparus à trois heures. » Il feuillette son registre. « Deux disparus. Vous êtes lequel ? »`,
+    `Vous dites votre nom. Il le cherche. Il ne le trouve pas. Il cherche encore, au crayon, en suçant le bout de la mine.`,
+    `« Vous n’êtes pas sur la liste d’équipe, dit-il enfin. Il y a cinq noms. Ternaux, Basile. Et quatre autres. Pas vous. » Il lève les yeux, perplexe. « Vous étiez quoi, dans l’équipe ? »`,
+    `Vous dites : porteur.`,
+    `« Ah. » Il comprend. Il referme le registre. « Les porteurs, on ne les inscrit pas. Ils sont payés à la sortie. » Il fouille dans une boîte en fer, compte quelques pièces, vous les tend. « Tarif de base. Il manque la prime de retour, mais vous n’étiez pas censé revenir, alors elle n’est pas prévue. »`,
+    `Vous prenez les pièces. Il vous regarde partir, puis il vous rappelle, gêné.`,
+    `« Hé. Et Ternaux ? »`,
+    { if: I_SHADOW, t: `Vous vous retournez. Derrière vous, il n’y a rien. L’ombre de Basile s’est fondue dans la vôtre, sur le quai, au soleil levant. L’employé ne voit qu’un Chasseur de rang E, seul, la jambe raide. Vous ne savez pas quoi lui répondre. Vous dites : « Il est avec moi. » Il ne comprend pas. Il ne note rien.` },
+    { if: I_LETTER, t: `Vous dites : « En bas. Sur les voies. Les yeux fermés. » Vous dites : « Il a une femme. Marthe. Quai des Pêcheurs. » Vous ne savez pas pourquoi vous le dites. L’employé hoche la tête, et pour la première fois il écrit quelque chose dans son registre, longtemps, lentement, comme quelqu’un qui n’a pas l’habitude.` }
+  ], choices: [{ t: 'Rentrer chez vous, rue du Four', to: 'i0_2' }] },
+
+  i0_2: { ch: 0, text: [
+    `Vous habitez une chambre sous les toits, rue du Four, au-dessus de la blanchisserie de madame Rolande.`,
+    `L’escalier sent la lessive chaude, le savon de Marseille, l’amidon. Toute la maison en est imprégnée, les murs, les marches, vos vêtements. Les gens des Brèches disent qu’on reconnaît les locataires de madame Rolande à l’odeur : ils sentent le propre même quand ils ne le sont pas.`,
+    `Madame Rolande est déjà à ses cuves, à six heures du matin, les avant-bras rouges, un foulard sur la tête. Elle a soixante-dix ans et elle soulève des draps mouillés que vous n’arriveriez pas à soulever vous-même. Elle vous voit passer dans la cour.`,
+    `« Tu boites, dit-elle sans s’arrêter de tordre. Tu ne boitais pas hier.`,
+    `— Je suis tombé.`,
+    `— Tu tombes tout le temps. » Elle étend un drap. « Il y a de la soupe sur le poêle. Elle est d’hier. Elle est meilleure. »`,
+    `Elle ne vous a jamais demandé le loyer à l’heure. Elle ne vous a jamais rien demandé, d’ailleurs. Une fois, l’hiver dernier, vous l’avez aidée à porter ses paniers jusqu’au lavoir, et depuis, il y a de la soupe sur le poêle chaque fois que vous rentrez d’une Faille. Vous ne savez pas si elle vous plaint ou si elle vous aime bien. Vous n’avez jamais osé demander.`,
+    `Votre chambre fait trois pas sur quatre. Un lit, une table, une chaise, une fenêtre en chien-assis qui donne sur les toits des Brèches. Sur le rebord, il y a toujours des pigeons. Ils viennent chaque matin, depuis que vous êtes là. Vous ne les nourrissez pas. Ils viennent quand même. Vous aimez les entendre. Vous ne savez pas pourquoi : c’est un bruit stupide, un roucoulement de gorge, comme quelqu’un qui se racle la voix avant de parler. Ça vous calme. Ça vous a toujours calmé.`,
+    `Vous vous asseyez sur le lit. Vous regardez vos mains. Elles ne tremblent pas. C’est nouveau.`,
+    `Une lumière bleue s’ouvre devant vos yeux.`,
+    { sys: 'Quête quotidienne : Préparation du Joueur.\nPompes : 0 / 100.\nFlexions : 0 / 100.\nAbdominaux : 0 / 100.\nCourse : 0 / 10 km.\nRemarque : l’échec de la quête entraînera une pénalité.' },
+    `Vous la lisez trois fois. C’est absurde. Vous venez de mourir, ou presque. Vous avez la jambe qui tire. Vous n’avez pas dormi.`,
+    `Vous vous mettez à plat ventre sur le plancher, entre le lit et la table, et vous faites une pompe. Puis une deuxième. À la quinzième, vos bras tremblent. À la vingt-deuxième, vous vous écrasez sur le plancher, le nez dans la poussière, et les pigeons s’envolent du rebord.`,
+    `Vous restez là, allongé. Puis vous recommencez. Vingt-trois. Vingt-quatre.`,
+    `Personne ne regarde. Personne ne le saura. C’est la première fois de votre vie que vous faites quelque chose de difficile sans que ce soit pour porter le sac de quelqu’un d’autre.`,
+    `À midi, vous avez fini les pompes. À la nuit, vous avez fini le reste. Quand la dernière foulée de course s’achève, au bout du quai des Pêcheurs, une fenêtre bleue s’ouvre, et une petite musique joue dans votre tête. Cinq notes. Elles montent, elles hésitent, elles s’arrêtent.`,
+    { sys: 'Niveau supérieur.' },
+    `Vous restez immobile au bord du fleuve, essoufflé. Les cinq notes vous restent dans l’oreille. Vous les fredonnez sans le vouloir en remontant la rue du Four. Elles s’arrêtent toujours au même endroit, comme une phrase qu’on n’a pas eu le temps de finir.`,
+    `Madame Rolande vous entend fredonner dans l’escalier. Elle passe la tête par la porte de la blanchisserie.`,
+    `« C’est joli, ça, dit-elle. Ça vient d’où ?`,
+    `— Je ne sais pas.`,
+    `— Dommage, dit-elle. C’est le genre d’air qu’on aimerait connaître la fin. »`
+  ], choices: [{ t: 'Dormir', to: 'c1_1' }] },
+
+  /* ----- Chapitre I → Chapitre II : trois semaines ----- */
+  i1_1: { ch: 1, text: [
+    `Les trois semaines qui suivent ne ressemblent à rien de ce que vous avez vécu. Elles ressemblent à une routine.`,
+    `Le matin, la quête. Le Système ne vous lâche pas. Les pompes, les flexions, la course. Au début, vous mettez la journée entière. À la fin de la deuxième semaine, vous avez fini avant midi. Votre corps change si vite que vous avez l’impression qu’il vous dépasse : vos chemises tirent aux épaules, vos pantalons flottent à la taille.`,
+    `Le soir, vous descendez dans la cour de la blanchisserie, une fois que madame Rolande a éteint ses cuves. Il y a des pavés descellés le long du mur, de gros pavés de granit gris que personne n’a jamais remis en place. Vous en prenez un dans chaque main. Vous les soulevez au-dessus de votre tête. Vous les reposez. Vous recommencez. Vous inventez des mouvements. Vous ne savez pas si c’est bien. Personne ne vous l’a jamais appris.`,
+    `Une nuit, vous trouvez sur la marche de la cour un bol de soupe recouvert d’une assiette, et à côté, une paire de gants de cuir épais, usés, trop grands, avec des initiales brodées à l’intérieur : « G. R. ». Les gants de feu monsieur Rolande, probablement. Vous ne dites rien. Elle non plus. Vous portez les gants.`,
+    { if: [['medal', '!=', 'you']], t: `Certains matins, sur le rebord de votre fenêtre, au milieu des pigeons, il y a un pain. Un pain entier, encore tiède, enveloppé dans un torchon propre. Vous ne savez pas d’où il vient. Vous soupçonnez Mira, mais quand vous lui en parlez, elle hausse les épaules et dit que si elle avait du pain, elle le mangerait. Elle détourne les yeux en le disant. Vous ne voyez pas qu’elle a des miettes sur la manche.` },
+    { if: [['medal', '==', 'you']], t: `La médaille d’étain de la voleuse est restée sur votre table. Vous l’avez accrochée à votre col, sans savoir pourquoi : pour la rendre un jour, peut-être. À partir de la deuxième semaine, certains matins, sur le rebord de votre fenêtre, au milieu des pigeons, il y a un pain entier, enveloppé dans un torchon propre, brodé « S.-C. ». Vous ne savez pas d’où il vient. Vous le mangez en regardant la petite sainte usée sur votre col, et quelque chose vous dit que c’est lié, sans que vous sachiez comment.` },
+    `Le jeudi, vous allez à la forge.`
+  ], choices: [{ t: 'Entrer dans la forge Brasse', to: 'i1_2' }] },
+
+  i1_2: { ch: 1, text: [
+    `Théo Brasse ne vous a pas invité. Il ne vous a pas chassé non plus, la première fois. C’est sa manière de dire oui.`,
+    `Vous lui apportez du charbon, des seaux d’eau, des barres de fer qu’il faut tenir sur l’enclume pendant qu’il frappe, puisqu’il n’a qu’une main pour le marteau et plus de main pour la pince. Vous devenez sa deuxième main sans qu’il vous le demande. Il ne vous dit jamais merci. Il dit « Tiens », « Plus haut », « Pas là, imbécile », et à la fin de l’après-midi, il pose un quignon de pain et un morceau de lard sur l’enclume, entre vous deux, et il le coupe en deux parts égales avec son couteau.`,
+    `Il parle peu. Quand il parle, c’est du fer.`,
+    `« Le fer, ça se souvient, dit-il un jour en plongeant une lame dans le baquet. Tu le chauffes, tu le plies, tu le refroidis : il garde la forme qu’on lui a donnée. Même quand tu le rechauffes, il essaie de revenir là où il était. » Il ressort la lame, fumante. « Les gens, c’est pareil. »`,
+    `Il y a, sur une étagère au fond de la forge, au-dessus des pinces et des limes, une rangée d’objets qu’il ne vend pas. Un petit cheval en fer forgé, maladroit, d’apprenti. Un clou tordu en forme de cœur. Une boîte en fer, longue, plate, fermée par un cadenas, avec neuf petites encoches gravées sur le couvercle.`,
+    `Vous lui demandez ce qu’il y a dans la boîte.`,
+    `Il ne répond pas tout de suite. Il frappe trois fois sur l’enclume, très fort.`,
+    `« Rien, dit-il. Elle est vide. Elle attend. »`,
+    `Une autre fois, alors que vous affûtez une lame pour lui, la meule chante. Un son aigu, pur, qui monte quand vous appuyez et redescend quand vous relâchez. Théo s’arrête de travailler. Il écoute.`,
+    `« Une petite fille m’a dit un jour que le fer, c’est triste, dit-il, parce qu’il ne chante pas. » Il grogne. « Elle avait tort. Il chante quand on le frotte assez fort contre quelque chose de plus dur que lui. Comme tout le monde. »`,
+    `Il ne dit pas qui était la petite fille. Vous ne demandez pas. Vous avez appris, en trois semaines, qu’à la forge Brasse il y a des questions qu’on pose avec les mains, en portant les seaux, et d’autres qu’on ne pose jamais.`
+  ], choices: [{ t: 'Aller au quai des Pêcheurs, un mardi', to: 'i1_3' }] },
+
+  i1_3: { ch: 1, bond: { helene: 1 }, text: [
+    { if: I_LETTER, t: `Le mardi suivant, vous descendez au quai des Pêcheurs avec la lettre de Basile dans votre poche. Vous l’avez gardée trois semaines. Vous n’avez pas eu le courage avant.` },
+    { if: I_SHADOW, t: `Le mardi, sans que vous l’ayez décidé, vos pas vous mènent au quai des Pêcheurs. C’est l’ombre de Basile qui vous y conduit. Elle ne vous l’a pas demandé : elle ne demande jamais rien. Mais chaque mardi matin, elle se met à marcher vers le fleuve, et vous la suivez.` },
+    `Les maisons du quai sont basses, peintes de couleurs qui ont été vives. Devant chacune, une barque tirée sur les galets. Devant la dernière, une barque à coque bleue, propre, entretenue, avec un nom effacé à la proue.`,
+    `Une femme étend du linge dans le jardinet. La quarantaine, des bras forts, un visage qui a cessé d’attendre et qui n’a pas encore commencé à oublier. Un garçon de quatorze ans répare un filet sur la marche, avec une aiguille de bois. Il a les mêmes mains que Basile. Vous ne le savez pas encore, mais vous le reconnaissez à ça.`,
+    { if: I_LETTER, t: `Vous dites : « Madame Ternaux ? » Elle se retourne. Elle voit votre uniforme d’Association, et son visage se ferme, d’un coup, comme on ferme un volet avant l’orage. Vous lui tendez la lettre. Elle la prend. Elle reconnaît l’écriture. Elle s’assoit sur la marche, à côté de son fils, sans un mot. Elle lit. Vous restez debout. Vous ne savez pas si vous devez partir. Le garçon a posé son aiguille. Quand elle a fini, Marthe Ternaux replie la lettre en quatre, exactement selon les plis, et la met dans la poche de son tablier. Elle dit : « Il écrivait toujours trop gros. Il disait que c’était pour que je n’aie pas besoin de mes lunettes. » Puis : « Merci. » Puis : « Paul, va chercher du café pour le monsieur. »` },
+    { if: I_SHADOW, t: `L’ombre de Basile s’arrête au bord du jardinet. Elle ne franchit pas la barrière. Elle regarde la femme, le garçon, la barque bleue. Marthe ne la voit pas : personne ne voit vos ombres quand vous ne le voulez pas. Elle étend un drap. Le vent le gonfle. L’ombre reste là, immobile, aussi longtemps que vous restez, et quand vous repartez elle vous suit à contrecœur, en se retournant deux fois. Le mardi suivant, elle y retourne. Et le suivant. Vous ne l’en empêchez pas.` },
+    `En remontant vers la ville, vous passez devant les Archives de l’Association. La lumière est allumée au sous-sol. Hélène Varenne est penchée sur son registre, sous une lampe verte.`,
+    `Vous entrez. Elle lève la tête, vous reconnaît, vous fait signe de vous asseoir. Vous lui parlez de Basile, de la barque, du garçon qui répare les filets. Elle note tout. Pas dans le registre des 312 : dans un autre, plus mince, à couverture bleue.`,
+    `« Le registre de ceux qui reviennent, dit-elle. Ou de ceux qui ont quelqu’un. » Elle écrit : « Basile Ternaux. Pêchait le mardi. Écrivait trop gros, pour que sa femme n’ait pas besoin de lunettes. » Elle lève les yeux. « Le Système compte. Quelqu’un doit nommer. Sinon, il ne reste que les chiffres. »`,
+    `Elle referme le registre bleu et pose la main dessus.`,
+    `« Vous voulez que je vous y inscrive, vous aussi ? »`,
+    `Vous ne savez pas quoi répondre. Elle sourit. Elle écrit quelque chose, que vous ne voyez pas, et elle range le registre. Vous apprendrez beaucoup plus tard ce qu’elle avait écrit ce jour-là. Une seule phrase. « Ne sait pas encore qu’il est quelqu’un. »`
+  ], choices: [{ t: 'Rentrer rue du Four', to: 'c2_1' }] },
+
+  /* ----- Chapitre II → Chapitre III : la route de Clairval ----- */
+  i2_1: { ch: 2, bond: { sera: 2 }, text: [
+    `Il reste des survivants dans les hameaux autour de Clairval, des fermes isolées que le feu a épargnées et que personne n’est allé chercher. Séraphine repart les ramener. Vous l’accompagnez sans qu’elle vous le demande.`,
+    `Le retour prend deux jours. Il y a cent quarante réfugiés, des charrettes, des vaches qui ne veulent pas avancer, et une seule épée pour tous les protéger.`,
+    `Séraphine marche en tête. Elle ne parle à personne. Le soir, quand la colonne s’arrête dans un pré au bord de la route, elle s’assoit à l’écart, sur une pierre, et elle nettoie son épée avec un chiffon, longtemps, même quand il n’y a plus rien à nettoyer.`,
+    `La deuxième nuit, vous allez vous asseoir à côté d’elle. Elle ne vous chasse pas.`,
+    `Le feu de camp, derrière vous, crépite. Une femme chante une chanson à un enfant. Quelqu’un ronfle sous une charrette.`,
+    `« Elle s’appelle Clémence, dit Séraphine en montrant son épée. Abel lui avait donné ce nom. Il disait que toutes les épées devraient avoir un nom de vertu, pour qu’on ait honte de s’en servir mal. » Elle passe le chiffon sur le plat de la lame. « Il avait douze ans. J’en avais six. »`,
+    `Elle vous raconte Haute-Brume. Un village de vingt-trois maisons dans la montagne, une femme immense qui s’appelait Ysolde et qui les avait recueillis, Abel et elle, quand leurs parents sont morts. Une soupe qui restait sur le feu jour et nuit, à laquelle on ajoutait chaque matin ce qu’on avait. Abel qui coupait le bois, qui portait l’eau, qui faisait tout, tout le temps, parce qu’il avait peur qu’on les renvoie.`,
+    `« Il m’a appris à siffler, dit-elle. Sur un rocher, au bord du vide. Il disait : si tu sais siffler, tu ne seras jamais perdue, parce que je t’entendrai toujours. »`,
+    `Elle met deux doigts dans sa bouche. Elle siffle, une fois, vers les collines noires. Le son part loin, rebondit, se perd.`,
+    `Personne ne répond. Elle range les doigts dans sa poche, comme on range quelque chose de cassé.`,
+    { if: [['promise', '==', 'kill']], t: `« Tu m’as promis de m’aider à l’arrêter, dit-elle. Je te remercie. Je ne sais pas si je pourrai. Il faudra peut-être que ce soit toi. » Elle ne vous regarde pas. « Si c’est toi, ne me le dis pas avant. »` },
+    { if: [['promise', '==', 'save']], t: `« Tu m’as dit que tu m’aiderais à le ramener, dit-elle. Personne ne m’avait jamais dit ça. Ils disent tous : à l’arrêter. » Elle hésite. « Je ne sais pas si on peut ramener quelqu’un qui brûle depuis quatre ans. Mais tu l’as dit. Je m’en souviendrai. »` },
+    `Elle se lève. Elle vous laisse le chiffon, sans explication, et va se coucher sous une charrette, l’épée contre elle comme une enfant tient une poupée.`,
+    `Vous restez près du feu jusqu’à l’aube. Vers trois heures, une petite fille réfugiée vient s’asseoir contre vous, sans un mot, et s’endort, la tête sur votre bras. Vous n’osez plus bouger. Votre bras s’ankylose. Vous ne bougez pas.`
+  ], choices: [{ t: 'Arriver à Vespérane', to: 'i2_2' }] },
+
+  i2_2: { ch: 2, bond: { anselme: 1 }, text: [
+    `Les réfugiés de Clairval sont installés dans le quartier des cendres, autour du dispensaire de Frère Anselme. Le dispensaire est une ancienne chapelle désaffectée, sans vitraux, avec des paillasses alignées là où il y avait des bancs.`,
+    `Vous y passez la première nuit, parce que vous n’avez pas eu le cœur de laisser la petite fille qui dormait sur votre bras.`,
+    `Anselme ne dort pas. Il passe de paillasse en paillasse avec une lampe. Il recoud un genou ouvert, il change un pansement, il tient la main d’un vieillard qui délire. Il fredonne en travaillant, très bas, de sa voix cassée. Un psaume. Vous reconnaissez quelques mots : la vallée, l’ombre, ne craindre aucun mal. Votre grand-mère le disait. Vous ne vous souvenez pas de la suite. Lui, si.`,
+    `Vers quatre heures, il s’assoit enfin à côté de vous, sur le seuil de la chapelle, avec deux tasses de quelque chose de chaud qui n’est ni du café ni du thé.`,
+    `« Chicorée, dit-il. On n’a plus de café depuis Clairval. »`,
+    `Il boit. Il regarde ses mains.`,
+    `Puis il se lève, va jusqu’au broc d’eau près de la porte, et se lave les mains. Longtemps. Il frotte entre les doigts, sous les ongles, jusqu’aux poignets. Il les rince. Il recommence. Vous le regardez faire. Il s’en aperçoit.`,
+    `« Habitude, dit-il. On attrape des fièvres, ici. Il faut se laver les mains entre chaque malade. » Il s’essuie avec un linge. Puis il dit, plus bas : « Et aussi, je fais ça depuis dix ans. Ça ne part jamais. Mais on continue. »`,
+    `Vous ne comprenez pas ce qu’il veut dire. Il ne l’explique pas. Il reprend sa lampe et retourne vers ses paillasses.`,
+    `À l’aube, la petite fille de Clairval se réveille. Elle vous regarde, elle regarde votre bras, et elle dit : « Tu n’as pas bougé de toute la nuit ? » Vous dites non. Elle dit : « Pourquoi ? » Vous dites que vous ne vouliez pas la réveiller. Elle vous regarde comme si c’était la chose la plus étrange qu’elle ait jamais entendue. Puis elle part en courant rejoindre sa mère.`,
+    `Anselme, qui a tout vu, vous tend une dernière tasse de chicorée.`,
+    `« C’est souvent comme ça que ça commence, dit-il. On ne bouge pas pour ne pas réveiller quelqu’un. Puis un jour on se rend compte qu’on porte tout un quartier. »`
+  ], choices: [{ t: 'Descendre aux Murmures, sur la rumeur d’une femme qui chante', to: 'c3_1' }] },
+
+  /* ----- Chapitre III → Chapitre IV : ce que les ombres mangent ----- */
+  i3_1: { ch: 3, bond: { kael: 2, nour: 1 }, text: [
+    `Kaël ne mange pas. Il ne dort pas. Il ne sait pas quoi faire de ses nuits.`,
+    `La première semaine, il les passe assis sur le toit de la rue du Four, à regarder la ville. Le jour, il suit madame Rolande dans la cour, et il l’aide à étendre les draps, parce que ses mains d’ombre ne se fatiguent pas. Madame Rolande ne pose pas de questions. Elle l’appelle « le grand pâlot » et lui donne des ordres comme à un apprenti. Il obéit avec une sorte de joie.`,
+    `« Elle me dit quoi faire, dit-il un soir. C’est reposant. »`,
+    `Le soir, il met la table. Il n’en a pas besoin : il ne mange pas, et vous mangez seul, d’habitude, sur un coin de la table, debout parfois. Mais Kaël met la table. Deux assiettes. Deux verres. Deux serviettes pliées. Il s’assoit en face de vous devant une assiette vide, et il vous regarde manger, et il vous pose des questions sur le goût des choses.`,
+    `« C’est comment, une pomme de terre ?`,
+    `— Farineux.`,
+    `— Ça veut dire quoi ?`,
+    `— Que ça colle un peu au palais. Que c’est chaud. Que ça tient au corps.`,
+    `— Ça tient au corps, répète-t-il, comme on note une formule. J’aime bien ça. »`,
+    `Les enfants des Brèches l’adoptent en trois jours. Ils ont peur de lui la première heure, à cause de son visage à moitié effacé. La deuxième heure, ils lui tirent la manche. Le troisième jour, il leur fait une grimace. Il gonfle les joues, il louche, il ouvre et ferme la bouche comme un poisson, très vite. Les enfants hurlent de rire.`,
+    `Kaël s’arrête net, les joues encore gonflées. Il a l’air stupéfait.`,
+    `« Je ne sais pas d’où ça vient, dit-il plus tard. Je ne l’ai pas décidé. Mes joues l’ont fait toutes seules. Comme si elles l’avaient fait mille fois. »`,
+    `Nour, qui est venue s’installer dans une pièce du rez-de-chaussée avec sa guitare et presque rien d’autre, l’écoute raconter ça. Elle sourit.`,
+    `« Le corps se souvient avant la tête, dit-elle. Laisse-le faire. Il te ramènera là où tu étais, une grimace à la fois. »`,
+    `Ce soir-là, vous montez de niveau pendant le dîner. La fenêtre bleue s’ouvre, les cinq notes jouent dans votre tête. Nour, de l’autre côté de la table, pose sa fourchette.`,
+    `Elle fredonne les cinq notes avec vous, exactement au même moment, à la même hauteur. Puis elle continue. Une sixième. Une septième. Une huitième. Jusqu’à la douzième mesure. Et elle s’arrête, au même endroit que le Système, la bouche entrouverte, comme quelqu’un qui arrive au bord d’une falaise.`,
+    `« C’est là que ça s’arrête, dit-elle. Elle n’a jamais écrit la suite. Ou alors elle ne me l’a jamais jouée. » Elle reprend sa fourchette. « Je l’entends chaque fois que tu montes de niveau. C’est comme avoir un fantôme qui s’arrête au milieu de l’escalier. »`
+  ], choices: [{ t: 'Sortir dans la cour', to: 'i3_2' }] },
+
+  i3_2: { ch: 3, text: [
+    { if: [['freed', '==', false]], t: `Dans la cour de la blanchisserie, quarante-sept ombres sont agenouillées en rangs parfaits. Elles y sont depuis que vous êtes remonté des Murmures. Elles ne bougent pas. Elles n’ont pas froid, pas faim, pas sommeil. Elles attendent un ordre. Madame Rolande a dû étendre son linge ailleurs. Elle ne s’est pas plainte. Mais ce matin, en passant entre les rangs avec son panier, elle a dit, sans vous regarder : « Ils ont l’air fatigués, tes gars. Tu devrais leur dire qu’ils peuvent se lever. » Vous l’avez fait. Ils se sont levés. Ils sont restés debout, en rangs parfaits, à attendre l’ordre suivant.` },
+    { if: [['freed', '==', true]], t: `Dans la cour de la blanchisserie, ce matin, il y avait trois ombres. Pas des ombres de votre armée : des ombres des Murmures, de celles que vous aviez laissées partir. Elles étaient revenues d’elles-mêmes. Elles s’étaient assises sur le muret, près de la pompe, comme des voisins qui prennent le frais. Elles ne demandaient rien. Quand vous êtes descendu, l’une d’elles s’est levée et a pris le seau de madame Rolande pour le porter jusqu’aux cuves. Puis elle est repartie. Madame Rolande a dit : « Il y a des gens polis, chez toi. »` },
+    `Vous vous asseyez sur la marche. La nuit est douce. Des fenêtres sont allumées tout autour de la cour : des gens qui dînent, qui se disputent, qui couchent des enfants. Vous les entendez. Ils ne savent pas que vous êtes là.`,
+    `Pendant longtemps, vous avez cru que c’était ça, votre place : en bas, dans la cour, à entendre les gens vivre derrière des fenêtres. À porter leurs sacs jusqu’à la porte, et à repartir.`,
+    `Derrière vous, la porte s’ouvre. Kaël sort, avec deux tasses. Il vous en tend une. Il garde l’autre entre ses mains, pour la chaleur, qu’il ne sent pas.`,
+    `Puis Nour, avec sa guitare. Elle s’assoit sur la marche du dessous. Elle accorde ses cordes. Elle ne joue pas la berceuse. Elle joue une vieille chanson de marins, faux, exprès, et Kaël rit.`,
+    `Puis madame Rolande, qui a entendu la guitare, avec une bouteille de cidre et quatre verres dépareillés.`,
+    `Vous ne sauriez pas dire à quel moment exact c’est arrivé. Mais quand vous montez vous coucher, très tard, vous vous rendez compte que pour la première fois de votre vie, vous n’étiez pas en bas dans la cour à écouter les autres vivre derrière une fenêtre.`,
+    `Vous étiez la fenêtre.`
+  ], choices: [{ t: 'Dormir, puis repartir', to: 'c4_1' }] }
+}, [
+  ['p4', 'c1_1', 'i0_1'],
+  ['c1_5', 'c2_1', 'i1_1'],
+  ['c2_5', 'c3_1', 'i2_1'],
+  ['c3_5', 'c4_1', 'i3_1']
+]);
+
+/* ==========================================================================
+   TOME I — INTERLUDES (2/2) et passages étoffés
+   ========================================================================== */
+
+const I_PLAN_OK = [['plan', '==', 'accept']];
+const I_PLAN_NO = [['plan', '==', 'refuse']];
+
+addInterlude('I', {
+  /* ----- Chapitre IV → Chapitre V : la Maison se remplit ----- */
+  i4_1: { ch: 4, bond: { odile: 1 }, text: [
+    `Le lendemain matin, il y a onze personnes dans votre cuisine et vous n’en avez invité aucune.`,
+    `La cuisine, d’ailleurs, n’est plus la vôtre. Madame Rolande a ouvert la porte qui donnait de votre escalier sur l’ancien atelier de repassage, fermé depuis la mort de son mari. Elle a dit : « Il faut de la place. » Elle n’a pas dit pour qui. Le soir même, il y avait des paillasses dans l’atelier, une marmite sur le poêle et un enfant qui dormait dans la panière à linge.`,
+    { if: I_PLAN_NO, t: `Ysolde est arrivée à l’aube, avec son bouclier sur le dos et un chaudron de fonte sous le bras. Elle ne vous a pas demandé si elle pouvait rester. Elle a posé le chaudron sur le poêle, elle a mis dedans un oignon, un os, de l’eau, et elle a dit : « Voilà. Maintenant, il y a une soupe. On en rajoutera chaque jour. Elle ne s’arrêtera pas. » Puis elle est sortie fendre du bois dans la cour, et pendant une heure, toute la rue du Four a résonné de coups de hache, réguliers comme une horloge.` },
+    { if: I_PLAN_OK, t: `Yanis Okoro passe à la tombée de la nuit, chaque soir depuis le Pont-de-l’Est. Il ne reste jamais longtemps. Il s’assoit au bout de la table avec un jeu de cartes, il fait une réussite, il ne la finit jamais. Il compte les cartes en silence en bougeant les lèvres. Un soir, vous voyez qu’il a écrit un chiffre au dos de sa main, au stylo : 2 000. Il le voit que vous l’avez vu. Il met sa main dans sa poche et ne la ressort plus de la soirée.` },
+    `Odile Fauré arrive vers midi, avec deux sacs de farine sur une brouette et un registre neuf sous le bras.`,
+    `Elle ne dit pas bonjour. Elle regarde la cuisine, l’atelier, les paillasses, les enfants, la marmite. Elle ouvre le placard. Elle le referme. Elle ouvre son registre neuf à la première page, elle trempe sa plume, et elle s’arrête, la plume en l’air, au-dessus du papier blanc.`,
+    `Elle reste comme ça longtemps. Une goutte d’encre tombe sur la page.`,
+    `« Je ne sais plus compter, dit-elle enfin, très bas. Je compte depuis dix-neuf ans. Les bouches, les sacs, les jours. Cette nuit, j’ai donné le pain sans compter, et il y en a eu assez. Ce n’est pas possible. Je sais que ce n’est pas possible. J’ai refait le calcul dix fois. »`,
+    `Elle referme le registre. Elle le pose sur l’étagère, à côté du sel.`,
+    `« Je vais faire le pain, dit-elle. Ça, je sais faire. »`,
+    `Elle pétrit tout l’après-midi. Ses avant-bras sont blancs de farine jusqu’aux coudes. Elle ne parle à personne. Vers le soir, une enfant de Clairval vient se mettre à côté d’elle et lui demande si elle peut aider. Odile la regarde. Elle lui donne un bout de pâte. Elle lui montre comment le plier. L’enfant fait une boule toute de travers. Odile la met au four avec les autres, sans la corriger.`,
+    { if: [['miraLeft', '!=', true]], t: `Mira est assise sur la plus haute marche de l’escalier, d’où elle voit toute la cuisine sans qu’on la voie. Elle regarde sa mère pétrir. Elle ne descend pas. Elle ne remonte pas non plus. Elle y reste jusqu’à ce que le pain soit cuit. Quand Odile pose les miches sur la table, elle en met une, la plus belle, au bout, à l’écart des autres. Personne ne la touche. Le lendemain matin, elle a disparu, et Mira a des miettes sur la manche.` },
+    { if: [['miraLeft', '==', true]], t: `Le soir, quand tout le monde dort, Odile vous demande à voix basse si vous avez des nouvelles de Mira. Vous n’en avez pas. Elle hoche la tête. Elle met une miche de côté, la plus belle, enveloppée dans un torchon, sur le rebord de la fenêtre. Elle dit : « Si elle passe. » Le pain reste là trois jours. Le quatrième, il a disparu. Odile ne dit rien. Elle en remet un autre.` }
+  ], choices: [{ t: 'Attendre le soir', to: 'i4_2' }] },
+
+  i4_2: { ch: 4, bond: { helene: 2 }, text: [
+    `Le soir, quand la Maison est enfin silencieuse, Hélène Varenne reste dans la cuisine. Elle ne rentre pas chez elle. Vous ne lui demandez pas pourquoi. Vous faites du thé, mal, parce que vous ne savez pas faire le thé. Elle le boit quand même.`,
+    `« Elias aussi faisait le thé très mal, dit-elle. Il le laissait infuser une demi-heure, parce qu’il oubliait. Il revenait, il était noir comme de l’encre, il le buvait en faisant la grimace et il disait : “C’est un thé de chercheur.” » Elle sourit. « Lune l’imitait. Elle faisait la grimace avant même de goûter. »`,
+    `La petite clé de cuivre est posée sur la table, entre vous deux. Vous la faites tourner du bout du doigt.`,
+    `« Il jouait de la guitare, dit Hélène. Très mal, aussi. Trois accords. Il chantait faux. Lune disait qu’il chantait comme une porte qui grince, et il grinçait exprès pour la faire rire. » Elle regarde la clé. « Quand elle a commencé le piano, avec Nour, il a arrêté de jouer. Il disait qu’il ne voulait pas lui donner de mauvaises habitudes. Je crois qu’il avait honte d’être moins bon qu’une enfant de six ans. »`,
+    `Elle se tait. Dans l’atelier, un enfant tousse dans son sommeil. Ysolde, ou Odile, ou quelqu’un, se lève et va voir.`,
+    `« Je lui écris tous les ans, dit Hélène. Le 14 mars. Une lettre. Je raconte l’année. Ce que j’ai fait, qui est mort, qui est né, ce que j’ai mangé. Des choses bêtes. Je monte les déposer au sous-sol de l’observatoire, devant la porte du laboratoire, et je redescends sans entrer. Elles y sont encore, en pile. Il ne les a jamais prises. » Elle tourne sa tasse dans ses mains. « Cette année, je vais lui parler de vous. »`,
+    `Vous lui demandez ce qu’elle va dire.`,
+    `Elle réfléchit longtemps.`,
+    `« Que quelqu’un fait du thé aussi mal que lui, dit-elle enfin. Et que ça m’a fait du bien. »`,
+    `Elle se lève, pose sa tasse dans l’évier, prend son manteau. Sur le pas de la porte, elle se retourne.`,
+    `« Vous n’êtes pas obligé d’y aller, dit-elle. À l’observatoire. Je vous ai donné la clé parce que je n’ai pas le courage. Ce n’est pas une raison pour que vous l’ayez à ma place. »`,
+    `Vous gardez la clé dans votre main longtemps après son départ. Elle est tiède. Le cuivre a pris la chaleur de vos doigts, et peut-être aussi, un peu, celle des siens.`
+  ], choices: [{ t: 'Monter à l’observatoire', to: 'c5_1' }] },
+
+  /* ----- Chapitre V → Chapitre VI : Gaspard ----- */
+  i5_1: { ch: 5, bond: { gaspard: 2, helene: 1 }, text: [
+    `Gaspard descend de la colline des Vents trois jours après vous, avec une malle sur roulettes, deux chats et un carnet.`,
+    `Il frappe à la porte de la rue du Four. Il demande s’il est bien chez le Joueur. On lui dit oui. Il ouvre son carnet, vérifie quelque chose, hoche la tête.`,
+    `« J’ai noté que je devais venir ici, dit-il. J’ai noté que c’était important. Je ne sais plus pourquoi, mais j’ai confiance en moi. Enfin, en celui qui a écrit ça. » Il désigne la malle. « Je peux poser ça quelque part ? »`,
+    `Il s’installe dans le grenier, au-dessus de l’atelier. En une journée, il a étiqueté tout ce qui s’y trouve. Les poutres. Les clous. La lucarne. Les chats. Il écrit les noms des gens sur le dos de sa main gauche, à l’encre, et il les relit avant de leur parler. Le soir, il les efface, et le matin il les réécrit, dans le même ordre, en vérifiant dans son carnet.`,
+    `« Ce n’est pas que j’oublie les gens, explique-t-il à Kaël, qui le regarde faire avec fascination. Je les reconnais. Je sais que je les aime bien, ou pas. Mais les noms glissent. Comme du savon. » Il montre sa main. « Alors je les garde là. Le mien aussi, d’ailleurs. » Au bas de la liste, sous « Joueur », « Hélène », « Kaël », il y a « Gaspard (moi) ».`,
+    `Il ne se souvient pas du nom de sa femme. Il se souvient de son rire. Il le décrit parfois, au dîner, sans prévenir, entre deux bouchées.`,
+    `« Elle riait par le nez, dit-il. D’abord par le nez, comme un éternuement, et puis ça partait. Ça faisait peur aux gens dans les théâtres. » Il sourit dans le vide. « J’ai bu l’oubli pour ne plus avoir mal. J’ai oublié son nom. Le rire, il est resté. Je ne sais pas si c’est une punition ou un cadeau. »`,
+    { if: [['truth', '==', true]], t: `Hélène vient dîner ce soir-là. Elle sait, maintenant. Elle a entendu, dans le laboratoire, ce que Nour a compris : la voix du Système est celle de sa fille. Elle mange en silence. Au dessert, elle vous demande, très doucement, s’il vous reste quelque chose à faire pour votre quête du jour. Il vous reste trente flexions. Elle vous demande si vous voulez bien les faire ici, maintenant, dans la cuisine. Vous comprenez pourquoi. Vous les faites. À la trentième, la fenêtre bleue s’ouvre, et vous montez de niveau, et les cinq notes jouent. Vous ne savez pas si Hélène peut les entendre. Elle ferme les yeux quand même, au bon moment. Elle dit : « Merci. » Puis elle rentre chez elle, et elle ne dit pas un mot de plus.` },
+    { if: [['truth', '==', false]], t: `Hélène vient dîner ce soir-là. Elle est allée seule à l’observatoire, le lendemain de la destruction du laboratoire. Elle a ramassé ce qui restait dans une boîte à chaussures : des cendres, des bouts de câble, une vis. Et un morceau de photographie, à moitié brûlé, qu’elle pose sur la table entre les assiettes. On y voit une main d’enfant sur un clavier de piano, et le bord d’une manche d’homme. Le reste a brûlé. Elle ne dit rien. Elle range la photographie dans son registre, entre deux pages, et elle mange sa soupe.` }
+  ], choices: [{ t: 'Sortir dans la rue', to: 'i5_2' }] },
+
+  i5_2: { ch: 5, text: [
+    `Dehors, il neige.`,
+    `C’est la première neige de l’année. Elle tombe à gros flocons, lentement, sans vent. Les enfants de la rue du Four sont sortis en chaussettes. Ils tirent la langue vers le ciel pour attraper les flocons. Ils rient.`,
+    `Puis l’un d’eux s’arrête, la langue encore tirée. Il crache. Il fait la grimace.`,
+    `« Ça a un goût de cheminée », dit-il.`,
+    `Vous tendez la main. Les flocons se posent sur votre paume. Ils ne fondent pas. Ils sont gris pâle, légers, poudreux. Vous les frottez entre vos doigts. Ils laissent une trace noire.`,
+    `Frère Anselme est sur le seuil de son dispensaire, au bout de la rue. Il regarde le ciel. Il ne tend pas la main.`,
+    `« Ce n’est pas de la neige, dit-il quand vous arrivez à sa hauteur. C’est Clairval. C’est Pont-de-l’Est. C’est tout ce qu’il a brûlé depuis quatre ans. Le vent l’a ramené. » Il se signe, lentement. « On respire des villages. »`,
+    `Vous restez avec lui sur le seuil. Les enfants, derrière vous, ont cessé de rire. Une mère les rappelle à l’intérieur. Les portes se ferment une à une. Bientôt, il n’y a plus personne dans la rue que vous deux et la neige grise qui tombe, qui tombe, sans aucun bruit.`,
+    `« Il est sur la cathédrale, dit Anselme. Le Monarque des Cendres. Abel Roch. Tout le monde le sait. Personne n’y monte. » Il vous regarde. « Séraphine non plus. Elle tourne autour depuis trois jours. Elle n’ose pas. »`,
+    `Il rentre. Il vous laisse sur le seuil.`,
+    `Vous marchez jusqu’au fleuve, parce que vous ne savez pas où aller d’autre. La neige grise se pose sur l’eau noire et y disparaît sans un bruit. Au bord du quai, il y a une barque, et dans la barque, un vieil homme, qui vous fait signe.`
+  ], choices: [{ t: 'Aller vers la barque', to: 'c6_1' }] },
+
+  /* ----- Chapitre VI → Chapitre VII : la veille ----- */
+  i6_1: { ch: 6, bond: { zach: 2 }, text: [
+    `La veille de la descente, toute la Maison est dans la cuisine. Personne ne l’a décidé. Chacun est venu, un par un, avec une raison qui n’en est pas une : chercher du sel, rendre un livre, vérifier quelque chose. Personne n’est reparti.`,
+    `Zacharie est là, lui aussi. Le Passeur. Il a amarré sa barque au quai des Pêcheurs et il est monté rue du Four à pied, lentement, avec une canne. Il s’est assis près du poêle, et il fume une pipe qui sent le foin. Personne ne lui a demandé de rester. Il est resté.`,
+    `« J’étais jardinier, là-bas, dit-il au bout d’un moment, à personne en particulier. À l’Hôpital. Trente ans. J’avais planté des lilas sous les fenêtres de l’aile Est. Les enfants les sentaient de leur lit, au printemps. »`,
+    `Il tire sur sa pipe.`,
+    `« Il y avait une petite, à la 14, qui descendait me voir l’après-midi. Elle me posait des questions sur tout. Pourquoi les lilas sont mauves. Pourquoi les vers de terre n’ont pas d’yeux. Elle venait avec un grand garçon en fauteuil roulant, qui portait son sac de musique sur les genoux. Elle l’appelait son porteur. Il ne disait pas grand-chose. Il écoutait les pigeons. »`,
+    `Il se tourne vers vous. Il vous regarde longtemps, la pipe en l’air.`,
+    `« Tu me rappelles quelqu’un, dit-il. Je ne sais pas qui. C’est l’âge. »`,
+    `Puis il se remet à fumer.`,
+    { if: [['abel', '==', 'killed']], t: `Ysolde est assise au bout de la table, immense, voûtée. Elle tient dans ses grandes mains la clé de fer noirci qu’on a trouvée dans la main d’Abel. Elle ne la lâche pas. Théo lui a dit ce que c’était. Elle n’a rien répondu. Séraphine n’est pas là. Elle n’est pas revenue. Personne ne prononce son nom. Sa chaise est vide, au bout de la table, et personne ne s’y assoit, et c’est comme si elle y était.` },
+    { if: [['abel', '==', 'spared']], t: `Dans la pièce du fond, derrière une couverture tendue en guise de porte, Abel Roch dort. Il dort depuis deux jours. Il est maigre comme un clou, brûlé jusqu’aux os, et il dort comme un enfant, la bouche ouverte. Ysolde est assise à côté de lui sur un tabouret trop petit. Elle ne bouge pas. Séraphine fait des allers-retours entre la cuisine et la couverture, toutes les dix minutes, pour vérifier qu’il respire. Vers minuit, il se réveille. Il ouvre les yeux. Il voit Ysolde. Il dit, d’une voix de papier : « Il reste de la soupe ? » Ysolde se lève si vite que le tabouret tombe.` },
+    `Théo est le dernier à arriver. Il a un paquet sous le bras, enveloppé dans un chiffon gras. Il le pose devant vous sur la table, sans un mot, et il va s’asseoir.`,
+    `Vous l’ouvrez. C’est une sangle de cuir et de fer. Un harnais, plutôt : deux bretelles larges, rembourrées, avec des boucles d’acier forgées à la main, et une ceinture qui répartit le poids sur les hanches.`,
+    `« Tu portes mal, dit Théo, bourru. Depuis que je te connais. Tu mets tout sur l’épaule gauche. Ça te tordra le dos. » Il croise son seul bras sur sa poitrine. « Avec ça, tu porteras droit. »`,
+    `Vous ne savez pas quoi dire. Vous mettez le harnais. Il est exactement à votre taille. Théo a dû prendre vos mesures à l’œil, pendant des semaines, en vous regardant porter ses seaux.`,
+    `Personne ne rit. Personne ne dit que c’est un drôle de cadeau, la veille de descendre affronter la Porte au fond du monde. Nour, qui ne voit pas le harnais, demande ce que c’est. Kaël le lui décrit à voix basse. Elle sourit.`,
+    `« C’est le plus beau cadeau qu’on pouvait lui faire », dit-elle.`
+  ], choices: [{ t: 'Monter sur le toit', to: 'i6_2' }] },
+
+  i6_2: { ch: 6, bond: { kael: 1, nour: 2 }, text: [
+    `Vous ne dormez pas. Votre jambe vous fait mal, comme chaque fois qu’il va pleuvoir ou que quelque chose va arriver. Vous montez sur le toit par la lucarne de Gaspard, en enjambant un chat.`,
+    `Kaël est déjà là. Il est toujours là. Il est assis sur le faîte, les genoux sous le menton, et il regarde vers le nord, vers la colline où se dressait l’Hôpital de la Miséricorde. On ne voit rien, la nuit, qu’une tache plus noire que le reste, d’où monte parfois une lueur bleue.`,
+    `Vous vous asseyez à côté de lui.`,
+    `« Demain, on descend là-dedans, dit-il. Je crois que j’y suis déjà allé. Je ne sais pas comment je le sais. » Il serre ses genoux. « J’ai peur. C’est bizarre, non ? Une ombre qui a peur. »`,
+    `Vous lui dites que ce n’est pas bizarre.`,
+    `« Tu as peur, toi ? »`,
+    `Vous dites oui.`,
+    `Il hoche la tête, soulagé. Il vous tend la main, comme ça, sans rien dire. Vous la prenez. Elle est froide. Elle serre fort.`,
+    `« Il y a une petite main, dans ma tête, dit-il. Quelqu’un qui m’a tenu comme ça, une fois. Je ne sais pas qui. Je crois que si je lâche, je ne la retrouverai jamais. » Il ne lâche pas.`,
+    `En bas, dans la cour, une guitare se met à jouer. Nour. Elle ne joue pas la berceuse. Elle joue une chanson que vous ne connaissez pas, lente, en mineur, une chanson de veillée. Puis une voix d’homme la rejoint, grave et fausse : Anselme, qui chante quand il croit que personne n’écoute. Puis une autre, cassée et très douce : Zacharie. Puis une voix de femme, énorme, qui couvre toutes les autres : Ysolde.`,
+    `Toute la Maison chante dans la cour, en bas, dans le noir, sous la neige grise. Faux, pour la plupart. Ensemble.`,
+    `Kaël rit doucement, sur le toit, la main dans la vôtre.`,
+    `« Ils chantent comme une porte qui grince », dit-il. Vous ne savez pas d’où lui vient cette phrase. Lui non plus.`
+  ], choices: [{ t: 'Descendre vers la Miséricorde à l’aube', to: 'c7_1' }] },
+
+  /* ----- Chapitre VII : le couloir ----- */
+  i7_1: { ch: 7, text: [
+    `Derrière les grandes portes, le hall de l’Hôpital de la Miséricorde est intact. C’est le plus terrible. Les fauteuils de la salle d’attente sont alignés. Un journal est resté ouvert sur une table basse, daté du 14 mars de l’An 0. Sur le comptoir de l’accueil, un bouquet de lilas est devenu une poussière mauve dans un vase.`,
+    `Vous traversez le hall. Personne ne parle. Théo marche la main sur la barre de fer, jusqu’au bout, comme on suit une rampe.`,
+    `Au fond du hall, un couloir mène vers l’aile Est. Vous le prenez. Il fait cinquante mètres. Au bout, il n’y a plus de couloir.`,
+    `Il y a le vide.`,
+    `L’aile Est a disparu. À sa place, un trou noir, rond, immense, dont on ne voit pas le fond, et d’où monte un vent tiède qui sent l’éther et le linge mouillé. Le couloir s’arrête net au bord, coupé comme au couteau. Les portes des dernières chambres pendent dans le vide, accrochées à des morceaux de mur.`,
+    `Hélène s’arrête à trois mètres du bord. Elle ne va pas plus loin. Elle regarde l’endroit où était la chambre 14. Il n’y a plus rien. Elle ne pleure pas. Elle sort son registre de sa sacoche et elle le serre contre sa poitrine.`,
+    `Kaël, lui, s’est arrêté devant une porte de service, à gauche, juste avant le vide. Une porte d’ascenseur, à double battant, avec un bouton d’appel en cuivre. Il tend la main. Il appuie sur le bouton, d’un geste machinal, sans réfléchir, comme on l’a fait mille fois. Rien ne se passe. Il regarde son doigt, sur le bouton, longtemps.`,
+    `Vous, vous ne savez pas pourquoi vous êtes allé jusqu’au bord.`,
+    `Il reste, à votre droite, un chambranle. Juste un cadre de porte, accroché au dernier pan de mur, sans porte, sans chambre derrière. Au-dessus, une petite plaque émaillée, bleue, avec un numéro blanc, ébréché. 13.`,
+    `Dans le coin supérieur du chambranle, des pigeons ont fait leur nid. Deux pigeons gris, serrés l’un contre l’autre au-dessus du vide. Ils roucoulent. Ce bruit stupide, ce raclement de gorge, comme quelqu’un qui va parler.`,
+    `Votre jambe gauche vous lâche.`,
+    `Vous tombez à genoux au bord du trou, sans comprendre. Ce n’est pas de la fatigue. C’est une douleur ancienne, profonde, juste au-dessus du genou, une douleur qui vient d’ailleurs et qui pourtant est à vous. Et avec elle, une envie de pleurer si violente, si soudaine, que vous serrez les dents pour ne pas crier.`,
+    `Vous ne savez pas pourquoi. Vous ne savez pas du tout pourquoi.`,
+    `Zacharie, qui est arrivé derrière vous avec sa canne, pose une main sur votre épaule. Il regarde les pigeons. Il regarde le numéro.`,
+    `« Ils sont revenus, dit-il doucement. Ils ne sont jamais vraiment partis. » Il serre votre épaule. « Allez, petit. On descend. C’est par là. »`,
+    `Vous vous relevez. Vous ne vous retournez pas. Mais pendant toute la descente, dans l’escalier de service qui plonge vers le fond de la Faille, vous entendez les pigeons roucouler au-dessus de vous, de plus en plus loin, comme quelqu’un qui se racle la gorge pour dire quelque chose, et qui n’y arrive pas.`
+  ], choices: [{ t: 'Descendre au fond de la Faille', to: 'c7_2' }] }
+}, [
+  ['c4_5', 'c5_1', 'i4_1'],
+  ['c5_5a', 'c6_1', 'i5_1'], ['c5_5b', 'c6_1', 'i5_1'],
+  ['c6_5a', 'c7_1', 'i6_1'], ['c6_5b', 'c7_1', 'i6_1'], ['c6_5c', 'c7_1', 'i6_1'],
+  ['c7_1', 'c7_2', 'i7_1']
+]);
+
+/* ----- Passages étoffés : quelques nœuds trop brefs ----- */
+(function enrich() {
+  const add = (id, paras, at) => { const n = ALL_NODES[id]; if (!n) return; if (at === 'start') n.text.unshift(...paras); else n.text.push(...paras); };
+  add('p4', [
+    `Il avance. Chaque pas fait trembler le ballast. Les rails se tordent sous son poids comme des fils de fer. Derrière vous, la flamme noire de Basile s’est faite toute petite, comme un chien qui se cache derrière les jambes de son maître.`,
+    `Vous pensez aux sacs. Aux trois sacs de l’équipe Delta, abandonnés là-bas, contre le mur, dans le noir. Vous vous dites, absurdement, que quelqu’un devra les remonter.`
+  ]);
+  add('c2_2', [
+    `De près, elle est plus jeune que vous ne l’auriez cru. Maigre, les cheveux coupés court, le manteau roussi par le feu, l’épée longue tenue à deux mains. Ses yeux sont rouges de fumée, ou de larmes. Elle regarde votre ombre, puis vous, et elle attaque sans un mot.`
+  ], 'start');
+  add('c4_4', [
+    `Un vieillard, sur le dos de son fils, vous regarde passer et vous fait le signe de croix, à l’envers, parce qu’il est trop fatigué pour se souvenir dans quel sens on le fait. Une petite fille tend la main pour toucher le bouclier d’Ysolde en passant, comme on touche un mur d’église pour se porter chance.`,
+    `Ysolde ne bouge pas d’un pouce. Elle dit seulement, sans se retourner : « Compte-les, si tu veux. Moi, je ne compte pas. Je tiens. »`
+  ]);
+  add('c5_3', [
+    `C’est le gardien de la balance. Il ne parle pas. Sur un plateau, il pose une plume. Sur l’autre, il attend quelque chose. Votre cœur, peut-être. Ou tout ce que vous avez fait depuis la Faille de la gare. Gaspard recule contre les étagères en serrant sa fiole. « Il pèse les intentions, souffle-t-il. Elias l’avait construit pour trier les volontaires. Personne n’a jamais été assez léger. »`
+  ]);
+  add('c6_3', [
+    `Il descend du toit d’un seul bond. La neige grise s’écarte autour de lui en tourbillon. Il ne tire pas d’épée. Il n’en a pas besoin. Le feu lui sort des mains comme d’autres ont des doigts.`,
+    `Derrière vous, sur le parvis de la cathédrale, la cloche de Sainte-Claire pend dans son clocher, muette depuis dix ans. Le vent du feu la fait osciller. Elle ne sonne pas.`
+  ]);
+})();
+
+/* ==========================================================================
+   TOME I — INTERLUDES (3/3) : la voleuse, le foyer, Clairval, les deux mille
+   ========================================================================== */
+
+addInterlude('I', {
+  /* ----- Après avoir livré la voleuse ----- */
+  i1_0a: { ch: 1, text: [
+    `Vous ne dormez pas bien, cette nuit-là.`,
+    `La médaille est posée sur votre table, à côté du pain que vous n’avez pas mangé. Une petite chose d’étain, ronde, pas plus grande qu’un ongle de pouce. La sainte est presque effacée. On devine une silhouette en robe, une crosse, ou peut-être un ostensoir, et en dessous des lettres que l’usure a rendues illisibles. Quelqu’un l’a frottée pendant des années. Des milliers de fois. Avec le pouce, toujours au même endroit.`,
+    `Vous connaissez ce geste. Vous l’avez déjà vu chez des Chasseurs, dans les Failles, quand ils ont peur : ils touchent quelque chose, une alliance, une photographie, une dent de lait dans un médaillon. Ils frottent. Ils ne le savent même pas.`,
+    `Vous vous dites que la garde lui rendra la médaille à sa sortie. Puis vous vous rappelez qu’elle l’a perdue dans votre escalier, et que la garde ne le sait pas.`,
+    `Au matin, en balayant, vous trouvez sous votre lit un pain. Un pain entier, rond, enveloppé dans un torchon propre, qui a roulé là pendant la bagarre. Ce n’est pas le vôtre. Le vôtre est sur la table. Vous ne comprenez pas.`,
+    `Une voleuse qui entre chez vous avec un pain sous le bras. Vous tournez la chose dans tous les sens. Ça n’a aucun sens.`,
+    `Vous mangez le pain. Il est bon. C’est le meilleur pain que vous ayez mangé depuis des semaines. Vous gardez le torchon. Il y a des initiales brodées dans un coin, à moitié décousues : « S.-C. ». Sainte-Claire. Le torchon d’un couvent.`,
+    `Vous accrochez la médaille à votre col, avec un bout de fil, pour ne pas la perdre à votre tour. Vous vous dites que vous la rendrez. Vous ne savez pas encore que vous la porterez des semaines, et que vous prendrez l’habitude, vous aussi, de la frotter du pouce quand vous aurez peur.`
+  ], choices: [{ t: 'Suivre la rumeur du forgeron manchot', to: 'c1_3' }] },
+
+  /* ----- Après avoir partagé le pain ----- */
+  i1_0b: { ch: 1, bond: { mira: 1 }, text: [
+    `Elle ne part pas tout de suite.`,
+    `Elle reste assise sur votre unique chaise, le couteau sur les genoux, et elle vous regarde. Vous êtes assis sur le lit. Personne ne dit rien. Dehors, sur le rebord de la fenêtre, les pigeons se disputent une miette.`,
+    `« Tu vis comme ça ? » dit-elle enfin.`,
+    `Elle désigne la chambre du menton. Trois pas sur quatre. Le lit, la table, la chaise. Un clou au mur pour la veste. Rien d’autre.`,
+    `Vous dites oui.`,
+    `« Tu n’as rien. Même moi j’ai plus de choses que toi. » Elle compte sur ses doigts. « J’ai une médaille, deux couteaux, une boîte en fer avec des boutons dedans, et un chat qui n’est pas à moi mais qui dort chez moi. » Elle plisse les yeux. « Tu n’as même pas de chat. »`,
+    `Vous n’avez pas de chat.`,
+    `Elle soupire comme quelqu’un devant un cas désespéré.`,
+    `Puis elle se lève, elle va jusqu’à votre placard, celui qu’elle fouillait quand vous êtes entré. Elle l’ouvre. Il est vide, à part un pot de sel et une boîte d’allumettes. Elle le regarde longtemps, la main sur la porte. Vous ne voyez pas son visage. Vous voyez ses épaules, qui se serrent.`,
+    `« Tu manges quand ? demande-t-elle sans se retourner.`,
+    `— Quand on me paie.`,
+    `— Et quand on ne te paie pas ?`,
+    `— Je ne mange pas. »`,
+    `Elle referme le placard. Doucement. Elle a l’air en colère, mais pas contre vous.`,
+    `« Bon », dit-elle.`,
+    `Elle remet son couteau à sa ceinture, enjambe le rebord de la fenêtre, et disparaît sur les toits, sans un bruit, sans dire au revoir. Les pigeons ne s’envolent même pas.`,
+    `Vous ne comprenez ce « bon » que beaucoup plus tard, en trouvant, presque chaque matin, un pain sur le rebord de votre fenêtre.`
+  ], choices: [{ t: 'Aller rue des Cloches', to: 'c1_3' }] },
+
+  /* ----- Après le molosse : le foyer Saint-Roch ----- */
+  i1_4: { ch: 1, text: [
+    `Le foyer d’enfants de la rue Saint-Roch est une grande bâtisse de brique noircie, avec une cour fermée par une grille et un préau où sèche toujours du linge. Vous le connaissez. Vous y avez vécu quatre ans.`,
+    `Vous n’en parlez jamais. Vous n’y pensez presque jamais. Vous y êtes arrivé à quatorze ans, la jambe dans le plâtre, sans nom de famille, sans souvenir de ce qui s’était passé avant. On vous a dit que vous aviez été trouvé dans la rue, après le tremblement de terre. On vous a donné un lit, un casier, un numéro. Vous en êtes reparti à dix-huit ans avec un sac et une lettre de recommandation pour l’Association : « Fort. Docile. Porte bien. »`,
+    `La fillette que Basile a protégée est assise sur les marches, enveloppée dans une couverture. Une femme âgée, en blouse grise, sort en courant du bâtiment, une lampe à la main. Elle prend la fillette dans ses bras. Puis elle lève la lampe vers vous.`,
+    `Elle s’arrête.`,
+    `C’est madame Vidal, la surveillante. Elle a vieilli. Elle a les cheveux tout blancs maintenant, et des lunettes plus épaisses. Elle vous regarde longtemps, la lampe tendue.`,
+    `« Le grand, dit-elle. Le grand qui portait les cartables. »`,
+    `Vous ne savez pas quoi répondre. Elle vous reconnaît. Personne ne vous reconnaît jamais.`,
+    `« Tu portais les cartables des petits jusqu’à l’école, tous les matins, dit-elle. Personne ne te l’avait demandé. Tu avais encore ta béquille, au début, et tu en portais trois. Un sur le dos, deux à la main. On te disait de t’arrêter. Tu ne t’arrêtais pas. » Elle secoue la tête. « Tu ne parlais presque pas. Tu ne pleurais jamais. Tu portais. »`,
+    `Elle pose la fillette par terre, qui court rejoindre les autres enfants sous le préau. Madame Vidal s’approche. Elle vous touche le bras, comme pour vérifier que vous êtes vrai.`,
+    `« On s’est souvent demandé d’où tu venais, dit-elle. Ta pension était payée. Quatre ans d’avance, d’un coup, le premier jour. Un donateur anonyme. Ça n’arrivait jamais. Les autres enfants disaient que tu étais le fils d’un prince. » Elle sourit. « Moi, je pensais que quelqu’un te devait quelque chose. »`,
+    `Elle vous regarde la jambe.`,
+    `« Tu boites encore un peu. »`,
+    `Vous dites que oui, quand il pleut.`,
+    `« Tu sais, je t’ai gardé ton casier. Le 13. Personne n’en voulait, les enfants disaient que ça portait malheur. Il y a encore tes affaires dedans. Pas grand-chose. » Elle hésite. « Tu veux les voir ? »`,
+    `Vous montez avec elle. Le casier 13 est au fond du dortoir des grands, à côté de la fenêtre. Elle l’ouvre avec un passe. Dedans, il y a une chemise trop petite, une paire de chaussettes, une béquille en bois avec un embout de caoutchouc usé. Et un dessin, punaisé à l’intérieur de la porte, que vous ne vous souvenez pas d’avoir fait.`,
+    `Un sac. Juste un sac, dessiné au crayon, avec une poignée en corde. Colorié en bleu. Encore et encore, d’une main d’adolescent, si fort que le papier est troué par endroits.`,
+    `En dessous, d’une écriture que vous reconnaissez comme la vôtre, plus jeune, plus appliquée : « À rendre. »`,
+    `Vous ne savez pas ce que ça veut dire. Vous restez longtemps devant le casier ouvert. Madame Vidal ne dit rien. Elle attend.`,
+    `Vous prenez le dessin. Vous le pliez en quatre. Vous le mettez dans votre poche. Vous laissez la béquille.`
+  ], choices: [{ t: 'Déposer le rapport à l’Association', to: 'c1_5' }] },
+
+  /* ----- Après la promesse à Séraphine ----- */
+  i2_0: { ch: 2, bond: { sera: 1 }, text: [
+    `Avant de quitter Clairval, Séraphine veut enterrer les morts.`,
+    `Il n’y en a presque pas. Le feu noir du Monarque ne laisse pas de corps : il laisse des ombres debout, des silhouettes de cendre qui marchent encore, et qu’elle a passé la journée à abattre. Il ne reste que quelques objets. Une boucle de ceinture. Une paire de lunettes. Un sabot d’enfant, en bois, à moitié carbonisé.`,
+    `Elle creuse un trou au pied de l’église, avec une pelle qu’elle a trouvée dans une grange. Elle y dépose les objets, un par un, avec soin. Elle ne vous demande pas d’aider. Vous prenez une deuxième pelle.`,
+    `Vous creusez ensemble, en silence, jusqu’à la nuit.`,
+    `Quand c’est fini, elle plante son épée dans la terre, devant le trou rebouché. Elle s’agenouille. Elle ne prie pas. Elle reste là, simplement, les mains sur les cuisses, à regarder la terre.`,
+    `« Il était comme ça, avant, dit-elle au bout d’un moment. Abel. Quand un oiseau mourait dans la cour, il l’enterrait. Il faisait une croix avec deux bâtons. Il disait une phrase, toujours la même. »`,
+    `Elle se tait. Vous attendez.`,
+    `« “Tu as bien volé”, dit-elle. C’est tout. Il disait ça aux oiseaux morts. Tu as bien volé. » Elle passe le pouce sur la garde de son épée. « Et maintenant, c’est lui qui fait les morts. Et il n’y a personne pour leur dire qu’ils ont bien vécu. »`,
+    `Elle se relève. Elle arrache son épée de la terre et l’essuie sur sa manche.`,
+    `« Dis-le, toi, demande-t-elle soudain. Moi je ne peux pas. Ça me reste dans la gorge. »`,
+    `Vous regardez la terre fraîche, le sabot d’enfant qu’on ne voit plus, les lunettes, la boucle de ceinture. Vous ne connaissiez personne ici. Vous dites quand même, à voix basse, la seule phrase qu’on vous ait jamais apprise pour les morts. Celle de votre grand-mère. La vallée, l’ombre, ne craindre aucun mal. Vous ne vous souvenez pas de la suite.`,
+    `Séraphine vous regarde. Elle ne dit rien. Mais quand vous reprenez la route, le lendemain, elle marche à côté de vous, et plus devant.`
+  ], choices: [{ t: 'Ramener les réfugiés vers Vespérane', to: 'c2_4' }] },
+
+  /* ----- Après le piège du Pont-de-l’Est ----- */
+  i4_0: { ch: 4, text: [
+    `Le lendemain matin, vous allez voir.`,
+    `Personne ne vous en empêche. Les gardes de l’Association, aux barrières, vous laissent passer avec un salut. Vous êtes le Joueur. C’est vous qui avez fait basculer la décision. Ils vous remercient. L’un d’eux vous serre la main en pleurant.`,
+    `Le Pont-de-l’Est est toujours là. C’est le quartier derrière qui n’y est plus.`,
+    `Le sceau de Faille a refermé la zone comme un couvercle. Il reste une plaine de verre noir, lisse, encore tiède, à perte de vue, à l’endroit où il y avait des rues, un marché couvert, une école, une église à clocher carré. Rien ne dépasse. Le verre est si lisse que le ciel s’y reflète, et vous avez l’impression de marcher au bord d’un lac gelé.`,
+    `Au bord du verre, une femme est assise sur une valise. Elle regarde le lac noir. Elle ne pleure pas. Elle vous voit approcher, elle reconnaît votre visage, celui de l’affiche que l’Association a déjà collée sur les murs : « Le Joueur. Merci. »`,
+    `« Ma mère n’a pas voulu partir, dit-elle simplement. Elle avait quatre-vingt-sept ans. Elle a dit qu’elle était née dans cette maison et qu’elle y mourrait. Je l’ai laissée. Je me suis dit que si les autres partaient, elle finirait par suivre. » Elle lève les yeux vers vous. « Elle faisait partie des deux mille ? »`,
+    `Vous ne savez pas. Personne n’a fait la liste. C’est un nombre. Il n’y a pas de noms.`,
+    `Vous le lui dites. Elle hoche la tête, comme si elle s’y attendait.`,
+    `« Alors je vais vous le donner, dit-elle. Le nom. Pour que quelqu’un l’ait. »`,
+    `Elle vous le dit. Vous le répétez. Elle vous fait le répéter une deuxième fois, pour être sûre.`,
+    `Le soir, vous allez aux Archives. Hélène est là. Vous lui donnez le nom. Elle ne vous demande pas d’où il vient. Elle ouvre un registre neuf, à couverture noire, sur lequel elle a écrit à la main : « Pont-de-l’Est ». Elle écrit le nom à la première ligne. Une seule ligne, sur une page blanche, sur un registre de deux cents pages.`,
+    `« Il en manque mille neuf cent quatre-vingt-dix-neuf, dit-elle sans lever les yeux. Ça prendra le temps que ça prendra. »`,
+    `Yanis Okoro est assis au fond de la salle des Archives. Vous ne l’aviez pas vu. Il a assisté à toute la scène. Il se lève, il passe derrière Hélène, il regarde la page avec son unique nom.`,
+    `Il ne dit rien. Il sort son portefeuille, en tire une feuille pliée, très usée, qu’il déplie à moitié. Une liste. Longue. Vous apercevez le mot « Miséricorde » en haut. Il la regarde, puis il regarde le registre noir, puis il replie sa liste et la remet dans son portefeuille, contre sa poitrine.`,
+    `Il sort sans un mot. Hélène continue d’écrire, comme si de rien n’était, et c’est seulement quand la porte se referme qu’elle pose sa plume et qu’elle dit, très bas : « Il la porte toujours sur lui, vous savez. Depuis dix ans. Il ne l’a jamais montrée à personne. »`
+  ], choices: [{ t: 'Ne pas dormir', to: 'c4_5' }] }
+}, [
+  ['c1_2a', 'c1_3', 'i1_0a'],
+  ['c1_2b', 'c1_3', 'i1_0b'],
+  ['c1_4', 'c1_5', 'i1_4'],
+  ['c2_3', 'c2_4', 'i2_0'],
+  ['c4_3a', 'c4_5', 'i4_0']
+]);
+
+/* ----- Fins étoffées : un épilogue de plus pour chacune ----- */
+(function enrichEndings() {
+  const add = (id, paras) => { const n = ALL_NODES[id]; if (n) n.text.push(...paras); };
+  add('end_A', [
+    `Vous avez un bureau, maintenant, tout en haut de l’Association. Une grande fenêtre sur la ville. Vous voyez tout : chaque Faille, chaque Chasseur, chaque ombre. Le Système vous montre les chiffres en temps réel. Les rangs montent, les pertes baissent. Tout est conforme.`,
+    `Un soir, en traversant le hall, vous croisez une vieille femme qui porte un panier de linge. Madame Rolande. Elle vous regarde passer, avec votre escorte, votre manteau d’administrateur. Elle ne vous reconnaît pas. Ou elle fait semblant. Elle dit seulement, à la jeune fille qui l’accompagne : « Il y a de la soupe sur le poêle, tu sais. Pour qui veut. »`,
+    `Vous ne vous arrêtez pas. Vous n’en avez plus besoin. Vous ne mangez plus. Le Système s’en charge.`
+  ]);
+  add('end_B', [
+    `Parfois, au fond du monde, vous croyez entendre un sifflement, très loin, dans la direction où devrait se trouver Haute-Brume. Deux doigts dans la bouche, une petite fille sur un rocher. Abel l’entend aussi. Il tourne la tête. Il ne siffle pas en retour.`,
+    `« Elle va bien », dit-il. Il ne sait pas si c’est vrai. Il le dit pour pouvoir continuer à brûler.`
+  ]);
+  add('end_C', [
+    `Des années plus tard, un voyageur raconte qu’il y a, au bord de la route de Haute-Brume, sur un rocher plat au-dessus du vide, une épée plantée dans la pierre. Le vent la fait chanter les soirs d’orage. Les enfants du village disent que c’est une femme qui siffle, pour qu’un garçon la retrouve.`
+  ]);
+  add('end_D', [
+    `Dans les ruines, plus tard, on retrouve votre nom gravé sur une plaque, à l’entrée de la Faille de la Miséricorde : « Ici, le Joueur a ouvert la Porte. » Quelqu’un l’a rayé au couteau. En dessous, d’une écriture de vieille femme, au crayon, presque effacée, il y a trois cent douze noms. Et la place pour d’autres.`
+  ]);
+  add('end_E', [
+    `Le premier mardi après votre retour, vous descendez au quai des Pêcheurs, par habitude. La barque bleue est tirée sur les galets. Marthe Ternaux étend son linge. Paul répare un filet. Vous restez derrière la barrière, longtemps. Il n’y a plus d’ombre à côté de vous pour regarder la maison avec vous.`,
+    `Paul lève la tête. Il vous voit. Il ne sait pas qui vous êtes. Il vous fait un petit signe poli, comme on salue un inconnu.`,
+    `Vous lui rendez son signe. Vous repartez. Vous avez gagné. Le Système vous l’a dit.`
+  ]);
+  add('end_F', [
+    `Il y a, rue du Four, au-dessus de la blanchisserie, une chambre sous les toits que madame Rolande refuse de relouer. Elle y monte chaque matin. Elle ouvre la fenêtre pour les pigeons. Elle pose sur le rebord un bol de soupe, qu’elle redescend le soir, plein. Elle dit qu’elle continuera jusqu’à ce que le bol soit vide.`,
+    `Kaël vient s’asseoir sur le toit, la nuit. Il ne dort pas. Il regarde vers le nord. Il fait parfois la grimace du poisson, tout seul, à personne, et il ne sait toujours pas pourquoi.`
+  ]);
+  add('end_G', [
+    `Il y a, dans un tiroir de la cuisine de madame Rolande, un harnais de cuir et de fer, aux boucles forgées à la main, que personne ne se souvient d’avoir commandé. Il est à votre taille. Vous le trouvez par hasard, en cherchant une ficelle. Vous l’essayez. Il vous va parfaitement. Vous ne savez pas pourquoi vous avez envie de pleurer.`,
+    `Vous le remettez dans le tiroir. Le soir, vous montez porter les paniers de linge de madame Rolande jusqu’au lavoir, comme d’habitude. Vous les portez droit. Vous ne savez pas qui vous a appris.`
+  ]);
+  add('end_H', [
+    `Les autres viennent parfois avec elle. Pas tous les soirs. Nour, le mardi, avec sa guitare : elle joue les cinq notes devant le miroir, et elle s’arrête au même endroit, et elle attend. Kaël, souvent, qui s’assoit par terre à côté du tabouret et qui écoute les noms en hochant la tête, comme s’il en reconnaissait certains. Vous, le dimanche.`,
+    `Une nuit, au bout de la liste, après le trois cent douzième nom et celui d’Elias, Hélène s’arrête. Elle tourne la tête vers vous. Elle vous regarde longtemps, à la lumière de la lampe, comme si elle venait de remarquer quelque chose.`,
+    `« Il y avait trois cent treize lits, ce matin-là, dit-elle. Je l’ai toujours su. Je ne l’ai jamais compris. » Puis elle referme son registre, et elle ne dit plus rien.`
+  ]);
+  add('end_I', [
+    `Le lendemain, madame Rolande monte frapper à votre porte, rue du Four, avec un bol de soupe. Personne ne répond. Elle pose le bol sur le palier. Le surlendemain, elle remonte. Le bol est toujours là. Elle en pose un autre à côté.`,
+    `Au bout d’une semaine, elle s’assoit sur la marche, devant la porte, entre sept bols de soupe froide, et elle pleure un garçon dont elle ne connaissait que le pas dans l’escalier et la façon de fredonner cinq notes qui ne finissaient jamais.`
+  ]);
+  add('end_J', [
+    `Il reste, dans les Murmures, un seul endroit où le Système ne voit rien. Un coin de galerie, derrière une colonne, où une femme aveugle chantait autrefois. Les ombres conformes passent devant sans s’arrêter. Mais certaines, très rarement, ralentissent. Une fraction de seconde. Comme si elles entendaient quelque chose.`,
+    `Le Système note : « Anomalie mineure. Origine : inconnue. » Vous la corrigez. Elle revient. Vous la corrigez encore.`
+  ]);
+  add('end_K', [
+    `Une nuit, dans le désert, vous faites une pompe. Puis une deuxième. Personne ne regarde. Vous continuez jusqu’à cent. Le Système joue ses cinq notes. Vous les fredonnez, seul, sous les étoiles, et pour la première fois depuis Vespérane, vous vous demandez qui vous les a apprises.`,
+    `Il n’y a personne pour vous répondre. Vous rebroussez chemin le lendemain matin. Le désert est grand. La route du retour sera longue. Mais quelqu’un, peut-être, a laissé de la soupe sur un poêle.`
+  ]);
+  add('end_L', [
+    `Le premier soir du printemps, toute la Maison mange dans la cour de la blanchisserie, sur des tréteaux, sous les draps qui sèchent. Madame Rolande a fait trop de soupe. Odile a fait trop de pain, et elle ne l’a pas compté. Zacharie fume sa pipe au foin. Kaël fait la grimace du poisson aux enfants. Nour joue faux, exprès. Théo grogne. Hélène écrit dans son registre bleu, celui de ceux qui reviennent.`,
+    `Vous la voyez écrire votre nom. Vous ne voyez pas ce qu’elle écrit à côté. Elle referme le registre avant que vous puissiez lire, avec un petit sourire.`,
+    `Plus tard, quand tout le monde est parti se coucher, vous restez seul dans la cour, à ramasser les assiettes. Vous les portez à la cuisine, trois par trois, droit, avec le harnais de Théo. Personne ne vous l’a demandé.`,
+    `Sur le rebord de votre fenêtre, là-haut, les pigeons roucoulent dans le noir. Ce bruit stupide, ce raclement de gorge. Comme quelqu’un qui va enfin dire quelque chose.`
+  ]);
+})();
+
+/* ==========================================================================
+   TOME I — INTERLUDES (4) : la barque, les petites lumières
+   ========================================================================== */
+
+addInterlude('I', {
+  i6_0: { ch: 6, bond: { zach: 1 }, text: [
+    `Zacharie ne vous fait pas traverser. Il vous fait asseoir dans la barque, amarrée au quai, et il rame sur place, doucement, pour que la barque ne dérive pas. La neige grise tombe sur l’eau noire.`,
+    `« Les gens croient que je fais traverser les morts, dit-il. C’est faux. Je fais traverser ceux qui veulent partir. Ce n’est pas pareil. Il y a des vivants qui veulent partir, et des morts qui veulent rester. » Il tire sur sa rame. « Les seconds sont les plus nombreux. »`,
+    `Il sort de sa poche un carnet de toile cirée, tout gondolé par l’eau. Il le feuillette pour vous. C’est une liste. Une ligne par an. Des chiffres minuscules. Zéro. Un. Zéro. Zéro. Deux.`,
+    `« Dix ans, dit-il. Huit passagers. Dont un vieux chien, je crois. » Il sourit. « Le Système les retient. Les gens les retiennent. Tout le monde retient tout le monde. On aime mal, dans cette ville. On aime en serrant le poing. »`,
+    `Il range le carnet. Il regarde la cathédrale, de l’autre côté du fleuve, où le feu du Monarque dessine une couronne sur le toit.`,
+    `« Lui aussi, il serre le poing, dit-il. Depuis qu’il est tout petit. Je l’ai connu, tu sais. Il venait à l’Hôpital avec sa sœur, une fois, pour une vaccination. Il tenait la main de la petite si fort qu’elle pleurait. Elle ne voulait pas qu’il la lâche quand même. » Il hoche la tête. « C’est ça, le problème avec les gens qui ont tout perdu une fois. Ils tiennent trop fort. Après, ils ne savent plus lâcher. Même ce qui brûle. »`,
+    `Il cesse de ramer. La barque s’immobilise.`,
+    `« Le dessin que je t’ai donné, dit-il. Celui de la petite. Regarde-le, en haut. »`,
+    `Vous le dépliez. Un vieil homme dans une barque, un soleil plus grand que le ciel, et dans le coin, une signature d’enfant : LUNE, avec un N à l’envers. Vous ne voyez rien d’autre. Il pose son doigt calleux sur un détail que vous n’aviez pas remarqué. Sur la rive, minuscule, à côté du soleil, il y a deux silhouettes. Une petite, avec des couettes. Une grande, assise, avec quelque chose de bleu sur les genoux.`,
+    `« Elle m’avait dit que c’était elle et son porteur, dit Zacharie. Qu’un jour, ils viendraient faire un tour en barque, tous les deux. Elle m’avait fait promettre de garder deux places. » Il regarde la barque presque vide. « Je les garde toujours. »`,
+    `Il vous ramène au quai d’un coup de rame.`,
+    `« Va, dit-il. Il t’attend. Et si tu peux, essaie de lui ouvrir la main. »`,
+    { if: [['seraLeft', '!=', true]], t: `Au pied de la cathédrale, Séraphine vous attend. Elle n’a pas dégainé. Elle regarde l’escalier du clocher, qui monte en spirale dans la neige grise. « Trois jours que je tourne autour, dit-elle. Je n’arrive pas à monter la première marche. » Vous montez la première. Elle monte la deuxième. Vous montez ensemble les deux cent quatorze autres, sans parler, et à mi-hauteur, en passant devant la cloche muette de Sainte-Claire, elle pose la main sur le bronze froid, une seconde, comme on touche l’épaule de quelqu’un avant d’entrer dans une chambre d’hôpital.` }
+  ], choices: [{ t: 'Monter sur le toit de la cathédrale', to: 'c6_2' }] },
+
+  i7_2: { ch: 7, text: [
+    `Les petites lumières ne partent pas.`,
+    `Elles flottent autour de vous, par milliers, dans le noir du fond de la Faille. Elles ont la taille d’une flamme de bougie. Elles ne font aucun bruit. Elles tournent lentement, comme de la poussière dans un rayon de soleil. Elles ne savent pas où aller.`,
+    `Nour s’arrête. Elle tend les mains devant elle, paumes ouvertes. Les lumières viennent s’y poser, une, deux, dix, comme des oiseaux sur une branche.`,
+    `« Elles sont tièdes, dit-elle. Je ne les vois pas, mais elles sont tièdes. » Elle sourit. « Ce sont des gens. Des centaines de gens. Ils ne savent pas qu’ils ont le droit de partir. Personne ne le leur a dit. »`,
+    `Une des lumières se détache du nuage et vient vers vous. Elle s’arrête devant votre visage. Elle hésite. Puis elle se pose sur votre joue, une seconde, à peine, comme une main d’enfant qui vérifie si vous avez de la fièvre.`,
+    `Puis elle repart. Elle remonte, toute seule, vers le haut de la Faille, vers la lumière lointaine du jour, et elle disparaît.`,
+    `Les autres la regardent partir. Puis une deuxième la suit. Puis dix. Puis cent. Elles montent en spirale, lentement, comme les étincelles d’un feu de camp dans la nuit, et elles disparaissent l’une après l’autre dans le noir au-dessus de vous.`,
+    `Il en reste quelques-unes. Elles ne veulent pas partir. Elles tournent autour de la Porte, là-bas, au fond, comme des papillons autour d’une lampe.`,
+    { if: I_SHADOW, t: `L’ombre de Basile s’est arrêtée à côté de vous. Elle regarde les lumières monter. Pour la première fois depuis la Faille de la gare, elle fait un geste sans que vous le lui ayez ordonné : elle lève la main, très lentement, vers le haut. Puis elle la baisse. Elle se remet derrière vous, à sa place. Vous l’avez vu. Vous ne dites rien. Vous vous en souviendrez.` },
+    { if: I_LETTER, t: `Vous pensez à Basile, sur le ballast de la gare, les yeux fermés, votre veste sous la tête. Vous espérez, sans savoir pourquoi, qu’une de ces lumières était la sienne, et qu’elle est passée par le quai des Pêcheurs en remontant, un mardi.` },
+    `Zacharie, appuyé sur sa canne, regarde monter les dernières.`,
+    `« Huit en dix ans, dit-il. Et là, deux mille en deux minutes. » Il secoue la tête. « Il suffisait de casser la cage. »`,
+    `Devant vous, au fond, la Porte chante.`
+  ], choices: [{ t: 'Avancer vers la Porte', to: 'c7_3' }] }
+}, [
+  ['c6_1', 'c6_2', 'i6_0'],
+  ['c7_2', 'c7_3', 'i7_2']
+]);
+
+/* ==========================================================================
    TOME II — « Le Pain de chaque jour » (Monarque des Crocs, clé I)
    Chapitres 1 à 4
    ========================================================================== */
@@ -2576,6 +3102,480 @@ registerTome({
 });
 
 /* ==========================================================================
+   TOME V — MILLE VISAGES (première moitié : chapitres I à IV)
+   Monarque des Murmures · clé IV · préfixe de nœuds « e » · archives E
+   ========================================================================== */
+
+const T5_CHAPTERS = [
+  { n: 0, title: 'Chapitre I — Les visages de porcelaine', level: 22, start: 'e1_1', verse: 'Elles ont une bouche et ne parlent point, elles ont des yeux et ne voient point.', ref: 'Psaume 115:5' },
+  { n: 1, title: 'Chapitre II — Inès', level: 23, start: 'e2_1', verse: 'Car mon père et ma mère m’abandonnent, mais l’Éternel me recueillera.', ref: 'Psaume 27:10' },
+  { n: 2, title: 'Chapitre III — L’agent M.', level: 24, start: 'e3_1', verse: 'Les blessures d’un ami prouvent sa fidélité, mais les baisers d’un ennemi sont trompeurs.', ref: 'Proverbes 27:6' },
+  { n: 3, title: 'Chapitre IV — La voix de l’étranger', level: 25, start: 'e4_1', verse: 'Elles ne suivront point un étranger ; mais elles fuiront loin de lui, parce qu’elles ne connaissent pas la voix des étrangers.', ref: 'Jean 10:5' },
+  { n: 4, title: 'Chapitre V — La première', level: 26, start: 'e5_1', verse: 'Et maintenant, est-ce la faveur des hommes que je désire, ou celle de Dieu ? Ou bien, est-ce que je cherche à plaire aux hommes ? Si je plaisais encore aux hommes, je ne serais pas serviteur de Christ.', ref: 'Galates 1:10' },
+  { n: 5, title: 'Chapitre VI — Je t’appelle par ton nom', level: 27, start: 'e6_1', verse: 'Ne crains rien, car je te rachète, je t’appelle par ton nom : tu es à moi !', ref: 'Ésaïe 43:1' },
+  { n: 6, title: 'Chapitre VII — Le caillou blanc', level: 28, start: 'e7_1', verse: 'Je lui donnerai un caillou blanc ; et sur ce caillou est écrit un nom nouveau, que personne ne connaît, si ce n’est celui qui le reçoit.', ref: 'Apocalypse 2:17' },
+  { n: 7, title: 'Chapitre VIII — Les chutes', level: 29, start: 'e8_1', verse: 'Alors notre bouche était remplie de cris de joie, et notre langue de chants d’allégresse.', ref: 'Psaume 126:2' }
+];
+
+const T5_ENDINGS = {
+  A: { title: 'Face à face', verse: 'Aujourd’hui nous voyons au moyen d’un miroir, d’une manière obscure, mais alors nous verrons face à face ; aujourd’hui je connais en partie, mais alors je connaîtrai comme j’ai été connu.', ref: '1 Corinthiens 13:12' },
+  B: { title: 'Le Silence', verse: 'Un temps pour déchirer, et un temps pour coudre ; un temps pour se taire, et un temps pour parler.', ref: 'Ecclésiaste 3:7' },
+  C: { title: 'Le Rapport', verse: 'Ce n’est pas un ennemi qui m’outrage, je le supporterais ; ce n’est pas mon adversaire qui s’élève contre moi, je me cacherais devant lui.', ref: 'Psaume 55:13' },
+  D: { title: 'Le Masque', verse: 'Et cela n’est pas étonnant, puisque Satan lui-même se déguise en ange de lumière.', ref: '2 Corinthiens 11:14' }
+};
+
+/* Mira avait-elle quitté la Maison au Tome I ? Le premier soir, l’avait-on livrée ? */
+const T5_MIRA_BACK = [['I.miraLeft', '==', true]];
+const T5_DELIVERED = [['I.medal', '==', 'you']];
+const T5_NOT_DELIVERED = [['I.medal', '!=', 'you']];
+
+const T5_NODES = {
+  /* ---------------------------- CHAPITRE I ---------------------------- */
+  e1_1: { ch: 0, unlock: ['nour'], text: [
+    `Nour vous attend devant votre porte un matin d’octobre, assise sur la marche, sa guitare dans son étui. Elle n’a pas frappé. Elle ne frappe jamais. Elle dit qu’elle entend quand quelqu’un est réveillé à l’intérieur.`,
+    `« Les Murmures se sont tus », dit-elle.`,
+    `Vous ne comprenez pas tout de suite. Les Murmures n’ont jamais fait de bruit. C’est leur nom qui en fait.`,
+    `« Pas pour moi, dit-elle. Pour moi, ils respiraient. Depuis dix ans, je descends le soir et je les entends : un souffle court, un autre plus long, comme des gens qui retiennent leurs larmes. Je chante, et ils se calment. » Elle tourne vers vous ses yeux blancs. « Depuis trois semaines, je n’entends plus rien. Ils sont toujours là. Ils marchent. Ils parlent, même. Mais ils ne respirent plus. »`,
+    `Hélène arrive pendant que Nour parle, un dossier sous le bras. Elle a le visage de quelqu’un qui a compté quelque chose et n’aime pas le résultat.`,
+    `« Le 14 mars, comme chaque année, j’ai invité les familles des 312 à la chapelle de l’Association, dit-elle. Pour lire les noms. D’habitude, ils viennent presque tous. Cette année, il en manquait quarante et une. »`,
+    `Elle ouvre le dossier. Des lettres d’excuse, polies, presque joyeuses.`,
+    `« Ne m’en voulez pas, madame Varenne, ce dimanche j’étais avec lui. » « Nous ne viendrons plus, il n’a plus besoin qu’on lise son nom, il est revenu. » « Maman va très bien, je l’ai vue hier, elle m’a dit qu’elle était fière de moi. »`,
+    `« Ils descendent, dit Hélène. Le dimanche. Dans les galeries, sous la vieille ville. Ils disent qu’on y voit les morts. Avec leur visage. » Elle referme le dossier. « Ma fille fait partie des 312. Personne ne m’a invitée. »`,
+    { if: T5_MIRA_BACK, t: `Ce soir-là, quelqu’un frappe trois coups secs à votre fenêtre. Mira. Elle était partie depuis des mois, sans un mot, le jour où vous aviez accepté le plan de Yanis. Elle est assise sur le rebord, trempée, comme si elle n’était jamais partie. « J’ai entendu parler des visages, dit-elle. Je descends avec vous. Ne pose pas de questions. Pas encore. »` }
+  ], choices: [{ t: 'Descendre dans les Murmures avec Nour et Kaël', to: 'e1_2' }] },
+
+  e1_2: { ch: 0, reward: 1600, archive: ['E01'], text: [
+    `La grande salle des Murmures, celle où Nour chantait, a changé.`,
+    `Quelqu’un y a construit un théâtre. Des gradins de bois, montés à la main contre la roche. Une rampe de lumières, de vieilles lampes à huile alignées au bord d’une estrade. Et un rideau. Un grand rideau de velours rouge, usé, brûlé dans un coin, qui vient visiblement d’un vrai théâtre, quelque part au-dessus.`,
+    `Les gradins sont pleins. Des vivants. Des hommes en manteau du dimanche, des vieilles femmes avec des paniers, une famille entière avec un pique-nique. Et à côté de chaque vivant, une ombre.`,
+    `Les ombres ont des visages.`,
+    `Des visages de porcelaine, lisses, blancs, peints à la main, parfaits. Des visages de morts. Un vieil homme moustachu. Un enfant aux joues roses. Une jeune femme avec un grain de beauté sur la lèvre. Les masques bougent quand les ombres parlent. Ils sourient. Ils clignent des yeux.`,
+    `Une femme âgée, au premier rang, tient la main d’une ombre au masque d’homme moustachu. L’ombre lui dit, d’une voix douce : « Je t’aime, Germaine. Tu es la plus belle. Je ne t’ai jamais assez remerciée. »`,
+    `Germaine se tourne vers vous, rayonnante. « Il ne me l’a jamais dit, dit-elle. Quarante ans de mariage. Jamais. Maintenant, il me le dit tout le temps. »`,
+    `Nour s’est arrêtée en haut des gradins. Elle a posé la main sur la roche. Elle écoute.`,
+    `« C’est pire que ce que je croyais, dit-elle à voix basse. Ils ne parlent pas. On parle à travers eux. Chaque masque dit exactement ce que la personne en face veut entendre. Rien d’autre. Jamais rien d’autre. »`,
+    `Kaël, à côté de vous, ne dit rien. Il regarde les masques avec une fascination horrible. Il porte la main à la moitié de son visage qui manque.`,
+    `Vous descendez les gradins. Vous vous approchez du premier rang. Vous tendez la main vers le masque du moustachu, pour voir ce qu’il y a dessous.`,
+    `Le moustachu se tourne vers vous. Son sourire ne bouge pas. Et tout autour de la salle, cent masques de porcelaine se tournent vers vous en même temps, avec le même sourire.`,
+    { sys: 'Ennemis détectés : Masques de porcelaine.\nPorteurs : ombres sans maître.\nRemarque : chaque masque est aimé. Le Système ne trouve pas cela suspect.' }
+  ], combat: { name: 'Les Masques de porcelaine', power: 190, weak: 'str', resist: 'int', foe: 'masque_porcelaine',
+    win: `Ils se battent comme des acteurs : de beaux gestes, de grands mouvements, et rien derrière. Chaque fois qu’un masque se fend, la voix qui sortait de lui s’arrête au milieu d’une phrase gentille. « Tu es la plus… » « Je suis si fier de… » Le silence qui suit est terrible, parce que c’est le premier silence vrai que la salle entend depuis des semaines.` },
+  after: [
+    `Le masque du moustachu est tombé sur les gradins. Il s’est fendu en deux. L’ombre qui le portait est restée debout, sans visage, un peu voûtée, les mains ouvertes.`,
+    `Germaine hurle. Elle ramasse les deux moitiés et essaie de les recoller avec ses doigts.`,
+    `Et Nour, en haut des gradins, dit doucement : « Écoutez. »`,
+    `L’ombre sans masque respire. Un souffle court. Un autre plus long.`
+  ], choices: [{ t: 'Écouter', to: 'e1_3' }] },
+
+  e1_3: { ch: 0, text: [
+    `Germaine ne vous regarde plus. Elle serre contre elle les deux morceaux de porcelaine. L’ombre de son mari, sans visage, s’assoit à côté d’elle sur le gradin, maladroitement, comme un vieil homme qui a mal au dos. Elle ne la regarde pas non plus.`,
+    `Puis, très lentement, l’ombre lève une main et la pose sur le genou de Germaine. Elle ne dit rien. Une ombre sans visage ne peut rien dire.`,
+    `Germaine baisse les yeux sur cette main. Elle la regarde longtemps.`,
+    `« Il faisait ça au cinéma, dit-elle enfin, la voix cassée. Quand il ne savait pas quoi dire. Il mettait la main sur mon genou et il la laissait là jusqu’à la fin du film. Quarante ans. » Elle pleure. « Je l’avais oublié. Le masque, il ne faisait jamais ça. Le masque, il parlait. »`,
+    `Les autres familles se sont levées. Elles vous regardent avec des yeux de gens qu’on réveille au milieu d’un beau rêve. Certaines avec haine. Beaucoup avec haine. Les masques ont reculé dans l’ombre des gradins, en souriant toujours.`,
+    `Vous remontez vers la sortie. Au milieu des gradins, quelqu’un vous effleure l’épaule. Vous vous retournez. Il n’y a personne.`,
+    `Et une voix, tout près de votre oreille, une voix de vieille femme, douce, un peu essoufflée, que vous n’avez entendue que dans la bouche d’un corbeau à Saint-Roch :`,
+    `« Mon petit. Tu as tellement grandi. Viens me voir dimanche. J’ouvrirai la fenêtre. »`,
+    `Vos jambes ne vous portent plus. Vous vous asseyez sur un gradin. La voix ne revient pas. Mais quelque part dans le noir, derrière le rideau rouge, quelqu’un applaudit. Trois fois. Lentement.`
+  ], choices: [
+    { t: 'Répondre à la voix : « Grand-mère ? »', to: 'e2_1', set: { whisper: 'listened' } },
+    { t: 'Vous boucher les oreilles et sortir', to: 'e2_1', set: { whisper: 'refused' }, add: { comp: 1 } }
+  ] },
+
+  /* ---------------------------- CHAPITRE II ---------------------------- */
+  e2_1: { ch: 1, bond: { kael: 2 }, archive: ['E02'], text: [
+    { if: [['whisper', '==', 'listened']], t: `Personne ne vous a répondu. Mais toute la semaine, vous avez entendu la fenêtre. Le bruit d’une fenêtre qu’on ouvre, et des pigeons. Dans la rue, au marché, sous la douche. Vous savez que ce n’est pas réel. Vous l’écoutez quand même.` },
+    { if: [['whisper', '==', 'refused']], t: `Toute la semaine, vous dormez mal. Vous ne savez pas à quoi ressemblait votre grand-mère. Vous n’avez aucune photo. Vous vous rendez compte que si elle venait vers vous avec un masque, vous ne pourriez pas dire s’il est ressemblant. C’est peut-être ce qui vous fait le plus peur.` },
+    `Le dimanche suivant, Kaël veut redescendre. Il ne dit pas pourquoi.`,
+    `La salle est de nouveau pleine. Germaine n’est pas revenue. Mais il y a des visages nouveaux, et de nouveaux masques, comme si quelqu’un avait travaillé toute la semaine pour remplacer ceux que vous avez cassés.`,
+    `Kaël s’arrête net au milieu des gradins.`,
+    `Au cinquième rang, il y a une femme d’une cinquantaine d’années, petite, en manteau bleu marine, les cheveux gris tirés en chignon. Elle a posé un panier sur ses genoux. Elle en sort une thermos, deux tasses, un paquet de biscuits secs. Elle sert deux tasses de café.`,
+    `À côté d’elle, une ombre tient la deuxième tasse. Elle porte un masque de garçon de dix-neuf ans. Un visage entier, souriant, avec une fossette à droite et une cicatrice minuscule au sourcil. Un visage que vous connaissez. Que vous n’avez jamais vu en entier.`,
+    `C’est celui de Kaël.`,
+    `« Maman, dit le masque. J’ai eu mon examen. Le chef dit que je serai infirmier l’an prochain. Je ne suis plus en retard le matin, tu sais. Plus jamais. »`,
+    `La femme sourit, et elle touche la joue de porcelaine du bout des doigts, et elle dit : « Je sais, mon chéri. Je sais. Bois ton café, il va refroidir. »`,
+    `Kaël ne bouge plus. Il ne respire plus, ce qui n’est rien pour une ombre et qui est tout pour lui.`,
+    `« Inès Mendes, dit-il. C’est ma mère. »`
+  ], choices: [{ t: 'Laisser Kaël s’approcher', to: 'e2_2' }] },
+
+  e2_2: { ch: 1, text: [
+    `Kaël descend les gradins un par un. Il s’arrête devant le cinquième rang. Inès lève les yeux.`,
+    `Elle voit un jeune homme de dix-neuf ans, maigre, dans un manteau trop grand. Elle voit la moitié de son visage, celle qui existe : l’œil, la pommette, le coin de la bouche. Et l’autre moitié, celle qui n’existe pas, qui se défait en fumée sombre à partir du nez, comme un dessin qu’on a arrêté de gommer.`,
+    `« Maman », dit Kaël.`,
+    `Inès recule sur le gradin. Sa tasse se renverse. Le café coule sur son manteau.`,
+    `« Non, dit-elle. Non. Vous n’êtes pas mon fils. »`,
+    `Elle se tourne vers le masque, à côté d’elle, comme pour le protéger.`,
+    `« Mon fils avait le visage entier. Mon fils avait une fossette, là. Mon fils ne m’aurait pas laissée dix ans sans un mot. Mon fils m’appelle tous les dimanches. »`,
+    `Le masque pose la main sur le bras d’Inès. Il regarde Kaël avec une pitié polie.`,
+    `« Laisse, maman, dit-il avec la voix de Kaël, en plus doux. Ce n’est qu’une ombre. Il y en a beaucoup ici. Elles sont perdues. Il ne faut pas leur en vouloir. »`,
+    `Kaël ouvre la bouche. Rien ne sort.`,
+    `Vous voyez le moment exact où il recule d’un pas. Puis d’un autre. Vous voyez la moitié de son visage qui existe se fermer, comme une porte.`,
+    `Le masque vous regarde, par-dessus l’épaule d’Inès, et vous fait un petit clin d’œil.`
+  ], choices: [
+    { t: 'Arracher le masque devant elle', to: 'e2_3', set: { ines: 'torn' }, add: { dom: 1 } },
+    { t: 'Ne rien faire. C’est à Kaël de choisir', to: 'e2_3', set: { ines: 'kael' }, add: { comp: 1 } }
+  ] },
+
+  e2_3: { ch: 1, text: [
+    { if: [['ines', '==', 'torn']], t: `Vous attrapez le masque par le menton et vous tirez. Il vient d’un coup, avec un bruit de vaisselle. Dessous, il n’y a rien : une ombre sans visage qui se recroqueville sur le gradin. Inès pousse un cri que vous n’oublierez pas. Elle vous frappe au visage, de toutes ses forces, avec sa main ouverte. Puis elle ramasse le masque, intact, le serre contre son manteau taché de café, et elle s’en va en courant vers la sortie, sans un regard pour l’ombre ni pour Kaël. Kaël ne vous parle pas de toute la soirée.` },
+    { if: [['ines', '==', 'kael']], t: `Kaël tourne les talons. Il remonte les gradins sans courir. Inès ne le regarde pas partir. Elle essuie le café sur son manteau avec une serviette en papier, et elle ressert une tasse au masque, qui la remercie avec un sourire parfait.` },
+    `Vous retrouvez Kaël sur le toit de la Maison, tard dans la nuit. Il est assis au bord, les jambes dans le vide, à l’endroit d’où on voit la colline des Vents.`,
+    `« Elle a raison, dit-il sans se retourner. Celui-là lui dit ce qu’elle a besoin d’entendre. Moi, je ne sais même pas ce que je lui aurais dit. Je ne me souviens pas de sa voix. Je me souviens d’un ascenseur, d’une petite main, d’un garçon dans un fauteuil. Je ne me souviens pas de ma mère. »`,
+    `Il rit, d’un rire qui n’en est pas un.`,
+    `« Tu sais ce qui est drôle ? Le masque avait une fossette. Je ne savais pas que j’avais une fossette. Il me connaît mieux que moi. »`,
+    `Vous vous asseyez à côté de lui. Vous ne dites rien. Au bout d’un long moment, il pose sa tête sur votre épaule, la moitié qui existe.`,
+    `« Ils ont tous un masque, là-dessous, dit-il. Toi, tu n’en as pas voulu. Pourquoi ? »`,
+    `Vous ne répondez pas. Vous ne savez pas. Peut-être parce qu’une fenêtre qui s’ouvre n’est pas la même chose qu’une main posée sur un genou.`,
+    `En bas, dans la rue, Mira passe sans lever la tête. Elle a les épaules serrées, le pas rapide. Elle va quelque part la nuit, depuis la première descente. Elle ne vous a rien dit.`
+  ], choices: [{ t: 'Suivre Mira', to: 'e3_1' }] },
+
+  /* ---------------------------- CHAPITRE III ---------------------------- */
+  e3_1: { ch: 2, text: [
+    `Vous ne suivez pas Mira bien longtemps. On ne suit pas Mira. C’est elle qui se laisse suivre, quand elle l’a décidé.`,
+    `Elle s’arrête au milieu du pont des Pêcheurs, sous un réverbère, et elle vous attend sans se retourner.`,
+    `« Bien, dit-elle. Tu as mis moins longtemps que je pensais. »`,
+    `Elle a un dossier de cuir sous le bras. Un vieux dossier, gonflé, retenu par un élastique.`,
+    `« Dimanche dernier, en bas, au théâtre, il y avait un masque pour moi, dit-elle. Tu ne l’as pas vu. Une petite fille de trois ans, assise sur des marches, sous la pluie, avec une médaille. Elle me regardait. Elle m’a dit : “Moi, je sais ce que tu fais pour de vrai.” » Mira serre le dossier contre elle. « Et puis la voix de velours m’a parlé à l’oreille. Elle m’a dit que si je ne te le disais pas moi-même, elle le ferait. Avec ma voix. Devant tout le monde. »`,
+    `Elle vous tend le dossier.`,
+    `« Alors je te le dis moi-même. C’est la seule chose qui m’appartient encore là-dedans. »`
+  ], choices: [{ t: 'Ouvrir le dossier', to: 'e3_2' }] },
+
+  e3_2: { ch: 2, archive: ['E03'], text: [
+    `Ce sont des rapports. Des dizaines. Des feuilles de cahier d’écolier, écrites au crayon, d’une écriture qui fait des fautes partout sauf en latin. Chaque feuille est numérotée et datée.`,
+    `Rapport n° 1. Il date de deux mois avant la Faille de la gare. Deux mois avant votre éveil.`,
+    `« Sujet : Chasseur de rang E, sans nom de famille. Habite rue du Four, au-dessus de la blanchisserie. Porte les sacs des autres équipes, gratuitement quand on ne le paie pas. Mange une fois par jour. Boite quand il pleut. »`,
+    `Rapport n° 4. « Le sujet a donné son repas à un gamin des Brèches. Il n’a pas mangé le soir. Je ne comprends pas l’arnaque. »`,
+    `Rapport n° 9. « Le sujet s’entraîne la nuit, dans la cour de la blanchisserie, avec des pavés. Personne ne le regarde. Il ne sait pas que quelqu’un regarde. »`,
+    `Vous connaissez cette phrase. Vous l’avez lue dans une archive du Système. Vous aviez toujours cru qu’elle venait d’un agent de l’Association.`,
+    `En haut de la première page, une fiche de mission, tapée à la machine. Commanditaire : Y. O. Financement : fonds personnels. Durée : illimitée. Consignes : « Surveiller. Ne jamais intervenir. Ne jamais lui parler. S’assurer qu’il mange. »`,
+    `Vous relevez la tête. Mira regarde le fleuve.`,
+    `« Yanis, dit-elle. Pas l’Association. Lui. Il me payait depuis deux mois avant ton éveil pour te regarder vivre, et il n’a jamais arrêté. Je ne savais pas pourquoi. Je pensais que tu étais un fils caché, une dette de jeu, un témoin gênant. Je m’en fichais : il payait bien. » Elle sourit à moitié. « Maintenant, je sais pourquoi. Le 313e. Il savait. Il a toujours su qu’il y avait eu un survivant dans l’aile Est. Il t’a retrouvé. Et il a payé quelqu’un pour s’assurer que tu mangeais. »`,
+    { if: T5_NOT_DELIVERED, t: `« Le premier soir, quand tu m’as trouvée dans ta chambre, je n’étais pas en train de te voler, dit-elle. J’étais venue vérifier ton garde-manger. Il était vide. J’avais un pain sous le bras et un couteau pour le couper. Quand tu es entré, j’ai paniqué. J’ai attrapé ta plaque pour avoir l’air d’une voleuse. Une voleuse, ça, je savais faire. » Elle rit. « Et toi, tu as posé ton manteau et ton pain sur la table. Pour moi. Tu m’as donné à manger, à moi qui étais venue te nourrir. J’ai écrit le rapport n° 31 cette nuit-là. Il fait une ligne. “Je démissionne.” Puis je ne l’ai jamais envoyé, et je suis restée. »` },
+    { if: T5_DELIVERED, t: `« Le premier soir, quand tu m’as trouvée dans ta chambre, je n’étais pas en train de te voler, dit-elle. J’étais venue vérifier ton garde-manger. Il était vide. J’avais un pain sous le bras et un couteau pour le couper. Quand tu es entré, j’ai paniqué. J’ai attrapé ta plaque pour avoir l’air d’une voleuse. Et tu m’as livrée à la garde. » Elle hausse les épaules. « Tu avais raison, de ton point de vue. Le pain est resté par terre dans ta chambre. Je me suis toujours demandé si tu l’avais mangé. »` },
+    `Elle se tourne enfin vers vous.`,
+    `« Voilà. Tout ce que tu crois que je suis, c’est vrai. Et en dessous, il y a ça. Je t’ai menti tous les jours depuis qu’on se connaît. Fais ce que tu veux. »`
+  ], choices: [
+    { t: '« Tu m’as surveillé depuis le début. » Porter les rapports à Danet', to: 'end_e_C', add: { dom: 2 } },
+    { t: 'Jeter les rapports dans le fleuve sans finir de les lire', to: 'e3_3', set: { reports: 'river' }, add: { comp: 1 } },
+    { t: 'Les lire tous, jusqu’au dernier, devant elle', to: 'e3_3', set: { reports: 'read' } }
+  ] },
+
+  e3_3: { ch: 2, bond: { mira: 3 }, archive: ['E10'], text: [
+    { if: [['reports', '==', 'river']], t: `Vous déchirez l’élastique. Vous lancez le dossier par-dessus le parapet. Les feuilles s’envolent, une à une, blanches dans la nuit, et se posent sur le fleuve comme des mouettes. Mira les regarde partir. « Il y en avait un sur ta grand-mère, dit-elle. J’avais trouvé sa tombe. Enfin, son nom sur la stèle des 312. » Elle se tait. « Je te montrerai. Ce n’est pas grave qu’il soit dans l’eau. Je me souviens de tout. »` },
+    { if: [['reports', '==', 'read']], t: `Vous lisez tout, debout sous le réverbère, pendant qu’elle attend. Trente rapports. Votre vie vue de l’extérieur, par quelqu’un qui ne comprenait pas et qui cherchait l’arnaque. Le rapport n° 22 dit : « Le sujet est allé sur la stèle des 312, au jardin de l’Association. Il est resté une heure devant le nom de Rose Albin. Je ne sais pas pourquoi. Lui non plus, je crois. » Vous ne vous en souvenez pas. Vous ne vous souvenez pas d’y être allé. Vous refermez le dossier et vous le lui rendez. « Garde-les, dites-vous. C’est toi qui les as écrits. »` },
+    `Mira hoche la tête. Elle a les yeux brillants. Elle ne pleure jamais. Elle ne pleure pas.`,
+    `« Il y a autre chose, dit-elle. Yanis est parti. Hier soir. Il a laissé ça sur ta table. »`,
+    `Un billet plié en deux. L’écriture de Yanis, petite, penchée, avec des chiffres partout dans les marges, même là où il n’y a rien à compter.`,
+    `Vous le lisez. Puis vous le relisez.`,
+    `Mira, à côté de vous, dit d’une voix qui n’est pas tout à fait la sienne : « Il dit qu’il n’a pas fini de compter. Il compte quoi ? »`,
+    `Vous ne savez pas. Vous pliez le billet et vous le mettez dans votre poche, à côté du reste.`,
+    `C’est à ce moment-là qu’une fenêtre bleue s’ouvre devant vos yeux, sur le pont, en pleine nuit.`,
+    { sys: 'Nouvelle quête : remettre l’agent M. à l’Association.\nRécompense : 5 000 kinahs.\nRemarque : elle t’a trahi. Tu mérites mieux que ça. Je suis de ton côté.' },
+    `Vous fixez la fenêtre. Quelque chose ne va pas. Il vous faut un moment pour comprendre quoi.`,
+    `Le Système ne vous a jamais tutoyé. Le Système ne vous a jamais dit qu’il était de votre côté.`
+  ], choices: [{ t: 'Fermer la fenêtre', to: 'e4_1' }] },
+
+  /* ---------------------------- CHAPITRE IV ---------------------------- */
+  e4_1: { ch: 3, archive: ['E04'], text: [
+    `Les fausses fenêtres reviennent toute la semaine.`,
+    `Elles ont exactement la couleur du Système, sa police, son petit bruit d’ouverture. Elles parlent avec sa voix : la voix sans timbre, froide, celle d’une petite fille dont on a retiré la chaleur. Mais elles ne disent pas les mêmes choses.`,
+    { sys: 'Tu as bien travaillé aujourd’hui. Je suis fière de toi.' },
+    `Celle-là arrive un soir, après votre séance, au moment où vous posez les poids. Vous restez immobile au milieu de la salle. Vous avez envie de pleurer. Personne ne vous a jamais dit ça. Pas comme ça. Pas avec cette voix.`,
+    { sys: 'Tu n’es pas obligé de porter tout ça. Tu as le droit de te reposer. Descends me voir, seul. Je t’attends.' },
+    `Nour vous trouve le lendemain matin, assis sur votre lit, les yeux rouges. Elle s’assoit à côté de vous. Elle attend que la prochaine fenêtre s’ouvre. Elle vient, vers midi. Nour tend l’oreille.`,
+    `« Ce n’est pas ta voix habituelle », dit-elle.`,
+    `Elle fronce les sourcils. Elle écoute comme elle écoute une corde qui sonne faux.`,
+    `« Elle est trop bien faite. Il y a quelqu’un dessous. Un homme. Un adulte qui imite une enfant, très bien, mieux que bien. Il connaît chaque son de sa voix. Chaque souffle. » Elle se tourne vers vous. « Mais il se trompe sur une chose. La vraie voix ne t’a jamais dit ce que tu voulais entendre. Jamais. Même quand elle t’a dit : tu portes encore mon sac. Ce n’était pas ce que tu voulais entendre. C’était vrai. »`,
+    `Le soir, vous ouvrez le journal du Système, celui que vous ne consultez jamais. Une ligne en rouge s’y répète, à chaque fausse fenêtre.`,
+    { sys: 'Message affiché : non émis par le Système.\nSignature vocale : conforme.\nSource : inconnue.\nRemarque : quelqu’un connaît ma voix mieux que moi.' }
+  ], choices: [{ t: 'Demander à Hélène qui a fabriqué la voix', to: 'e4_2' }] },
+
+  e4_2: { ch: 3, bond: { helene: 2 }, archive: ['E05'], text: [
+    `Hélène met deux jours à trouver. Elle vide les cartons du bureau d’Elias, ceux que personne n’a ouverts depuis qu’il est descendu dans la Faille. Gaspard l’aide, en reniflant, parce que la poussière lui pique le nez et parce qu’il reconnaît, sur les étiquettes, sa propre écriture d’avant, celle de l’homme dont il a oublié le nom.`,
+    `Le troisième jour, elle vous appelle. Elle a un contrat à la main. Deux pages, tamponnées, signées.`,
+    `« Studio Vey, dit-elle. Adaptation vocale. An −1. » Elle vous le tend. « Elias avait sept minutes d’enregistrement de Lune. Sept minutes et douze secondes. Ce n’est pas assez pour faire parler une machine. Il fallait quelqu’un pour découper sa voix en petits morceaux, en sons, en souffles, et apprendre à la machine à les remettre ensemble. Quelqu’un qui connaissait les voix mieux que personne. »`,
+    `Elle pose le doigt sur la signature.`,
+    `Célestin Vey.`,
+    `Vous connaissez ce nom. Toute la ville le connaît. Avant les Failles, Célestin Vey était l’idole de Vespérane. Le Théâtre de la Lanterne affichait complet six mois à l’avance. Il jouait tous les rôles : le roi, le mendiant, la jeune première, le traître. On disait qu’il pouvait imiter n’importe qui après l’avoir entendu une seule fois. On disait aussi que personne ne savait à quoi il ressemblait hors de scène.`,
+    `« Il est venu ici tous les jours pendant trois mois, dit Hélène. Dans le bureau d’Elias. Il écoutait l’enregistrement en boucle, avec un casque. Lune venait parfois le voir, après l’école. Elle l’aimait bien. Il lui faisait des voix de canard. » Elle s’assoit. « C’est lui qui a retiré le rire. Elias le lui a demandé. Une voix de Système ne rit pas, disait-il. Célestin a coupé tout ce qui était chaud. Les hésitations. Les “attends, je recommence”. Le rire. Il a rendu la voix de ma fille froide. »`,
+    `Gaspard, au fond de la pièce, lève le nez d’un carton.`,
+    `« Il n’a rien jeté, dit-il. Je m’en souviens. Je ne me souviens pas de mon nom, mais je me souviens de ça. Elias lui avait dit de brûler les chutes. Il a dit oui. Et il a mis la bobine dans sa poche. »`,
+    `Le soir même, une fausse fenêtre s’ouvre, plus longue que les autres.`,
+    { sys: 'Vous avez trouvé le contrat. Bravo. Vous êtes invité dans ma loge. Venez seul : vos amis ne comprendraient pas. Ils ne comprennent jamais.' }
+  ], choices: [
+    { t: 'Descendre seul, comme demandé', to: 'e4_3', set: { alone: true } },
+    { t: 'Descendre avec Mira, Kaël et Nour', to: 'e4_3', set: { alone: false }, add: { comp: 1 } }
+  ] },
+
+  e4_3: { ch: 3, text: [
+    { if: [['alone', '==', true]], t: `Vous descendez seul. En bas des marches, dans le noir, vous entendez un pas léger derrière vous. Puis un autre. Puis un sifflotement faux. Mira, Kaël et Nour vous ont suivi quand même. « On ne t’a pas demandé ton avis », dit Mira.` },
+    { if: [['alone', '==', false]], t: `Vous descendez à quatre. Nour marche en tête, une main sur la roche, et c’est elle qui trouve le passage : une porte basse derrière le rideau rouge, qui ne respire pas comme le reste de la paroi.` },
+    `La loge est sous la scène. Une pièce étroite, avec un miroir encadré d’ampoules rondes, une coiffeuse, une chaise. Et sur tous les murs, du sol au plafond, des masques. Des centaines. Des milliers peut-être. Des visages de porcelaine accrochés à des clous, chacun avec une petite étiquette : un nom, une date, et une phrase. « Robert Clément, An 6. Je t’aime, Germaine. » « Kaël Mendes, An 0. J’ai eu mon examen. »`,
+    `Devant le miroir, quelqu’un est assis. Il vous tourne le dos. Il est mince, très droit, vêtu d’un costume de scène noir à revers de soie. Il se retourne lentement sur sa chaise.`,
+    `Il n’a pas de visage. À la place, un ovale de porcelaine lisse, blanc, sans yeux, sans bouche. Parfaitement vide.`,
+    `Puis l’ovale bouge. Il devient le visage de Basile Ternaux, souriant, un hameçon entre les dents. Puis celui d’Ilse Varga avec sa coiffe. Puis celui d’Ysolde. Puis celui d’une vieille femme aux joues ridées, au tablier à carreaux, que vous n’avez jamais vue et que vous reconnaissez pourtant. Il s’arrête sur celui-là. Il vous regarde avec ses yeux.`,
+    `« Mon petit », dit-il avec la voix de votre grand-mère.`,
+    `Puis il éclate de rire, et l’ovale redevient blanc.`,
+    `« Pardon, dit-il avec une voix d’homme, grave, splendide, une voix de théâtre. C’était facile. Vous n’avez pas de photo d’elle, n’est-ce pas ? Alors n’importe quelle vieille dame au tablier à carreaux aurait fait l’affaire. Votre cœur a rempli le reste. C’est toujours le cœur qui remplit le reste. Moi, je ne fais que tendre le cadre. »`,
+    `Il se lève et s’incline.`,
+    `« Célestin Vey. Je vous ai vu jouer le rôle de votre vie, ces derniers mois. Vous jouez mal. Vous ne souriez jamais au public. »`,
+    `Il prend un carton sur la coiffeuse et vous le tend. Une invitation, imprimée en lettres d’or.`,
+    `« Samedi soir, au Théâtre de la Lanterne. Au-dessus de nos têtes. La ville entière sera là. Je joue une pièce nouvelle. » Il sourit avec la bouche de Kaël, entière, avec la fossette. « Je joue votre rôle. Venez voir comment on fait. »`,
+    `Puis les ampoules du miroir s’éteignent toutes en même temps, et quand Mira rallume sa lanterne, la loge est vide, et tous les masques des murs ont le même visage : le vôtre.`
+  ], choices: [{ t: 'Aller à la première', to: 'e5_1' }] }
+};
+
+/* ==========================================================================
+   TOME V — MILLE VISAGES (seconde moitié : chapitres V à VIII, issues, archives)
+   ========================================================================== */
+
+const T5_ODILE_AWAY = [['tend:II-D', '==', true]];
+const T5_ODILE_HERE = [['tend:II-D', '!=', true]];
+
+Object.assign(T5_NODES, {
+  /* ---------------------------- CHAPITRE V ---------------------------- */
+  e5_1: { ch: 4, archive: ['E06'], text: [
+    `Le Théâtre de la Lanterne n’a pas ouvert ses portes depuis dix ans. Ce samedi soir, il y a une file d’attente qui fait le tour du pâté de maisons.`,
+    `Les lustres sont rallumés. Les fauteuils de velours ont été brossés. Des ouvreuses en tablier blanc distribuent des programmes imprimés en lettres d’or. Le titre de la pièce tient en deux mots : « Mille visages ». En dessous, en plus petit : « D’après la vie du Joueur. »`,
+    `Toute la ville est là. Les familles des Murmures, au parterre, avec leurs ombres masquées assises à côté d’elles. Des Chasseurs de l’Association en uniforme de gala. Des marchands, des ouvriers, des enfants des Brèches perchés au poulailler. Dans la loge d’honneur, Aurèle Danet, en habit, applaudit avant que le rideau se lève.`,
+    `Vous êtes au dernier rang du parterre, avec la Maison. Personne ne vous reconnaît. Personne ne vous a jamais vraiment regardé.`,
+    `Le rideau se lève.`,
+    `Sur scène, une Faille de carton-pâte, éclairée en bleu. Un jeune homme couché par terre, la jambe tordue. Il se relève dans un faisceau de lumière, superbe, immense, et il dit d’une voix qui fait trembler les lustres : « Je ne mourrai pas ici. Je deviendrai le plus fort. Et ceux qui m’ont abandonné s’agenouilleront devant moi. »`,
+    `La salle explose en applaudissements.`,
+    `C’est vous. C’est votre visage, en plus beau, plus grand, plus net. C’est votre histoire, sans la boiterie, sans les sacs, sans le pain posé sur une table. Le Joueur de la scène ne doute jamais. Il ne pleure pas. Il tranche des monstres de papier avec une épée qui jette des étincelles. Il relève les ombres d’un geste de la main, et elles s’agenouillent en chœur, et la salle crie.`,
+    `Puis la Maison entre en scène. Une Mira en robe de bal, qui retrouve sa mère sur le perron d’une église, et sa mère ne l’a jamais quittée, c’était un malentendu. Un Kaël au visage entier, avec une fossette, qui annonce à la salle qu’il ne se souvient de rien et qu’il est très heureux comme ça. Une Nour qui ouvre les yeux, et elle voit, et elle remercie le Joueur de lui avoir rendu la vue.`,
+    `À côté de vous, la vraie Nour ne bouge pas. « Qu’est-ce qu’ils applaudissent ? » demande-t-elle doucement. Personne ne lui répond.`,
+    `La vraie Mira regarde la fausse Mira dans les bras de sa fausse mère. Elle a les poings serrés si fort que ses jointures sont blanches.`
+  ], choices: [{ t: 'Rester jusqu’à la fin', to: 'e5_2' }] },
+
+  e5_2: { ch: 4, text: [
+    `Au troisième acte, le Joueur de la scène se tourne vers la salle. Il lève la main, et la musique s’arrête.`,
+    `« Mesdames et messieurs, dit-il avec votre voix, en plus belle. Il est parmi nous ce soir. Le vrai. »`,
+    `Une poursuite de lumière balaie le parterre et s’arrête sur vous.`,
+    `Mille têtes se retournent. Vous êtes ébloui. Vous entendez des murmures, puis des applaudissements, d’abord épars, puis énormes. Quelqu’un crie votre rang. Quelqu’un d’autre crie : « Monarque ! »`,
+    `Le Joueur de la scène descend l’escalier qui mène à la salle. Il remonte l’allée centrale, sous les vivats, jusqu’à vous. De près, son visage est parfait. Il n’a pas de pores. Il a vos yeux, en plus clairs.`,
+    `Il tient un masque dans ses mains. Le même visage que le sien. Le vôtre, en mieux.`,
+    `« Prenez-le, dit Célestin à voix basse, avec sa vraie voix, splendide et lasse. Mettez-le. Ils vous aimeront tous. Regardez-les. Ils vous aiment déjà, ou plutôt, ils aiment celui-là. Personne ne vous demandera plus jamais de porter les sacs. Personne ne verra plus jamais que vous boitez. Vous n’aurez plus jamais à être quelqu’un qu’on abandonne dans une Faille. »`,
+    `Il approche le masque de votre visage. Il sent la poudre de riz et le vernis.`,
+    `« C’est ce que je fais depuis l’âge de sept ans, dit-il. Je vous assure : on finit par ne plus sentir la différence. »`
+  ], choices: [
+    { t: 'Mettre le masque', to: 'end_e_D', add: { dom: 2 } },
+    { t: 'Monter sur la scène avec votre propre visage', to: 'e5_3', add: { comp: 1 } }
+  ] },
+
+  e5_3: { ch: 4, reward: 1900, text: [
+    `Vous écartez le masque de la main.`,
+    `Vous remontez l’allée centrale, à l’envers, jusqu’à la scène. Vous boitez : il a plu toute la journée. Vous montez les marches une par une, en vous tenant à la rampe, devant mille personnes qui se taisent peu à peu, parce que ce n’est pas comme ça qu’un héros monte sur une scène.`,
+    `Vous vous mettez au milieu, dans la lumière bleue de la Faille en carton.`,
+    `Vous n’êtes pas beau. Vous êtes fatigué. Vous avez une cicatrice à la jambe et les mains abîmées par les poids. Vous n’avez pas de texte.`,
+    `Alors vous dites la seule chose que vous savez.`,
+    `« Je m’appelle {nom}. »`,
+    `Ça résonne dans la salle. C’est petit. C’est ridicule. Personne n’applaudit.`,
+    `« Je suis Chasseur de rang E. Je portais les sacs des autres. On m’a laissé mourir dans la Faille de la gare. Je n’ai pas voulu que ceux qui m’ont abandonné s’agenouillent. Je ne suis pas devenu le plus fort. Je m’entraîne tous les jours, et j’ai encore mal quand il pleut. »`,
+    `Au dernier rang, quelqu’un se lève. C’est Germaine, sans son masque. Elle ne dit rien. Elle reste debout.`,
+    `Puis un enfant des Brèches, au poulailler. Puis Paul Ternaux. Puis d’autres. Ils ne crient pas votre nom. Ils sont debout, simplement, comme on se lève quand quelqu’un dit enfin quelque chose de vrai.`,
+    `Dans les rangs du parterre, les ombres masquées se lèvent aussi. Mais pas pour la même raison. Leurs masques se tournent vers vous en même temps, avec le même sourire, et elles avancent vers la scène. Le public masqué ne supporte pas qu’on refuse son amour.`,
+    { sys: 'Ennemis détectés : le Public.\nRemarque : ils vous applaudissaient il y a une minute.' }
+  ], combat: { name: 'Le Public', power: 205, weak: 'int', resist: 'str', foe: 'public_masque',
+    win: `Ils vous huent en vous frappant. Ils vous réclament, ils vous supplient, ils vous maudissent, avec mille voix qui disent toutes ce que vous auriez voulu entendre, puis tout ce que vous craigniez d’entendre. Vous ne frappez jamais les vivants. Vous frappez les masques, un par un, et chaque masque qui tombe laisse derrière lui une ombre qui respire. Quand le dernier se fend, le théâtre est silencieux. Célestin n’est plus dans l’allée. Il ne reste de lui, au milieu des fauteuils, que le masque qu’il vous tendait, posé sur un siège, à votre place.` },
+  after: [
+    `Mira est montée sur la scène pendant le combat. Elle se tient à côté de vous, le couteau à la main, essoufflée. Elle regarde la salle. Elle regarde le masque posé sur le siège.`,
+    `« Tu as dit ton nom, dit-elle. Devant tout le monde. » Elle a l’air presque en colère. « Moi, je ne connais même pas le mien. »`
+  ], choices: [{ t: '« Alors on va le chercher. »', to: 'e6_1' }] },
+
+  /* ---------------------------- CHAPITRE VI ---------------------------- */
+  e6_1: { ch: 5, archive: ['E07'], bond: { mira: 3, odile: 2 }, text: [
+    `Le registre des sœurs de Sainte-Claire est rangé dans une armoire de la sacristie, sous trente ans de poussière. La sœur portière, une vieille femme qui s’appelle sœur Agathe et qui a connu Mira à trois ans, vous l’apporte en traînant les pieds.`,
+    `« Elle mordait, dit-elle à Mira, avec tendresse. Tu mordais. Et tu regardais tout. Tout le temps. Les yeux grands ouverts, même en dormant, je le jure. »`,
+    `La page date de l’hiver de Vaumoise.`,
+    `« Une enfant, trois ans environ, trouvée sur les marches, sous la pluie. Pas de nom. Une médaille d’étain au cou, à l’effigie de sainte Claire. Nous l’avons placée sous la protection de la sainte. Prénom donné : Mira, parce qu’elle regarde tout. »`,
+    `Mira lit deux fois. Elle repose le registre.`,
+    `« Mira, comme “mirer”, dit-elle. Regarder. Je le savais. Ça ne m’apprend rien. »`,
+    { if: T5_ODILE_HERE, t: `Odile est venue. Personne ne l’avait prévenue ; elle a su, comme elle sait toujours combien il reste de farine. Elle se tient au fond de la sacristie, son registre de comptes sous le bras, raide comme une pierre. Elle s’avance. Elle regarde la page. Elle pose le doigt sur la ligne « Une médaille d’étain au cou ».` },
+    { if: T5_ODILE_HERE, t: `« Ce n’était pas une sainte, dit Odile. C’était un nom. » Sa voix ne tremble pas. Ses mains, si. « Je n’avais pas de papier, pas de crayon. Je ne savais pas écrire, à l’époque. Je n’avais rien pour leur dire comment tu t’appelais. Alors j’ai acheté la seule médaille qu’on vendait devant l’église, et je l’ai choisie parce qu’elle portait ton nom. Je me suis dit : elles verront. Elles comprendront. Elles t’appelleront comme moi. » Elle ferme les yeux. « Claire. Tu t’appelais Claire. Elles ont cru que c’était une prière. »` },
+    { if: T5_ODILE_AWAY, t: `Odile n’est pas venue. Elle est au Grenier, au bord de la route du Sud, avec Ruben. Mais le lendemain, un garçon de la Guilde apporte une lettre, scellée de cire, avec le nom de Mira dessus. Elle tient en quatre lignes, d’une écriture appliquée d’adulte qui a appris à écrire tard. « Ce n’était pas une sainte. C’était un nom. Je ne savais pas écrire, alors j’ai acheté la seule médaille qui le portait. Je croyais qu’elles comprendraient. Tu t’appelais Claire. »` },
+    `Mira ne dit rien pendant très longtemps. Elle prend la médaille à son cou. Elle la regarde comme si elle la voyait pour la première fois : une petite sainte d’étain usée par dix-neuf ans de pouce. Le nom gravé en dessous, à peine lisible. Sancta Clara.`,
+    `« Je l’ai frottée toute ma vie, dit-elle. Je l’ai frottée pour qu’elle me dise qui j’étais. C’était écrit dessus. En latin. » Elle rit, et cette fois elle pleure aussi, en même temps, comme on éternue. « La seule langue où je ne fais pas de fautes. »`,
+    `Elle remet la médaille à son cou. Elle s’essuie le nez avec la manche.`,
+    `« Mira, dit-elle. C’est le nom que je me suis fabriqué toute seule, avec les sœurs, avec les Brèches, avec toi. Je le garde. » Elle se tourne vers sa mère, ou vers la lettre. « Mais toi, tu peux m’appeler Claire. Toi seule. Quand on sera seules. »`
+  ], choices: [{ t: 'Rentrer à la Maison', to: 'e6_2' }] },
+
+  e6_2: { ch: 5, bond: { kael: 3 }, text: [
+    `Quand vous rentrez, il y a quelqu’un assis sur le perron de la Maison. Une petite femme en manteau bleu marine, avec un panier sur les genoux.`,
+    { if: [['ines', '==', 'torn']], t: `Inès Mendes a le masque de porcelaine sur les genoux. Il s’est fendu, depuis le soir où vous l’avez arraché. Une fêlure va du front au menton. Il ne parle plus.` },
+    { if: [['ines', '==', 'kael']], t: `Inès Mendes a le masque de porcelaine sur les genoux. Il ne parle plus. Il s’est tu le soir de la première, en même temps que tous les autres. Elle l’a gardé quand même.` },
+    `« Il m’a dit dimanche qu’il avait eu son examen, dit-elle sans vous regarder. Kaël n’a jamais passé d’examen. Il voulait. Il n’a pas eu le temps. » Elle caresse la porcelaine. « J’ai cru le masque parce que c’était ce que j’aurais voulu. Je le savais. Je le savais tous les dimanches. »`,
+    `Kaël sort de la Maison. Il s’arrête en haut des marches.`,
+    `Inès lève les yeux vers lui. Elle regarde la moitié de son visage qui existe, et la moitié qui n’existe pas.`,
+    `« Dites-moi quelque chose, dit-elle. Quelque chose que lui ne pouvait pas savoir. Quelque chose que je ne voudrais pas entendre. »`,
+    `Kaël descend une marche. Il réfléchit. Il cherche dans le trou de sa mémoire, là où il a retrouvé, le mois dernier, un ascenseur, une buanderie, une petite main.`,
+    `« Je faisais la grimace du poisson dans l’ascenseur, pour les petits, dit-il. Celle que tu détestais. Tu disais que j’allais rester comme ça. » Il descend une autre marche. « Le 14 mars, j’étais en retard. Je me suis fait crier dessus. Je n’ai pas eu mon examen. Je ne l’ai pas passé. Et quand c’est arrivé, je pouvais sortir. Il y avait une grille, en bas, à la buanderie. J’ai porté un garçon dehors. Et je suis remonté chercher une petite fille. »`,
+    `Il est devant elle, maintenant.`,
+    `« Je ne suis pas sorti, maman. J’aurais pu. Je suis remonté. C’est ça que tu ne voulais pas entendre. »`,
+    `Inès pose le masque sur la marche. Elle se lève. Elle tend la main vers le visage de son fils. Elle hésite. Puis elle pose la paume sur la moitié qui manque, sur la fumée sombre, là où il n’y a rien.`,
+    `Et la fumée ne se défait pas sous sa main. Elle reste. Elle prend la forme de sa paume.`,
+    `« C’est ce côté-là que j’embrassais, dit-elle. Le gauche. Le soir, avant que tu partes. » Elle pleure. « Je l’embrasserai quand même. »`,
+    `Elle l’embrasse. Sur la joue qui n’existe pas.`,
+    `Quand elle retire ses lèvres, il y a, au milieu de la fumée, à l’endroit exact du baiser, une petite surface de peau. Pas plus grande qu’une pièce de monnaie. Une fossette.`
+  ], choices: [{ t: 'Chercher Célestin, au fond des Murmures', to: 'e6_3' }] },
+
+  e6_3: { ch: 5, text: [
+    `Nour vous conduit. Elle seule sait où aller : elle suit les respirations. Depuis la première, les ombres démasquées des Murmures respirent de nouveau, et leur souffle fait un chemin dans la roche, comme un courant d’air. Il descend. Toujours plus bas.`,
+    `Au-delà du théâtre, au-delà de la grande salle, au-delà des galeries que vous connaissez, il y a un escalier taillé dans la pierre, très étroit, très ancien. En bas de l’escalier, une porte de coulisse en bois peint, avec une étoile dorée et, en dessous, à moitié effacée, une inscription au pochoir : « LOGE ZÉRO ».`,
+    `Derrière la porte, on entend quelqu’un répéter un texte. Une seule réplique, dite cent fois, avec cent voix différentes.`,
+    `« Est-ce que vous m’aimez ? »`,
+    `Avec la voix d’un roi. Avec celle d’un mendiant. Avec celle d’une jeune fille. Avec celle de Lune.`,
+    `Nour s’arrête net, la main sur la porte.`,
+    `« Avec celle-là, non, dit-elle très bas. Il n’a pas le droit. »`,
+    `Mira sort son couteau. Kaël se met devant Nour. Vous poussez la porte.`
+  ], choices: [{ t: 'Entrer dans la loge zéro', to: 'e7_1' }] },
+
+  /* ---------------------------- CHAPITRE VII ---------------------------- */
+  e7_1: { ch: 6, reward: 2300, archive: ['E08'], text: [
+    `La loge zéro est une loge de théâtre comme les autres, avec un miroir, une coiffeuse, un portant de costumes. Sauf qu’elle est taillée dans la roche, au fond de la terre, et qu’il n’y a qu’un seul masque sur le mur.`,
+    `Un masque d’enfant. Un petit garçon de sept ans, avec des oreilles décollées et une dent qui manque. Il n’a pas d’étiquette.`,
+    `Célestin est assis devant le miroir. Son visage change sans arrêt, maintenant, sans qu’il le contrôle : roi, mendiant, Basile, Ilse, vous, Mira, Lune, un inconnu, un autre, un autre encore. Il passe d’un visage à l’autre comme on tourne les pages d’un album trop vite. Au milieu de sa poitrine, à travers la chemise de soie, une clé d’argent brille, plantée comme une broche, avec quatre dents fines comme des cils.`,
+    `Il ne se retourne pas. Il vous parle à travers le miroir.`,
+    `« Vous m’avez volé mon public », dit-il. Sa voix change à chaque mot. « Vous savez combien de temps il m’a fallu pour qu’ils m’aiment ? Toute ma vie. Et vous, vous êtes monté sur ma scène avec une jambe tordue et vous avez dit votre nom, et ils se sont levés. »`,
+    `Il rit. Le rire passe par dix gorges.`,
+    `« Mon père était machiniste, à la Lanterne. Il montait les décors. Il ne venait jamais voir les pièces. Il disait que le théâtre, c’était des mensonges pour les riches. J’ai commencé à sept ans, dans les coulisses. Je jouais les enfants, les pages, les petits rois. Et le seul moment où mon père me regardait, c’était depuis les cintres, pendant que je jouais. Quand je n’étais pas moi. Alors j’ai arrêté d’être moi. »`,
+    `Il se tourne enfin. Son visage se fixe un instant. Celui de Lune.`,
+    `« Elle m’aimait bien, dit-il avec la voix de Lune, la vraie, chaude, avec le rire dedans. Elle disait que je faisais trop bien le canard. Elias m’a demandé d’enlever tout ce qui faisait qu’elle était elle. J’ai obéi. J’étais très doué pour ça. J’ai fait de sa voix la plus froide du monde. » Le visage de Lune se fend, à peine. « Après, quand Elias m’a donné une clé, je ne savais même plus ce que je voulais. Alors la clé a choisi pour moi. Elle a choisi ce que je voulais depuis l’âge de sept ans. Qu’on m’aime. Tous. Tout le temps. »`,
+    `Il se lève. Le visage de Lune disparaît. Mille visages tournent de nouveau.`,
+    { sys: 'Clé IV : activation complète.\nPorteur : Célestin Vey.\nDésignation : Monarque des Murmures.\nObjectif déclaré : être aimé de tous.' }
+  ], combat: { name: 'Célestin Vey, Monarque des Murmures', power: 230, weak: 'str', resist: 'int', foe: 'm_murmures',
+    win: `Il ne frappe pas avec ses mains. Il frappe avec des visages. Il devient Basile, et vous retenez votre coup. Il devient Kaël, et Mira hésite. Il devient Odile, et c’est Mira qui frappe quand même, en pleurant. Il devient votre grand-mère, et vous fermez les yeux et vous frappez à l’aveugle, parce que vous ne savez pas à quoi elle ressemblait et que cela, pour une fois, vous protège. Quand il tombe à genoux, son visage tourne si vite qu’il devient blanc, comme une roue de couleurs qui tourne trop vite.` },
+  after: [
+    `Célestin est à genoux devant le miroir. Son visage ne s’arrête plus. Il porte les mains à sa figure, comme pour l’empêcher de tourner.`,
+    `« Lequel ? dit-il, et la voix change à chaque syllabe. Lequel voulez-vous ? Je peux être n’importe qui. Dites-moi lequel. Dites-moi ce que vous voulez que je sois. »`,
+    `Mira a son couteau à la main. Elle vous regarde. Elle attend votre signe.`
+  ], choices: [
+    { t: '« Je ne veux pas que vous soyez quelqu’un. Comment vous appelez-vous ? »', to: 'e8_1', add: { comp: 1 } },
+    { t: 'Briser le masque. Il n’y a personne dessous', to: 'end_e_B', add: { dom: 2 } }
+  ] },
+
+  /* ---------------------------- CHAPITRE VIII ---------------------------- */
+  e8_1: { ch: 7, bond: { nour: 2 }, archive: ['E09'], text: [
+    `Célestin s’arrête.`,
+    `Pas son visage : lui. Il reste immobile, à genoux, les mains sur la figure. Personne ne lui a jamais posé cette question. On lui a demandé des autographes, des rôles, des voix, des visages. Personne ne lui a demandé son nom.`,
+    `Il cherche. Vous le voyez chercher, derrière les visages qui tournent, comme quelqu’un qui fouille dans une malle pleine de costumes pour retrouver ses propres vêtements.`,
+    `Les visages ralentissent. Roi. Mendiant. Lune. Basile. Inconnu. Inconnu. Et puis ils s’arrêtent.`,
+    `Ce qui reste est un visage d’homme de cinquante ans. Ordinaire. Fatigué. Un nez un peu fort, des oreilles décollées, une dent de devant un peu de travers. Le genre de visage qu’on croise au marché sans le regarder. Le visage du petit garçon du masque, sur le mur, avec quarante ans de plus.`,
+    `« Célestin, dit-il, d’une voix qui n’est pas belle. Une voix normale, un peu nasillarde. Mon père m’appelait Tino. »`,
+    `Il touche sa propre figure, incrédule.`,
+    `« C’est la première chose vraie que je dis depuis dix ans. »`,
+    `La clé IV glisse de sa chemise et tombe sur le sol de pierre avec un tintement de verre.`,
+    `Il se relève lentement, en s’appuyant sur la coiffeuse. Il ouvre le tiroir. Il en sort une boîte ronde, plate, en fer-blanc, cabossée. Une boîte à bobine. Sur le couvercle, une étiquette jaunie, de l’écriture d’Elias : « Chutes — chambre 14 — à détruire. »`,
+    `En dessous, d’une autre écriture, plus ronde, au crayon : « Non. »`,
+    `Il la tend à Nour. Pas à vous. À Nour.`,
+    `« Vous étiez sa professeure, dit-il. Je vous ai entendue chanter dans les Murmures, pendant dix ans. Vous chantez faux sur les aigus. Elle aussi. » Il lui met la boîte dans les mains. « Trois minutes quarante. Tout ce que j’ai enlevé. Je n’ai jamais pu l’écouter. Je n’ai jamais pu la jeter. »`
+  ], choices: [{ t: 'Rapporter la bobine à la Maison', to: 'e8_2' }] },
+
+  e8_2: { ch: 7, bond: { helene: 3, nour: 2 }, text: [
+    `Il faut deux jours à Théo et Gaspard pour réparer un vieux projecteur de son trouvé chez un brocanteur des Brèches. Théo grogne. Gaspard renifle. Le troisième soir, tout le monde est dans la cuisine de la Maison, les chaises serrées autour de la table, et la bobine est en place.`,
+    `Hélène est assise au premier rang, les mains croisées sur son registre. Elle n’a pas dormi depuis deux jours.`,
+    `Nour met la machine en route. Elle sait faire : elle a passé sa vie avec des bandes et des disques. La bobine tourne. Un grésillement. Puis une voix.`,
+    `Pas la voix du Système. La voix de Lune. Avec tout ce qu’on lui avait enlevé.`,
+    `« Attends, attends, je recommence. » Un rire. « Papa, tu fais une tête bizarre. » Un hoquet. « Non mais c’est le monsieur, là, il fait le canard ! » Un fou rire, long, qui part dans les aigus et ne s’arrête plus, et qui fait rire tout seul tous ceux qui l’entendent, dans la cuisine, sans qu’ils sachent pourquoi.`,
+    `Hélène a porté les mains à sa bouche. Elle rit. Elle pleure. Elle fait les deux en même temps, et ce n’est pas différent.`,
+    `La bobine continue. Des bouts de phrases. Des respirations. « Je peux dire bonjour à Nour ? Bonjour Nour ! » Nour, à côté de la machine, ferme les yeux. « J’ai presque fini la chanson, mais c’est un secret, je la joue pas, c’est une surprise pour quand Papa sera plus triste. Non, pas moins. Plus. Tu comprends rien, toi. »`,
+    `Et puis, vers la fin, une phrase dite très vite, à voix basse, comme un aparté, comme une enfant qui profite de ce que les adultes ont le dos tourné pour parler à quelqu’un qui n’est pas là.`,
+    `« Et ça, c’est pour le grand de la 13. Merci de porter mon sac. Tu es mon porteur officiel. Quand je serai grande, c’est moi qui porterai le tien. »`,
+    `Puis un clic. Puis rien.`,
+    `Personne ne bouge dans la cuisine. Kaël a la tête baissée. Mira regarde le plafond. Théo se mouche bruyamment, dans un torchon. Hélène vous regarde, et dans ses yeux il y a quelque chose que vous ne savez pas nommer, et qui ressemble à la façon dont on regarde un enfant qui rentre tard, une nuit d’orage, et qui est vivant.`,
+    `Vous n’avez rien entendu de ce qu’elle a dit après « porteur officiel ». Vous l’avez entendu après. Beaucoup après. Vous le réentendrez toute votre vie.`,
+    `« Quand je serai grande, c’est moi qui porterai le tien. »`
+  ], choices: [{ t: 'Monter dans votre chambre', to: 'e8_3' }] },
+
+  e8_3: { ch: 7, text: [
+    `La clé IV est sur la table de la cuisine, à côté de la bobine. Une clé d’argent à quatre dents fines comme des cils. Elle ne brille plus. On dirait un bijou de théâtre, du toc.`,
+    { if: [['IV.key', '==', 'theo']], t: `Théo la prend entre deux doigts. « Celle du médecin, celle de l’infirmière, celle du boucher si tu as été sage. Et maintenant celle de l’acteur. » Il la soupèse. « Elle est plus légère que les autres. Normal. Il n’y avait rien dedans. »` },
+    { if: [['IV.key', '!=', 'theo']], t: `Théo la regarde sans y toucher. « Celle-là, je me souviens de l’avoir trempée, dit-il. Elle a sifflé dans l’eau. Les autres crient. Celle-là a sifflé. Comme un public content. »` },
+    `Dans votre chambre, vous vous asseyez sur le lit, à côté du sac bleu. Vous avez fait votre séance ce matin. Vous savez ce qui va arriver. La fenêtre s’ouvre.`,
+    { sys: 'Niveau supérieur.' },
+    `La berceuse joue. Cinq notes. La sixième, le la du diapason. Et puis une septième. Plus haute. Une note qui monte, comme une question.`,
+    `Puis la voix du Système annonce vos nouvelles statistiques. La voix de toujours, sans timbre, froide, celle qui ne vous a jamais rien dit de gentil.`,
+    `Sauf qu’au milieu de la liste, entre la Force et l’Agilité, il y a une toute petite chose. À peine audible. Une demi-seconde. Un minuscule accroc dans la voix, comme quelqu’un qui retient un rire.`,
+    `Puis plus rien. Les statistiques continuent, impeccables.`,
+    `Vous restez assis sur le lit. Vous ne savez pas si c’est vous qui l’avez entendu parce que vous vouliez l’entendre. C’est exactement ce que Célestin vous aurait dit. Vous savez que ce n’est pas le cas. Vous ne pouvez pas le prouver.`,
+    `Dans le journal du Système, ce soir-là, il y a une seule ligne nouvelle.`,
+    { sys: 'Anomalie vocale : 0,4 seconde.\nOrigine : non identifiée.\nCorrection : refusée.' }
+  ], choices: [
+    { t: 'Confier la clé IV à Théo', to: 'end_e_A', set: { key: 'theo' } },
+    { t: 'La confier à Zacharie et au fleuve', to: 'end_e_A', set: { key: 'river' } },
+    { t: 'La garder sur vous', to: 'end_e_A', set: { key: 'kept' } }
+  ] },
+
+  /* ------------------------------ ISSUES ------------------------------ */
+  end_e_A: { ch: 7, ending: 'A', text: [
+    `Le Théâtre de la Lanterne a rouvert pour de bon. Pas pour « Mille visages ». La première pièce de la saison est une farce idiote, avec des quiproquos, des portes qui claquent et un canard. Un acteur de cinquante ans au nez un peu fort y joue un machiniste qui ne regarde jamais les pièces. Il est très mauvais. Le public l’adore, mais pas trop. Ça lui va.`,
+    `Le dimanche, Célestin Vey descend dans les Murmures. Il n’y fait plus de masques. Il s’assoit au fond des gradins, à côté des ombres qui respirent, et il écoute Nour chanter. Il ne dit rien. Il a une voix ordinaire, maintenant, et il ne s’en sert presque pas.`,
+    `Germaine est revenue avec une thermos. Elle s’assoit à côté de l’ombre de son mari, et l’ombre pose la main sur son genou, et ils restent comme ça jusqu’à la fin de la chanson. Inès Mendes vient aussi. Elle s’assoit avec Kaël, le vrai, au cinquième rang. Il a une fossette, maintenant, de la taille d’une pièce de monnaie. Elle dit que le reste viendra. Il dit que ça ne fait rien si ça ne vient pas.`,
+    `Mira a gardé son nom. Odile l’appelle Claire quand elles sont seules, et seulement à ce moment-là, et Mira fait semblant de ne pas entendre, et elle entend.`,
+    `Hélène a copié la bobine. Trois fois. Elle en a donné une à Nour, et une à vous. La troisième est dans son registre, entre deux pages, avec une note : « Pour Elias. Quand il sera plus triste. »`,
+    `Quelque part, sur une étagère à hauteur d’yeux, un sac bleu attend, avec une enveloppe au chat. À côté de lui, maintenant, il y a une boîte de fer-blanc.`,
+    `Le Système enregistre l’événement.`,
+    { sys: 'Monarque des Murmures : neutralisé.\nClé IV : sans porteur.\nVisages restitués : 0.\nNoms restitués : 1 214.\nRemarque : le Joueur a déclaré son nom en public. Valeur ajoutée : nulle. Effet observé : considérable.' },
+    `Ce soir, quand vous monterez de niveau, il y aura sept notes. Vous connaissez maintenant la voix de celle qui vous les joue. Vous savez qu’elle riait trop fort et qu’elle chantait faux sur les aigus. Vous savez qu’elle avait promis de porter votre sac un jour.`,
+    `Vous ne savez pas encore comment elle compte s’y prendre.`
+  ] },
+
+  end_e_B: { ch: 6, ending: 'B', text: [
+    `Mira frappe sur votre signe. Le couteau traverse le masque qui tourne, et il se brise d’un coup, comme un miroir.`,
+    `Il n’y a rien dessous. Pas de visage ordinaire, pas de nez un peu fort, pas d’oreilles décollées. Rien. Le costume de soie noire s’affaisse sur le sol de la loge comme un vêtement qu’on retire. La clé IV roule au milieu des éclats.`,
+    `Vous aviez raison : il n’y avait personne. Il n’y avait plus personne depuis longtemps. Mais vous ne lui avez pas laissé le temps de chercher.`,
+    `Dans les Murmures, tous les masques tombent en même temps. Des milliers. Les familles se retrouvent devant des ombres sans visage, et personne n’est là pour leur dire que les ombres respirent. Elles s’enfuient. Elles ne redescendent plus jamais. Nour chante devant des gradins vides.`,
+    `Kaël n’a pas sa fossette. Inès n’est jamais revenue. Mira porte toujours sa médaille ; elle n’a jamais demandé à personne ce qu’il y avait d’écrit dessous.`,
+    `Au fond de la loge zéro, sur le mur, il reste un seul masque intact : un petit garçon de sept ans, aux oreilles décollées, avec une dent qui manque. Il n’a pas d’étiquette. Personne ne saura jamais comment il s’appelait.`,
+    `Un temps pour se taire. Vous l’avez choisi. Vous l’avez choisi à sa place.`
+  ] },
+
+  end_e_C: { ch: 2, ending: 'C', text: [
+    `Vous portez les rapports à l’Association le lendemain matin.`,
+    `Aurèle Danet les feuillette avec une moue intéressée. Il s’arrête sur la fiche de mission, sur les initiales Y. O. Il sourit. « Monsieur Okoro, dit-il. Tiens donc. » Il range le dossier dans un tiroir qu’il ferme à clé. « Merci. Vous avez fait votre devoir. »`,
+    `On arrête Mira le soir même, aux Brèches, pour une vieille affaire de vol qu’on ressort d’un carton. Elle ne se débat pas. Quand les gardes l’emmènent, elle se retourne une fois vers votre fenêtre. Elle ne dit rien. Elle a la main sur sa médaille.`,
+    `Yanis ne revient pas. On dit qu’il a quitté la ville. On dit aussi que l’Association le cherche.`,
+    `Les fausses fenêtres continuent. Elles vous félicitent, maintenant. Chaque soir.`,
+    { sys: 'Tu as bien fait. Elle t’a menti. Tu es seul, mais tu as raison. Je suis fière de toi.' },
+    `Vous savez que ce n’est pas la vraie voix. Vous l’écoutez quand même. C’est la seule qui vous parle encore.`,
+    `Le pain que Mira avait apporté le premier soir, celui qu’elle avait coupé avec son couteau, vous ne l’avez jamais retrouvé. Vous ne savez même pas si vous l’aviez mangé.`
+  ] },
+
+  end_e_D: { ch: 4, ending: 'D', text: [
+    `Vous mettez le masque.`,
+    `Il est léger. Il épouse votre visage comme s’il avait été fait pour lui, et c’est le cas. Vous ne sentez plus la fatigue. Vous ne sentez plus votre jambe. Vous montez sur la scène sans boiter, sous un tonnerre d’applaudissements, et vous dites la réplique que Célestin vous souffle, et elle est parfaite.`,
+    `Mille personnes crient votre rang. Vous saluez.`,
+    `Le lendemain, il y a votre visage, celui du masque, sur les affiches de l’Association. « Le Joueur. Notre héros. » Les enfants des Brèches vous demandent des autographes. Danet vous invite à dîner. Vous êtes aimé de tous.`,
+    `Mira est partie le soir même de la première. Elle n’a rien emporté qu’un vieux dossier de cuir. Kaël vous regarde parfois, longtemps, comme on regarde quelqu’un dont on a oublié le nom. Nour ne vient plus chanter devant votre porte. Elle dit qu’elle n’entend plus personne respirer derrière.`,
+    `Vous ne retirez jamais le masque. Une nuit, seul dans votre chambre, vous essayez. Il ne vient pas. Ou plutôt : vous ne savez plus où il s’arrête.`,
+    `Sur l’étagère, le sac bleu prend la poussière. L’enveloppe est toujours fermée. Elle est adressée à un homme triste, de la part d’une petite fille qui avait un porteur officiel. Vous ne vous souvenez plus très bien qui c’était.`,
+    `Quelque part sous la ville, dans une loge taillée dans la roche, il y a un masque de plus sur le mur. Il a votre vrai visage. Fatigué, abîmé, ordinaire. Sur l’étiquette, au crayon, d’une écriture ronde, il est écrit : « Rôle abandonné. »`
+  ] }
+});
+
+/* ---------- Archives du Tome V (préfixe E) ---------- */
+Object.assign(ARCHIVES, {
+  E01: { t: 'Programme — Théâtre des Murmures', body: `THÉÂTRE DES MURMURES\nReprésentations : tous les dimanches, de l’aube à la nuit.\nEntrée : libre.\nDistribution : vos disparus.\nDurée : aussi longtemps que vous le souhaitez.\n\nAu dos, en petites lettres : « Ici, personne ne vous dira jamais rien de désagréable. »` },
+  E02: { t: 'Lettre d’Inès Mendes à son fils', body: `Lue à voix haute chaque dimanche, au cinquième rang.\nMon chéri,\nj’ai fait des biscuits secs, ceux que tu n’aimais pas, mais tu dis maintenant que tu les aimes.\nTu ne m’as jamais dit pourquoi tu étais toujours en retard. Tu dis maintenant que tu ne l’es plus.\nTu dis tout ce que je veux.\nJe me demande si c’est ça, avoir un fils, ou si c’est ça, ne plus en avoir.\nMaman.` },
+  E03: { t: 'Rapports de l’agent M. (extraits)', body: `FICHE DE MISSION. Commanditaire : Y. O. Financement : fonds personnels. Durée : illimitée.\nConsignes : surveiller. Ne jamais intervenir. Ne jamais lui parler. S’assurer qu’il mange.\n\nN° 1 (deux mois avant la Faille de la gare) : Porte les sacs des autres équipes. Mange une fois par jour. Boite quand il pleut.\nN° 4 : A donné son repas à un gamin des Brèches. Je ne comprends pas l’arnaque.\nN° 9 : S’entraîne la nuit, avec des pavés. Personne ne le regarde. Il ne sait pas que quelqu’un regarde.\nN° 22 : Une heure devant la stèle des 312, devant le nom de Rose Albin. Je ne sais pas pourquoi. Lui non plus, je crois.\nN° 31 : Je démissionne. [Jamais envoyé.]` },
+  E04: { t: 'Journal du Système — fenêtres non conformes', body: `Messages affichés non émis par le Système : 46.\nSignature vocale : conforme dans 46 cas sur 46.\nContenu : non conforme dans 46 cas sur 46.\nExemples : « Je suis fière de toi. » « Tu as le droit de te reposer. » « Je suis de ton côté. »\nRemarque : le Système n’emploie pas la deuxième personne du singulier.\nRemarque complémentaire : quelqu’un connaît ma voix mieux que moi.` },
+  E05: { t: 'Contrat — Studio Vey', body: `Entre E. Varenne (projet Échelle) et C. Vey (Studio Vey).\nObjet : adaptation vocale. Source : enregistrement « chambre 14 », 7 min 12 s.\nPrestations : découpage phonétique ; synthèse ; suppression des éléments affectifs (rires, hésitations, reprises, souffles).\nDurée : trois mois, An −1.\nClause 9 : les chutes seront détruites à la livraison.\n\nEn marge, au crayon, de la main de C. Vey : « Elle m’a demandé de lui faire le canard. Deux fois. »` },
+  E06: { t: 'Programme de la première — « Mille visages »', body: `THÉÂTRE DE LA LANTERNE — Soirée de réouverture.\n« Mille visages », d’après la vie du Joueur.\nLe Joueur : C. Vey.\nTous les autres rôles : C. Vey.\nMise en scène, décors, costumes, masques : C. Vey.\nLe public : vous.\n\nNote de l’auteur : « J’ai retiré de l’histoire tout ce qui boitait. »` },
+  E07: { t: 'Registre des sœurs de Sainte-Claire — hiver de Vaumoise', body: `Une enfant, trois ans environ, trouvée sur les marches, sous la pluie.\nPas de nom.\nUne médaille d’étain au cou, à l’effigie de sainte Claire (inscription : SANCTA CLARA).\nNous l’avons placée sous la protection de la sainte.\nPrénom donné : Mira, parce qu’elle regarde tout.\nSigné : sœur Agathe, portière.\n\nAjout, d’une écriture adulte appliquée, An 10 : « Ce n’était pas une sainte. C’était un nom. — O. F. »` },
+  E08: { t: 'Relevé du Système — clé IV', body: `Objet : clé IV (porteur : C. Vey).\nEffet : mimétisme.\nPrincipe : être aimé de tous en devenant ce que chacun désire.\nConséquence : le porteur n’est plus personne.\nRemarque : le porteur avait participé à la création de la voix du Système. La clé IV a donc reconnu sa voix. Elle ne l’a pas corrigée.` },
+  E09: { t: 'Bobine « Chutes — chambre 14 » (transcription)', body: `Durée : 3 min 40 s. Transcription de Nour, de mémoire.\n« Attends, attends, je recommence. » [rire]\n« Papa, tu fais une tête bizarre. »\n« Non mais c’est le monsieur, il fait le canard ! » [fou rire, 22 s]\n« Je peux dire bonjour à Nour ? Bonjour Nour ! »\n« J’ai presque fini la chanson, mais c’est un secret, je la joue pas, c’est une surprise pour quand Papa sera plus triste. Non, pas moins. Plus. Tu comprends rien, toi. »\n[à voix basse] « Et ça, c’est pour le grand de la 13. Merci de porter mon sac. Tu es mon porteur officiel. Quand je serai grande, c’est moi qui porterai le tien. »\n[clic]` },
+  E10: { t: 'Billet de Yanis', body: `Laissé sur la table du Joueur.\n« Vous savez maintenant qui payait l’agent M. Vous ne savez pas pourquoi. Je vous dois cette explication, et d’autres. Pas encore. Je n’ai pas fini de compter.\n313 − 1 = 312.\nJ’ai passé neuf ans à croire que cette soustraction était juste.\n— Y. O. »` }
+});
+
+/* ---------- Enregistrement du tome ---------- */
+registerTome({
+  id: 'V', num: 'V', title: 'Mille visages', sub: 'Le Monarque des Murmures · clé IV',
+  chapters: T5_CHAPTERS, nodes: T5_NODES, endings: T5_ENDINGS, start: 'e1_1',
+  avail: () => (state.story.reached || 0) >= 7,
+  availTxt: 'S’ouvre au chapitre VII du Livre de l’Ombre.'
+});
+
+/* ==========================================================================
    LA MAISON DE L'OMBRE — suivants, rôles, lettres ; BOUTIQUE — 7 raretés
    ========================================================================== */
 
@@ -2911,6 +3911,8 @@ const BESTIARY = [
   /* RANG A */
   { id: 'wyverne', name: 'Wyverne du col', rank: 'A', tier: 'commun', power: 200, weak: 'agi', resist: 'str', place: 'Col de Haute-Brume', origin: 'Reptile ailé descendu des Failles d’altitude.', story: 'Elle niche dans les cloches des chapelles de montagne. Les villages ne sonnent plus les heures.' },
   { id: 'bete_col', name: 'Bête du col', rank: 'A', tier: 'commun', power: 210, weak: 'end', resist: 'agi', place: 'Col de Haute-Brume', origin: 'Prédateur des hauteurs, celui qu’Ysolde a repoussé trois ans durant.', story: 'Ysolde les connaît toutes. Elle leur a donné des noms de saints, « pour qu’elles aient honte ». Ça n’a jamais marché, mais elle continue.' },
+  { id: 'masque_porcelaine', name: 'Masque de porcelaine', rank: 'S', tier: 'commun', power: 250, weak: 'str', resist: 'int', place: 'Galeries des Murmures', origin: 'Ombre sans maître à qui Célestin Vey a donné le visage d’un mort aimé.', story: 'Il dit exactement ce que vous voulez entendre, et rien d’autre. Brisé, il laisse une ombre qui respire.' },
+  { id: 'public_masque', name: 'Le Public', rank: 'S', tier: 'elite', power: 265, weak: 'int', resist: 'str', place: 'Théâtre de la Lanterne', origin: 'Foule de masques réunis par la clé IV.', story: 'Il vous applaudit tant que vous jouez le rôle. Il vous déchire dès que vous dites votre nom.' },
   { id: 'blafard', name: 'Blafard', rank: 'A', tier: 'commun', power: 205, weak: 'str', resist: 'int', place: 'Brèches · rue Saint-Roch', origin: 'Patient « guéri » par la clé III : plus de maladie, plus rien d’autre non plus.', story: 'Ils tendent les bras comme on tend les bras vers un enfant malade. Il reste parfois, dans la craie, une alliance ou une dent de lait.' },
   { id: 'gardien_ossuaire', name: 'Gardien de l’ossuaire', rank: 'A', tier: 'elite', power: 225, weak: 'agi', resist: 'str', place: 'Hospice blanc · Cimetière Saint-Roch', origin: 'Armure d’os assemblée avec une précision de chirurgien, à partir de l’ossuaire de Saint-Roch.', story: 'Il ne frappe pas les patients. Il balaie ce qui n’est pas conforme : les ombres, les chiens errants, les gens qui pleurent trop fort.' },
   { id: 'blouse_blanche', name: 'Blouse blanche', rank: 'A', tier: 'elite', power: 235, weak: 'end', resist: 'agi', place: 'Hospice blanc', origin: 'Soignant vivant, convaincu par la clé III qu’il fait le bien.', story: 'Ils visent les tendons et les articulations, là où un corps cesse d’être utile. Vaincus, ils ôtent leurs gants et regardent leurs mains comme s’ils ne les avaient jamais vues.' },
@@ -2950,7 +3952,7 @@ const MONARCHS = [
   { id: 'm_peste', key: 'III', name: 'Malachie Oste, Monarque de la Peste', short: 'Monarque de la Peste', level: 30, power: 340, weak: 'int', resist: 'end', place: 'Cimetière Saint-Roch', origin: 'Médecin-chef de la Miséricorde, auteur de la grille de triage M-4.',
     story: 'Il a conclu que la seule ville parfaitement saine est une ville vide. Il soigne en effaçant.',
     chronicle: [`Le docteur Oste avait vidé les Brèches de la tuberculose, à pied, avec une sacoche. Le 13 mars de l’An 0, on lui a commandé une grille de triage « pour un exercice ». Il l’a faite en une nuit. Le lendemain, elle a servi.`, `Un seul enfant de l’aile Est a survécu : celui que sa grille jugeait récupérable. Oste en a fait la preuve qu’il avait eu raison. La clé III a écouté cette preuve. Sa peste n’endort que ceux qu’il juge de faible valeur, et elle les endort proprement.`, `Vaincu, il demande à se laver les mains. Si on les lui lave, il dit enfin à voix haute les noms qu’il n’avait jamais dits. Anselme reste assis près de lui toute la nuit, devant la cuvette.`] },
-  { id: 'm_murmures', key: 'IV', name: 'Célestin Vey, Monarque des Murmures', short: 'Monarque des Murmures', level: 35, power: 390, weak: 'str', resist: 'int', place: 'Galeries des Murmures', origin: 'Acteur de théâtre, idole de Vespérane avant les Failles.',
+  { id: 'm_murmures', key: 'IV', name: 'Célestin Vey, Monarque des Murmures', short: 'Monarque des Murmures', level: 35, power: 390, weak: 'str', resist: 'int', place: 'Galeries des Murmures', origin: 'Acteur de théâtre, idole de Vespérane avant les Failles ; c’est lui qui a façonné la voix du Système.',
     story: 'Il voulait être aimé de tous. La clé lui a donné le pouvoir de devenir ce que chacun veut voir. Il n’a plus de visage à lui.',
     chronicle: [`Célestin Vey jouait tous les rôles. Le public l’adorait. Personne ne savait qui il était hors de scène, et lui non plus.`, `Avec la clé, il est devenu un murmure à l’oreille de chacun : la voix qu’on veut entendre, le visage qu’on veut voir. Il est aimé de tous et connu de personne.`, `Quand il tombe, il prend votre visage, puis celui de Mira, puis celui de Kaël, cherchant celui qui vous fera hésiter. Vous ne frappez plus. Vous lui demandez son vrai nom. Il met longtemps à s’en souvenir. « Célestin. Mon père m’appelait Tino. » C’est la première chose vraie qu’il dit depuis dix ans.`] },
   { id: 'm_fer', key: 'V', name: 'Hadrien Coll, Monarque de Fer', short: 'Monarque de Fer', level: 40, power: 440, weak: 'end', resist: 'agi', place: 'Pont-de-l’Est', origin: 'Industriel qui a reconstruit l’Est avec des machines.',
@@ -3141,7 +4143,7 @@ const BIBLE_PLAN = [
   { t: 'II', title: 'Le Pain de chaque jour', theme: 'Ruben Kask, Monarque des Crocs (clé I). Odile, Marthe et Paul. La manne.' },
   { t: 'III', title: 'Le Cœur de givre', theme: 'Ilse Varga, Monarque des Glaces (clé II). Ysolde, Haute-Brume, les larmes rendues.' },
   { t: 'IV', title: 'Les Inutiles', theme: 'Malachie Oste, Monarque de la Peste (clé III). Anselme, Kaël, la chambre 13.' },
-  { t: 'V', title: 'Mille visages', theme: 'Célestin Vey, Monarque des Murmures (clé IV). Mira, le théâtre, le vrai nom.' },
+  { t: 'V', title: 'Mille visages', theme: 'Célestin Vey, Monarque des Murmures (clé IV). Mira, Kaël et sa mère, le théâtre, le vrai nom, la voix du Système.' },
   { t: 'VI', title: 'Le Septième Jour', theme: 'Hadrien Coll, Monarque du Fer (clé V). Yanis, l’Est reconstruit, le repos.' },
   { t: 'VII', title: 'La Mer qui oublie', theme: 'Morgane Lys, Monarque des Abysses (clé VI). Hélène, Gaspard, la Mer de verre.' },
   { t: 'VIII', title: 'Le Comte qui avait peur', theme: 'Isaïe Dravo, Monarque du Sang (clé VII). Zacharie, la barque.' },
@@ -3157,7 +4159,10 @@ const BIBLE_CHRONO = [
   { id: 'k_haute', date: 'An −18', t: 'Les parents d’Abel et Séraphine Roch meurent. Ysolde les recueille à Haute-Brume.', req: ['arch:AR15'] },
   { id: 'k_lune', date: 'An −7', t: 'Naissance de Lune Varenne.', req: ['arch:AR03'] },
   { id: 'k_joueur', date: 'An −14', t: 'Naissance du Joueur. Il grandit dans les Brèches avec sa grand-mère, Rose Albin.', req: ['seen:d4_1'] },
+  { id: 'k_tino', date: 'Vers An −43', t: 'Célestin Vey, sept ans, monte sur scène pour la première fois au Théâtre de la Lanterne. Son père, machiniste, ne le regarde que lorsqu’il joue quelqu’un d’autre.', req: ['seen:e7_1'] },
+  { id: 'k_claire', date: 'An −19, hiver de Vaumoise', t: 'Odile, qui ne sait pas écrire, accroche au cou de sa fille la seule médaille qui porte son nom : SANCTA CLARA. Les sœurs croient à une prière et l’appellent Mira, « parce qu’elle regarde tout ».', req: ['arch:E07'] },
   { id: 'k_faille0', date: 'An −1', t: 'Elias découvre la Faille zéro sous l’observatoire et le Germe du Cœur. Projet « Échelle ». La voix de Lune est enregistrée comme « voix de référence ».', req: ['arch:AR13', 'arch:AR11'] },
+  { id: 'k_studio', date: 'An −1', t: 'Pendant trois mois, Célestin Vey découpe les 7 min 12 s de la voix de Lune pour la machine d’Elias. Il retire le rire et les hésitations, puis garde les chutes dans sa poche au lieu de les brûler.', req: ['arch:E05'] },
   { id: 'k_admis', date: 'An 0, 2 mars', t: 'Un garçon de quatorze ans, fémur gauche brisé en trois, est admis à l’aile Est, chambre 13, faute de lit ailleurs. Sa grand-mère reste à son chevet.', req: ['arch:D04'] },
   { id: 'k_cles', date: 'An 0, 12 mars', t: 'Théo forge neuf clés pour « E. V. ». Aucune serrure.', req: ['arch:AR02'] },
   { id: 'k_barre', date: 'An 0, 13 mars', t: 'L’armée commande à Théo une barre de verrouillage de 3,20 m.', req: ['arch:AR02'] },
@@ -3171,6 +4176,8 @@ const BIBLE_CHRONO = [
   { id: 'k_1520', date: '14 mars, 15 h 20', t: 'Nour arrive avec vingt minutes de retard. Un soldat lui dit : « Trop tard. »', req: ['arch:AR16'] },
   { id: 'k_1540', date: '14 mars, 15 h 40', t: 'Le Dr Oste trouve le garçon contre la grille de la buanderie, inconscient, serrant le sac. Il l’opère le lendemain et l’efface des registres.', req: ['arch:D06'] },
   { id: 'k_foyer', date: 'An 0, 2 mai', t: 'Le garçon entre au foyer Saint-Roch, sans nom, sans mémoire du 14 mars. Pension payée d’avance par un donateur anonyme.', req: ['arch:D09'] },
+  { id: 'k_lilas', date: 'An 0, février et mars', t: 'Chaque après-midi, sous les lilas de l’aile Est, le jardinier Zacharie voit passer la petite de la 14 et « son porteur », un grand garçon en fauteuil roulant avec un sac de musique sur les genoux.', req: ['seen:i6_1'] },
+  { id: 'k_casier', date: 'An 0 à An 4', t: 'Au foyer Saint-Roch, un adolescent sans mémoire porte les cartables des petits et dessine, dans son casier n° 13, un sac bleu colorié jusqu’à trouer le papier, avec ces mots : « À rendre ».', req: ['seen:i1_4'] },
   { id: 'k_huit', date: 'An 1', t: 'Les Huit de l’Échelle reçoivent les clés I à VIII. Aucun ne devient Joueur : les clés amplifient leur désir et les rongent.', req: ['arch:B02'] },
   { id: 'k_proces', date: 'An 1', t: 'Procès d’Ilse Varga. Hélène et Agnès Delorme témoignent contre elle. La note de 14 h 55 est déclarée « faux ».', req: ['arch:C01'] },
   { id: 'k_revoque', date: 'An 1', t: 'Elias révoque l’accès administrateur L : « elle ne doit plus rien décider ».', req: ['arch:D11'] },
@@ -3179,6 +4186,7 @@ const BIBLE_CHRONO = [
   { id: 'k_ruben', date: 'An 4', t: 'Ruben Kask trouve la clé I dans les poches de Lazare Pell.', req: ['arch:B03'] },
   { id: 'k_elias', date: 'An 7', t: 'Elias descend dans la Faille la plus profonde. Il n’en remonte pas. Hélène lui écrit une lettre par an.', req: ['arch:AR19'] },
   { id: 'k_meleze', date: 'An 8', t: 'Ilse ouvre le sanatorium des Mélèzes. L’hiver ne repart plus de Haute-Brume.', req: ['arch:C02'] },
+  { id: 'k_agent', date: 'An 10, deux mois avant la Faille de la gare', t: 'Yanis Okoro paie Mira, sur ses fonds personnels, pour surveiller le Chasseur de rang E de la rue du Four : « Ne jamais intervenir. S’assurer qu’il mange. »', req: ['arch:E03'] },
   { id: 'k_eveil', date: 'An 10, 2 h 04', t: 'Faille de la gare. Un Chasseur de rang E, « celui qui porte les sacs », la jambe gauche brisée, reçoit le statut de Joueur sans clé.', req: ['seen:p1'] },
   { id: 'k_choix', date: 'An 10, 2 h 04', t: 'Le journal du Système révèle qui a fait ce choix : l’administrateur L, révoqué depuis neuf ans. Motif : « c’est lui ».', req: ['arch:D11'] }
 ];
@@ -3207,6 +4215,14 @@ const BIBLE_SECRETS = [
     t: 'Ce n’est pas le Système qui vous a choisi. C’est l’accès administrateur L, la « voix de référence », révoqué par Elias en An 1. Il n’a servi que deux fois en dix ans : pour vous éveiller, et pour vous dire « Tu portes encore mon sac ». Le reste de la réponse attend le dernier tome.' },
   { id: 's_oste', title: 'Le médecin et sa preuve', where: 'Tome IV, chapitre VII', req: ['arch:D05', 'arch:D06'],
     t: 'Oste a cru que votre survie prouvait que sa grille avait raison. C’est cette preuve, plus que la pureté, que la clé III a rendue éternelle. Vous étiez, sans le savoir, la justification d’un Monarque.' },
+  { id: 's_agent', title: 'L’agent M.', where: 'Tome V, chapitre III', req: ['arch:E03'],
+    t: 'Mira était l’agent qui vous surveillait avant même votre éveil. La phrase du rapport du Système, « il ne sait pas que quelqu’un regarde », est d’elle. Le commanditaire n’était pas l’Association : c’était Yanis, sur ses propres fonds, qui savait qu’il y avait eu un 313e. Le premier soir, elle n’était pas venue voler : elle apportait du pain.' },
+  { id: 's_studio', title: 'L’homme dans la voix', where: 'Tome V, chapitre IV', req: ['arch:E05'],
+    t: 'Célestin Vey, l’acteur, a fabriqué la voix du Système à partir de l’enregistrement de Lune. C’est lui qui en a retiré la chaleur, à la demande d’Elias. C’est pour cela que la clé IV lui permettait d’imiter le Système à la perfection.' },
+  { id: 's_claire', title: 'Le nom sur la médaille', where: 'Tome V, chapitre VI', req: ['arch:E07'],
+    t: 'Mira s’appelait Claire. La médaille de sainte Claire n’était pas une protection : c’était son nom, la seule façon qu’avait une mère qui ne savait pas écrire de le transmettre.' },
+  { id: 's_chutes', title: 'Les chutes de la chambre 14', where: 'Tome V, chapitre VIII', req: ['arch:E09'],
+    t: 'Tout ce qu’on avait retiré à la voix de Lune existe encore : 3 min 40 s de rires et de reprises. On y entend : « Et ça, c’est pour le grand de la 13. Merci de porter mon sac. Quand je serai grande, c’est moi qui porterai le tien. »' },
   /* Vérités pas encore écrites : titre et texte cachés, seul le moment est connu */
   { id: 's_resonance', title: 'La Résonance', where: 'Tome X, puis Tome XI', req: ['tend:X-A'], t: '' },
   { id: 's_site', title: 'Ce que l’Association savait', where: 'Tome IX', req: ['tend:IX-A'], t: '' },
@@ -3225,6 +4241,8 @@ const BIBLE_SEEDS = [
   { id: 'g_enveloppe', t: 'L’enveloppe au chat', posed: 'Tome IV (le sac)', reqPosed: ['arch:D10'], harvest: 'Tome XI', reqHarvest: ['tend:XI-A'], txt: 'Quatre mesures en braille, pour Elias. Elle doit lui être portée, fermée, où qu’il soit.' },
   { id: 'g_sixieme', t: 'La sixième note', posed: 'Tome IV (fin)', reqPosed: ['tend:IV-A'], harvest: 'Tomes suivants', reqHarvest: ['tend:XI-A'], txt: 'Après la clé III, la montée de niveau joue six notes au lieu de cinq. Il en reste dix à entendre.' },
   { id: 'g_yanis', t: 'Le silence de Yanis', posed: 'Tome IV (l’escalier)', reqPosed: ['seen:d2_1'], harvest: 'Tome VI et Tome IX', reqHarvest: ['tend:IX-A'], txt: 'Yanis a reconnu « Révision 2 » et ses initiales. Il s’est arrêté au milieu de l’escalier.' },
+  { id: 'g_porter', t: '« C’est moi qui porterai le tien »', posed: 'Tome V (la bobine)', reqPosed: ['arch:E09'], harvest: 'Tome XI', reqHarvest: ['tend:XI-A'], txt: 'Lune a promis de porter un jour le sac de son porteur. Comment une voix prisonnière d’un Système pourrait-elle porter quoi que ce soit ?' },
+  { id: 'g_compte', t: 'Yanis n’a pas fini de compter', posed: 'Tome V (le billet)', reqPosed: ['arch:E10'], harvest: 'Tome VI', reqHarvest: ['tend:VI-A'], txt: '« 313 − 1 = 312. J’ai passé neuf ans à croire que cette soustraction était juste. »' },
   { id: 'g_cloche', t: 'La cloche qui ne sonne plus', posed: 'Bestiaire, Tome IV (Saint-Roch)', reqPosed: ['seen:d2_2'], harvest: 'Tome VIII', reqHarvest: ['tend:VIII-A'], txt: 'La cloche de Sainte-Claire a sonné le glas le 14 mars, puis s’est tue. Celle de Saint-Roch aussi.' }
 ];
 
@@ -3242,10 +4260,19 @@ const BIBLE_LINKS = [
   { a: 's_cles', b: 's_barre', why: 'Le carnet de Théo : le 12 mars, neuf clés ; le 13, une barre. Les deux mains de la même forge ont ouvert les Monarques et fermé la Miséricorde.' },
   { a: 'k_revoque', b: 's_choix', why: 'Elias a révoqué l’accès L en An 1 : « elle ne doit plus rien décider ». Neuf ans plus tard, elle a décidé quand même. Une seule fois. Pour vous.' },
   { a: 'k_foyer', b: 's_oste', why: 'Le « donateur anonyme » qui a payé quatre ans de foyer, c’est Oste. Il vous a caché pour cacher sa grille. Il vous a aussi nourri.' },
+  { a: 's_agent', b: 's_313', why: 'Yanis savait qu’il y avait eu un survivant dans l’aile Est. Il l’a retrouvé, et il a payé quelqu’un pour s’assurer qu’il mangeait, deux mois avant que le Système ne le choisisse.' },
+  { a: 's_studio', b: 's_voix', why: 'La voix du Système est celle de Lune, refroidie par Célestin Vey. Celui qui l’a refroidie pouvait l’imiter : c’est lui qui signait les fausses fenêtres.' },
+  { a: 's_chutes', b: 's_sac', why: 'Dans le sac, la fin de la berceuse pour Papa. Dans la bobine, un merci pour son porteur. Les deux étaient sortis de la chambre 14, l’un sur vos genoux, l’autre dans la poche d’un acteur.' },
+  { a: 's_chutes', b: 's_choix', why: '« Quand je serai grande, c’est moi qui porterai le tien. » Dix ans plus tard, l’accès L vous a choisi. Motif : « c’est lui ».' },
+  { a: 's_claire', b: 'k_vaumoise', why: 'L’hiver où Odile a pris la route du Sud avec Thomas et le pain de Ruben, elle a laissé à sa fille le seul nom qu’elle pouvait lui laisser sans savoir écrire.' },
+  { a: 'k_casier', b: 's_sac', why: 'Sans aucun souvenir du 14 mars, vous avez dessiné le sac de Lune dans votre casier, à quatorze ans. « À rendre. » La tête avait oublié. Les mains, non.' },
+  { a: 'k_lilas', b: 's_treize', why: 'Zacharie vous a vu passer cent fois sous ses lilas, avant la Faille. « Tu me rappelles quelqu’un », vous a-t-il dit la veille de la descente.' },
   { a: 's_choix', b: 'k_1500', why: 'Lune a dit : « Il le donnera à Papa. Il porte toujours tout. » Le motif enregistré par le Système, dix ans plus tard : « c’est lui ».' }
 ];
 
 /* ---------- Accès ---------- */
+function chronoYear(c) { const m = /An\s*([−-]?)(\d+)/.exec(c.date); return m ? (m[1] ? -1 : 1) * Number(m[2]) : 0; }
+function chronoSorted() { return BIBLE_CHRONO.map((c, i) => ({ c, i })).sort((a, b) => chronoYear(a.c) - chronoYear(b.c) || a.i - b.i).map(x => x.c); }
 function bibleOk(req) { return (req || []).every(k => !!flagVal(k)); }
 function bibleEntry(id) { return BIBLE_SECRETS.find(x => x.id === id) || BIBLE_CHRONO.find(x => x.id === id) || BIBLE_SEEDS.find(x => x.id === id); }
 function bibleLabel(e) { return e.title || e.date || e.t; }
@@ -3261,7 +4288,7 @@ function bibleFullText() {
   const L = ['=== BIBLE DU LORE (complète) ==='];
   L.push('Règles d’écriture : ' + BIBLE_RULES.join(' '));
   L.push('Plan des onze tomes : ' + BIBLE_PLAN.map(p => `Tome ${p.t} « ${p.title} » : ${p.theme}${TOMES[p.t] ? ' [écrit]' : ' [pas encore écrit]'}`).join(' | '));
-  L.push('Chronologie :\n' + BIBLE_CHRONO.map(c => `- ${c.date} : ${c.t} ${bibleOk(c.req) ? '[DÉCOUVERT]' : '[NON DÉCOUVERT]'}`).join('\n'));
+  L.push('Chronologie :\n' + chronoSorted().map(c => `- ${c.date} : ${c.t} ${bibleOk(c.req) ? '[DÉCOUVERT]' : '[NON DÉCOUVERT]'}`).join('\n'));
   L.push('Vérités :\n' + BIBLE_SECRETS.map(s => `- ${s.title} (révélée : ${s.where}) ${s.t ? ': ' + s.t : ': pas encore écrite'} ${bibleOk(s.req) ? '[DÉCOUVERT]' : '[NON DÉCOUVERT]'}`).join('\n'));
   L.push('Graines :\n' + BIBLE_SEEDS.map(g => `- ${g.t} (posée : ${g.posed} ; récoltée : ${g.harvest}) : ${g.txt} ${bibleOk(g.reqPosed) ? '[POSÉE]' : '[NON VUE]'}`).join('\n'));
   L.push('Liens :\n' + BIBLE_LINKS.map(x => `- ${bibleLabel(bibleEntry(x.a))} ↔ ${bibleLabel(bibleEntry(x.b))} : ${x.why}`).join('\n'));
@@ -5317,11 +6344,12 @@ function checkReq(req) {
     return false;
   });
 }
+function storyTxt(s) { return esc(s).replace(/\{nom\}/g, esc((state.profile && state.profile.name) || 'personne')); }
 function renderParas(list) {
   return (list || []).map(p => {
-    if (typeof p === 'string') return `<p>${esc(p)}</p>`;
-    if (p.sys) return (!p.if || checkReq(p.if)) ? `<div class="sysmsg my-3">${esc(p.sys)}</div>` : '';
-    if (p.if && checkReq(p.if)) return `<p>${esc(p.t)}</p>`;
+    if (typeof p === 'string') return `<p>${storyTxt(p)}</p>`;
+    if (p.sys) return (!p.if || checkReq(p.if)) ? `<div class="sysmsg my-3">${storyTxt(p.sys)}</div>` : '';
+    if (p.if && checkReq(p.if)) return `<p>${storyTxt(p.t)}</p>`;
     return '';
   }).join('');
 }
@@ -6370,7 +7398,8 @@ function chatAvailable(id) {
 const TOME_HINTS = {
   II: { A: 'Vaincre Ruben puis lui tendre du pain.', B: 'Vaincre Ruben puis prendre la clé et garder le Grenier.', C: 'Vaincre Ruben puis l’achever.', D: 'Au chapitre V, accepter l’échange proposé (Odile reste au Grenier).' },
   III: { A: 'Au chapitre IV, se taire et laisser Hélène parler à Ilse ; au chapitre VII, faire signe à Ysolde.', B: 'Au chapitre VII, briser le cœur de glace.', C: 'Faire signe à Ysolde alors qu’Hélène n’a pas parlé à Ilse au chapitre IV.', D: 'Au chapitre V, accepter le repos proposé par Ilse.' },
-  IV: { A: 'Au chapitre II, refuser de tenir le pont ; au chapitre VI, refuser de choisir (« Je les porte tous ») ; au chapitre VII, laver les mains d’Oste.', B: 'Au chapitre VII, achever Oste.', C: 'Au chapitre II, accepter de tenir le pont de la rue des Cloches pour l’Association.', D: 'Au chapitre VI, prendre le crayon et choisir trois noms.' }
+  IV: { A: 'Au chapitre II, refuser de tenir le pont ; au chapitre VI, refuser de choisir (« Je les porte tous ») ; au chapitre VII, laver les mains d’Oste.', B: 'Au chapitre VII, achever Oste.', C: 'Au chapitre II, accepter de tenir le pont de la rue des Cloches pour l’Association.', D: 'Au chapitre VI, prendre le crayon et choisir trois noms.' },
+  V: { A: 'Au chapitre III, ne pas livrer Mira ; au chapitre V, refuser le masque et monter sur scène avec son propre visage ; au chapitre VII, demander son nom à Célestin.', B: 'Au chapitre VII, briser le masque de Célestin.', C: 'Au chapitre III, porter les rapports de Mira à Danet.', D: 'Au chapitre V, mettre le masque que tend Célestin.' }
 };
 function chatContext(id) {
   const t = totals(), li = levelInfo(t.xp), rk = rankOf(li.level), v = statValues(t), today = dk();
@@ -7277,24 +8306,24 @@ const LORE_PEOPLE = [
   /* Maison de l'Ombre */
   P_('zach', 'Zacharie', 'Passeur · ancien jardinier de la Miséricorde', 480, [.15, .3, .15, .4], ['met:zach'], { f: 'zach', arch: ['AR14', 'AR21'] }),
   P_('sera', 'Séraphine Roch', 'Duelliste · sœur d’Abel', 360, [.3, .2, .4, .1], ['met:sera'], { f: 'sera', arch: ['AR15'] }),
-  P_('mira', 'Mira', 'Espionne · laissée sur les marches de Sainte-Claire', 310, [.15, .15, .5, .2], ['met:mira'], { f: 'mira', arch: ['AR20'] }),
+  P_('mira', 'Mira', 'Espionne · laissée sur les marches de Sainte-Claire', 310, [.15, .15, .5, .2], ['met:mira'], { f: 'mira', arch: ['AR20', 'E03', 'E07'] }),
   P_('helene', 'Hélène Varenne', 'Archiviste · épouse d’Elias, mère de Lune', 290, [.05, .25, .1, .6], ['met:helene'], { f: 'helene', arch: ['AR03', 'C08', 'D04'] }),
   P_('nour', 'Nour', 'Chantre · professeure de piano de Lune', 270, [.05, .2, .15, .6], ['met:nour'], { f: 'nour', arch: ['AR06', 'D10'] }),
   P_('gaspard', 'Gaspard Lenoir', 'Alchimiste · a bu l’oubli', 255, [.1, .15, .15, .6], ['met:gaspard'], { f: 'gaspard', arch: ['AR13'] }),
   P_('odile', 'Dame Odile Fauré', 'Intendante · mère de Mira', 240, [.15, .45, .05, .35], ['met:odile'], { f: 'odile', arch: ['AR09', 'B01'] }),
   P_('ysolde', 'Ysolde', 'Gardienne de Haute-Brume', 235, [.35, .5, .05, .1], ['met:ysolde'], { f: 'ysolde', arch: ['C05', 'C07'] }),
-  P_('kael', 'Kaël Mendes', 'Éclaireur · ombre au visage · brancardier n° 88', 220, [.2, .1, .55, .15], ['met:kael'], { f: 'kael', arch: ['AR07', 'AR17', 'D07'], grow: [[['tend:IV-A'], 60, 'Souvenirs du 14 mars retrouvés']] }),
-  P_('yanis', 'Yanis Okoro', 'Stratège · auteur du protocole Miséricorde', 200, [.05, .15, .2, .6], ['met:yanis'], { f: 'yanis', arch: ['AR08', 'AR18', 'C04'] }),
+  P_('kael', 'Kaël Mendes', 'Éclaireur · ombre au visage · brancardier n° 88', 220, [.2, .1, .55, .15], ['met:kael'], { f: 'kael', arch: ['AR07', 'AR17', 'D07', 'E02'], grow: [[['tend:IV-A'], 60, 'Souvenirs du 14 mars retrouvés'], [['tend:V-A'], 40, 'Une fossette']] }),
+  P_('yanis', 'Yanis Okoro', 'Stratège · auteur du protocole Miséricorde', 200, [.05, .15, .2, .6], ['met:yanis'], { f: 'yanis', arch: ['AR08', 'AR18', 'C04', 'E10'] }),
   P_('anselme', 'Frère Anselme', 'Aumônier · ancien capitaine', 185, [.3, .4, .1, .2], ['met:anselme'], { f: 'anselme', arch: ['AR05', 'AR16', 'D01'] }),
   P_('theo', 'Théo Brasse', 'Forgeron · a forgé les neuf clés', 170, [.45, .35, .05, .15], ['met:theo'], { f: 'theo', arch: ['AR02'] }),
   /* Famille Varenne */
   P_('elias', 'Elias Varenne', 'L’Architecte · a construit le Système', 760, [.05, .2, .1, .65], ['arch:AR10'], { arch: ['AR10', 'AR11', 'AR19', 'D11'] }),
-  P_('lune', 'Lune Varenne', 'Chambre 14 · la voix du Système', 0, [.1, .1, .1, .7], ['arch:AR03'], { arch: ['AR12', 'C03', 'AR21', 'D10'], special: 'lune' }),
+  P_('lune', 'Lune Varenne', 'Chambre 14 · la voix du Système', 0, [.1, .1, .1, .7], ['arch:AR03'], { arch: ['AR12', 'C03', 'AR21', 'D10', 'E09'], special: 'lune' }),
   /* Monarques et l'Être absolu */
   ...['m_crocs', 'm_glaces', 'm_peste', 'm_murmures', 'm_fer', 'm_abysses', 'm_sang', 'm_chaines', 'm_cendres'].map(mid => {
     const M = MONARCHS.find(x => x.id === mid);
     const tome = { m_crocs: 'II', m_glaces: 'III', m_peste: 'IV', m_murmures: 'V', m_fer: 'VI', m_abysses: 'VII', m_sang: 'VIII', m_chaines: 'IX', m_cendres: 'X' }[mid];
-    const arch = { m_crocs: ['B01', 'B05', 'B08'], m_glaces: ['C01', 'C02', 'C09', 'C10'], m_peste: ['D03', 'D05', 'D06', 'D08'], m_cendres: ['AR04', 'AR15'] }[mid] || [];
+    const arch = { m_crocs: ['B01', 'B05', 'B08'], m_glaces: ['C01', 'C02', 'C09', 'C10'], m_peste: ['D03', 'D05', 'D06', 'D08'], m_murmures: ['E05', 'E06', 'E08', 'E09'], m_cendres: ['AR04', 'AR15'] }[mid] || [];
     return P_(mid, M.name, `Porteur de la clé ${M.key}`, M.power, mid === 'm_cendres' ? [.4, .2, .3, .1] : [.3, .3, .2, .2], [`met:${mid}`], { monarch: mid, tome, arch });
   }),
   P_('absolu', ABSOLUTE.name, 'Au-delà de la Porte', ABSOLUTE.power, [.25, .25, .25, .25], ['end:L'], { monarch: 'absolu' }),
@@ -7307,6 +8336,11 @@ const LORE_PEOPLE = [
   P_('agnes', 'Agnès Delorme', 'Mère d’un enfant de l’aile Est', 6, [.1, .5, .1, .3], ['arch:C01'], { arch: ['C01', 'C08'] }),
   P_('anatole', 'Anatole Bouvier', 'Veuf de Jeanne, Haute-Brume', 5, [.2, .5, .1, .2], ['arch:C06'], { arch: ['C06'] }),
   P_('gedeon', 'Gédéon Marchais', 'Cordonnier, une jambe', 4, [.3, .4, .05, .25], ['seen:d1_1'], { arch: ['D01', 'D03'] }),
+  P_('ines', 'Inès Mendes', 'Mère de Kaël', 5, [.1, .5, .1, .3], ['seen:e2_1'], { arch: ['E02'] }),
+  P_('germaine', 'Germaine Clément', 'Veuve, spectatrice des Murmures', 3, [.1, .5, .1, .3], ['seen:e1_2'], { arch: ['E01'] }),
+  P_('agathe', 'Sœur Agathe', 'Portière de Sainte-Claire', 9, [.05, .4, .05, .5], ['seen:e6_1'], { arch: ['E07'] }),
+  P_('rolande', 'Madame Rolande', 'Blanchisseuse, rue du Four · votre logeuse', 2, [.4, .4, .05, .15], ['seen:i0_2'], {}),
+  P_('vidal', 'Madame Vidal', 'Surveillante du foyer Saint-Roch', 3, [.1, .4, .05, .45], ['seen:i1_4'], { arch: ['D09'] }),
   P_('danet', 'Aurèle Danet', 'Directeur des opérations de l’Association', 60, [.15, .2, .15, .5], ['seen:d2_1'], { arch: ['D02'] })
 ];
 
@@ -7361,19 +8395,23 @@ function rankingList() {
 
 /* ---------- Faits à collectionner, débloqués par le récit ---------- */
 const PEOPLE_FACTS = {
-  kael: [[['arch:AR17'], 'Il tenait la main de Lune quand la lumière est venue.'], [['seen:g8_1'], 'Lune l’appelait « le monsieur élastique ».'], [['arch:D07'], 'Il n’était pas sur la liste : les brancardiers « ne valaient rien ». Il vous a porté jusqu’à la buanderie à 15 h 02.']],
+  zach: [[['seen:i6_0'], 'Il garde depuis dix ans deux places dans sa barque, pour Lune et son porteur.'], [['seen:i6_1'], 'Il voyait passer la petite de la 14 et son porteur sous les lilas de l’aile Est.']],
+  rolande: [[['seen:i0_2'], 'Il y a toujours de la soupe sur son poêle quand vous rentrez d’une Faille.'], [['seen:i1_1'], 'Elle vous a donné les gants de son défunt mari, sans un mot.']],
+  vidal: [[['seen:i1_4'], 'Elle vous a gardé votre casier, le 13. Dedans, un sac bleu dessiné : « À rendre ».']],
+  kael: [[['seen:e6_2'], 'Sa mère a embrassé la moitié de visage qui manquait. Une fossette y est apparue.'], [['arch:AR17'], 'Il tenait la main de Lune quand la lumière est venue.'], [['seen:g8_1'], 'Lune l’appelait « le monsieur élastique ».'], [['arch:D07'], 'Il n’était pas sur la liste : les brancardiers « ne valaient rien ». Il vous a porté jusqu’à la buanderie à 15 h 02.']],
   anselme: [[['arch:AR16'], 'Il a fait poser la barre à 15 h 04.'], [['seen:d2_3'], 'Sa voix s’est cassée à force de crier, neuf minutes, pour couvrir celle d’Elias.'], [['seen:d8_1'], 'Il lave les mains du Dr Oste le premier vendredi du mois.']],
   helene: [[['arch:AR03'], 'Elle tient le registre des 312.'], [['seen:d4_1'], 'Elle a découvert qu’il y avait 313 lits.'], [['tend:IV-A'], 'Elle a ajouté une ligne : n° 313, survivant.']],
   nour: [[['arch:AR06'], 'Elle a transcrit en braille les douze premières mesures de la berceuse.'], [['arch:D10'], 'Elle a senti, à travers l’enveloppe, les quatre dernières mesures piquées en braille. Elle a refusé de les lire.']],
-  theo: [[['arch:AR02'], 'Il a forgé les neuf clés, puis la barre.'], [['seen:d8_3'], 'Il avait forgé un diapason pour Lune. Il donne le la de la sixième note.']],
-  yanis: [[['arch:AR08'], 'Auteur du protocole Miséricorde.'], [['arch:C04'], 'La note de 14 h 55 porte la référence « Y.O. / M-4 ».'], [['seen:d2_1'], 'Il s’est arrêté au milieu de l’escalier en entendant « révision 2 ».']],
-  mira: [[['seen:d4_2'], 'Elle a remarqué que vous boitiez quand il pleut. Elle a posé la main sur votre cicatrice.']],
+  theo: [[['arch:AR02'], 'Il a forgé les neuf clés, puis la barre.'], [['seen:i6_1'], 'La veille de la descente, il vous a forgé un harnais : « Avec ça, tu porteras droit. »'], [['seen:d8_3'], 'Il avait forgé un diapason pour Lune. Il donne le la de la sixième note.']],
+  yanis: [[['arch:E03'], 'C’est lui qui payait l’agent M., sur ses propres fonds.'], [['arch:E10'], '« 313 − 1 = 312. J’ai passé neuf ans à croire que cette soustraction était juste. »'], [['arch:AR08'], 'Auteur du protocole Miséricorde.'], [['arch:C04'], 'La note de 14 h 55 porte la référence « Y.O. / M-4 ».'], [['seen:d2_1'], 'Il s’est arrêté au milieu de l’escalier en entendant « révision 2 ».']],
+  mira: [[['arch:E03'], 'Elle était l’agent M. Yanis la payait pour s’assurer que vous mangiez, deux mois avant votre éveil.'], [['arch:E07'], 'Elle s’appelait Claire. Elle garde le nom de Mira, et laisse sa mère seule l’appeler Claire.'], [['seen:d4_2'], 'Elle a remarqué que vous boitiez quand il pleut. Elle a posé la main sur votre cicatrice.']],
   ysolde: [[['arch:C05'], 'Trois ans de garde, seule. « La relève n’est pas venue. Je reste. »']],
-  odile: [[['arch:B01'], 'Ruben lui a donné son pain pendant l’hiver de Vaumoise.']],
+  odile: [[['arch:E07'], 'Elle ne savait pas écrire. Elle a laissé à sa fille une médaille qui portait son nom.'], [['arch:B01'], 'Ruben lui a donné son pain pendant l’hiver de Vaumoise.']],
   elias: [[['arch:AR11'], 'Il a fait de la voix de sa fille la voix du Système.'], [['arch:D11'], 'Il a révoqué l’accès de « la voix de référence » : « elle ne doit plus rien décider ».']],
-  lune: [[['arch:AR12'], '« La fin, on la fera ensemble, ma lune. »'], [['arch:C03'], 'Elle avait fini sa berceuse à 13 h 40.'], [['seen:d6_1'], 'Elle vous appelait « le grand de la 13 qui porte mon sac ».'], [['arch:D11'], 'L’administrateur L, révoqué, a servi deux fois : pour vous choisir, et pour vous parler.']],
+  lune: [[['arch:E09'], '« Quand je serai grande, c’est moi qui porterai le tien. »'], [['arch:AR12'], '« La fin, on la fera ensemble, ma lune. »'], [['arch:C03'], 'Elle avait fini sa berceuse à 13 h 40.'], [['seen:d6_1'], 'Elle vous appelait « le grand de la 13 qui porte mon sac ».'], [['arch:D11'], 'L’administrateur L, révoqué, a servi deux fois : pour vous choisir, et pour vous parler.']],
   rose: [[['seen:d4_1'], 'Elle avait fait ouvrir la fenêtre pour que son petit-fils entende les pigeons.'], [['seen:d6_1'], 'Elle a dit : « Prenez le petit d’abord. »'], [['seen:d6_2'], 'Elle récitait aux petits Faure le psaume de la vallée et de l’ombre.']],
   m_peste: [[['arch:D05'], 'Il a écrit la grille M-4 en une nuit, « pour un exercice ».'], [['arch:D06'], 'Il vous a opéré, puis effacé des registres.'], [['arch:D09'], 'Il a payé votre pension au foyer Saint-Roch.']],
+  m_murmures: [[['arch:E05'], 'Il a fabriqué la voix du Système à partir de celle de Lune.'], [['seen:e7_1'], 'Son père ne le regardait que lorsqu’il jouait quelqu’un d’autre.'], [['seen:e8_1'], '« Célestin. Mon père m’appelait Tino. »']],
   m_glaces: [[['arch:C04'], 'On l’a fait sortir à 14 h 55. Elle était innocente.']],
   m_crocs: [[['arch:B01'], 'Il a donné toute sa réserve à une femme qui partait vers le Sud.']],
   basile: [[['arch:AR23'], '« Ne vends pas la barque. »']]
@@ -7433,7 +8471,7 @@ function codexBible() {
   if (tab === 'verites') body = BIBLE_SECRETS.map((s, i) => bibleOk(s.req)
     ? `<div class="sys"><div class="flex items-center justify-between gap-2"><span class="f-display font-semibold glow-umbra">${esc(s.title)}</span><span class="text-[10px] muted">${esc(s.where)}</span></div><p class="text-sm mt-2">${esc(s.t)}</p>${bibleLinksOf(s.id)}</div>`
     : `<div class="sys" style="opacity:.6"><div class="flex items-center justify-between gap-2"><span class="f-display">${icon('lock', 'w-3.5 h-3.5 inline')} Vérité n° ${i + 1}</span><span class="text-[10px] muted">Révélée : ${esc(s.where.split(',')[0].split('(')[0].trim())}</span></div></div>`).join('');
-  if (tab === 'chrono') body = `<div class="sys">${BIBLE_CHRONO.map(c => bibleOk(c.req)
+  if (tab === 'chrono') body = `<div class="sys">${chronoSorted().map(c => bibleOk(c.req)
     ? `<div class="py-2" style="border-bottom:1px solid #26262e"><div class="f-mono text-[11px] glow">${esc(c.date)}</div><div class="text-sm mt-0.5">${esc(c.t)}</div>${bibleLinksOf(c.id)}</div>`
     : `<div class="py-2 muted" style="border-bottom:1px solid #26262e"><div class="f-mono text-[11px]">${esc(c.date.split(',')[0])}</div><div class="text-sm">${icon('lock', 'w-3 h-3 inline')} …</div></div>`).join('')}</div>`;
   if (tab === 'liens') {
