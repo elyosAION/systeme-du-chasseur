@@ -1,7 +1,0 @@
-{
-  "name": "systeme-du-chasseur",
-  "version": "6.1.0",
-  "private": true,
-  "description": "Fitness RPG style Solo Leveling — appli + fonction de discussion IA",
-  "engines": { "node": ">=18" }
-}
