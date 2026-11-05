@@ -1,10 +1,10 @@
 /* Service worker : appli disponible hors connexion */
-const CACHE = 'systeme-chasseur-v7';
+const CACHE = 'systeme-chasseur-v8';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 const CDN = [
   'https://cdn.tailwindcss.com/3.4.17',
   'https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js',
-  'https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Spectral:ital,wght@0,400;0,500;1,400&display=swap'
+  'https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Spectral:ital,wght@0,400;0,500;1,400&family=Special+Elite&family=Caveat:wght@400;600&family=IM+Fell+English:ital@0;1&family=M+PLUS+1p:wght@300;400&display=swap'
 ];
 self.addEventListener('install', e => {
   e.waitUntil((async () => {

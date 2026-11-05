@@ -1,0 +1,20 @@
+SYSTÈME DU CHASSEUR — MISE EN LIGNE SUR VERCEL
+(adresse actuelle : https://elyos-system.vercel.app)
+
+Mettre à jour le site
+1. Dézippe ce fichier.
+2. Remplace le contenu de ton projet Vercel par le contenu du dossier
+   (index.html, sw.js, manifest.webmanifest, vercel.json, dossier icons).
+   - Si ton projet Vercel est relié à GitHub : sur GitHub, « Add file →
+     Upload files », glisse tous les fichiers, « Commit changes ».
+     Vercel redéploie tout seul.
+   - Sinon, avec l'outil Vercel en ligne de commande : « vercel --prod »
+     depuis le dossier dézippé.
+3. Ouvre le site et recharge la page deux fois (le service worker garde
+   l'ancienne version jusqu'au second chargement).
+
+Discussion IA
+Il n'y a plus de serveur ni de variable d'environnement à régler.
+Chaque joueur colle SA propre clé Anthropic dans l'appli :
+Réglages → Discussion IA (les 4 étapes y sont expliquées).
+Ta clé reste sur ton appareil et n'est jamais envoyée à Vercel.
