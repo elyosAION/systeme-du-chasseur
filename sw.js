@@ -1,5 +1,5 @@
 /* Service worker : appli disponible hors connexion */
-const CACHE = 'systeme-chasseur-v8';
+const CACHE = 'systeme-chasseur-v9';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 const CDN = [
   'https://cdn.tailwindcss.com/3.4.17',
