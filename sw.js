@@ -1,5 +1,5 @@
 /* Service worker : appli disponible hors connexion */
-const CACHE = 'systeme-chasseur-v9';
+const CACHE = 'elyos-system-v10';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 const CDN = [
   'https://cdn.tailwindcss.com/3.4.17',
@@ -23,6 +23,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  /* Musique (Wikimedia Commons) : lecture en flux, jamais mise en cache */
+  if (req.url.includes('upload.wikimedia.org') || req.headers.has('range') || req.destination === 'audio') return;
   if (req.mode === 'navigate') {
     /* Page : réseau d'abord (mises à jour), cache si hors connexion */
     e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); return r; })
