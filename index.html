@@ -344,7 +344,7 @@
 <body>
 <div id="app" class="wrap"></div>
 <div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Quand je contemple les cieux, ouvrage de tes mains, la lune et les étoiles que tu as créées : qu’est-ce que l’homme, pour que tu te souviennes de lui ?<cite>Psaume 8.4-5</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button><div class="elx-skip" aria-hidden="true">Toucher l’écran pour passer</div></div></div></div>
-<script>try{var _m=JSON.parse(localStorage.getItem('elyos-music-v1')||'{}'),_r=JSON.parse(localStorage.getItem('elyos-resume-v1')||'null');if(_m.splash===false||(_r&&!_r.splash&&Date.now()-_r.t<1800000)){var _e=document.getElementById('elx');if(_e)_e.remove();}}catch(_x){}</script>
+<script>try{var _m=JSON.parse(localStorage.getItem('elyos-music-v1')||'{}');if(_m.splash===false){var _e=document.getElementById('elx');if(_e)_e.remove();}}catch(_x){}</script>
 <div id="timer" class="timer" hidden></div>
 <nav id="nav" class="nav" hidden></nav>
 <div id="toasts" class="toasts" aria-live="polite"></div>
@@ -12796,6 +12796,7 @@ function viewSettings() {
   <section class="flex flex-col gap-4">
     <button type="button" class="item w-full text-left" data-a="guide-open">${icon('graduation-cap', 'w-5 h-5')}<span class="flex-1"><span class="f-display">Guide du débutant</span><span class="block text-[11px] muted">Musculation, nutrition et tous les outils de l’appli, expliqués simplement.</span></span>${icon('chevron-right', 'w-4 h-4 muted')}</button>
     <button type="button" class="item w-full text-left" data-a="mus-open">${icon('music', 'w-5 h-5')}<span class="flex-1"><span class="f-display">Salle de musique</span><span class="block text-[11px] muted">Choisir la musique d’accueil, lecture en boucle, ajouter mes propres musiques.</span></span>${icon('chevron-right', 'w-4 h-4 muted')}</button>
+    <label class="item w-full flex items-start gap-3 cursor-pointer">${icon('moon', 'w-5 h-5')}<span class="flex-1"><span class="f-display">Rester active en arrière-plan</span><span class="block text-[11px] muted">Désactivé : quitter l’appli la met en veille, la musique s’arrête et l’écran de connexion revient à chaque retour. Activé : la musique continue et l’appli reprend là où vous étiez.</span></span><input type="checkbox" data-mus-opt="bg" ${typeof MUS !== 'undefined' && MUS.bg ? 'checked' : ''} style="margin-top:4px;accent-color:var(--neon)"></label>
     ${viewNutritionSettings(N, macroKcal, diff)}
     ${viewProgramEditor()}
     ${viewPauseSettings()}
@@ -15770,12 +15771,14 @@ async function musMineDel(id) {
 /* ---------- Réglages (sur cet appareil) ---------- */
 const MUS_KEY = 'elyos-music-v1';
 const MUS = (() => {
-  const d = { v: 4, on: true, style: 'calm', idx: 2, vol: 0.7, shuffle: false, repeat: 'one', splash: true, intro: false, introSel: 'style' };
+  const d = { v: 5, bg: false, on: true, style: 'calm', idx: 2, vol: 0.7, shuffle: false, repeat: 'one', splash: true, intro: false, introSel: 'style' };
   try { Object.assign(d, JSON.parse(localStorage.getItem(MUS_KEY) || '{}')); } catch (e) { }
   /* musique de l’écran d’accueil : 'default' (Zarathoustra), 'style' (aucune ouverture), 'style:index' ou 'mine:id' */
   if (!d.introSel) d.introSel = d.intro === false ? 'style' : 'default';
   /* v4 : « On the Passing of Time » par défaut, à l’écran titre puis dans toute l’appli, en boucle */
   if ((d.v || 0) < 4) Object.assign(d, { v: 4, style: 'calm', idx: 2, introSel: 'style', intro: false, repeat: 'one' });
+  /* v5 : l'écran de connexion revient à chaque ouverture */
+  if ((d.v || 0) < 5) Object.assign(d, { v: 5, splash: true });
   return d;
 })();
 function musSave() { try { localStorage.setItem(MUS_KEY, JSON.stringify(MUS)); } catch (e) { /* stockage indisponible */ } }
@@ -16013,6 +16016,7 @@ function musRenderSheet(msg) {
     <div class="flex flex-col gap-2 text-sm">
       <label class="mus-opt"><input type="checkbox" data-mus-opt="splash" ${MUS.splash ? 'checked' : ''}><span>Écran d’accueil à chaque ouverture</span></label>
       <label class="mus-opt"><input type="checkbox" data-mus-opt="on" ${MUS.on ? 'checked' : ''}><span>Musique activée au lancement</span></label>
+      <label class="mus-opt"><input type="checkbox" data-mus-opt="bg" ${MUS.bg ? 'checked' : ''}><span>Rester active en arrière-plan (la musique continue quand je quitte l’appli)</span></label>
     </div>
     <details class="mt-4 mus-credits">
       <summary class="label">${icon('info', 'w-3.5 h-3.5')} Crédits et licences</summary>
@@ -16053,7 +16057,7 @@ Object.assign(handlers, {
     if (t) { musRT.intro = true; musStart(t, 800); } else musPlay(MUS.style, MUS.idx);
     musRefresh('Musique d’accueil choisie : ' + (t ? t[0] : 'aucune') + '.');
   },
-  'mus-add': () => { const f = document.getElementById('mus-file'); if (f) f.click(); },
+  'mus-add': () => { const f = document.getElementById('mus-file'); if (f) { musRT.picking = Date.now(); f.click(); } },
   'mus-del': el => { musMineDel(el.dataset.id); }
 });
 if (typeof document !== 'undefined' && document.addEventListener) {
@@ -16679,7 +16683,8 @@ const GUIDE = [
     'Toutes ces musiques sont composées et jouées par des humains (Kevin MacLeod, orchestres et quatuors Musopen, et d’autres musiciens), libres de droits ou dans le domaine public. Aucune n’est générée par IA. Elles sont lues depuis Wikimedia Commons : il faut une connexion internet. Les crédits complets sont en bas de la Salle de musique.',
     'Tu choisis toi-même la musique de l’écran d’accueil : dans la Salle de musique, cadre « Musique de l’écran d’accueil », touche « Changer » et choisis une piste : elle se lance tout de suite. Le petit soleil levant à côté d’un titre fait la même chose. Sur l’écran d’accueil, le bouton « Choisir la musique », sous « Entrer dans le Système », ouvre directement la Salle de musique. Par défaut, c’est « On the Passing of Time » (Kevin MacLeod) qui joue, en boucle, de l’écran titre jusque dans l’appli.',
     'Le cadre « Mes musiques », en haut de la Salle de musique, a un bouton « Ajouter des fichiers » : il te permet d’ajouter tes propres fichiers audio (un titre que tu as acheté, par exemple). Ils restent sur ton appareil, ne sont envoyés nulle part, et peuvent aussi servir de musique d’accueil. Ils ne sont pas inclus dans la sauvegarde exportée.',
-    'Tu peux couper la musique, retirer la musique d’ouverture ou désactiver l’écran d’accueil dans les options de la Salle de musique.'
+    'Par défaut, quitter l’appli la met en veille : la musique s’arrête, et quand tu reviens, l’écran de connexion s’affiche. Si tu préfères que la musique continue quand tu quittes l’appli et qu’elle reprenne là où tu étais, active « Rester active en arrière-plan » dans les Réglages (ou dans les options de la Salle de musique).',
+'Tu peux couper la musique, retirer la musique d’ouverture ou désactiver l’écran d’accueil dans les options de la Salle de musique.'
   ] }
 ];
 
@@ -16734,6 +16739,23 @@ function readResume() {
 }
 if (typeof document !== 'undefined' && document.addEventListener) {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveResume(); });
+  /* Réglage « Rester active en arrière-plan » : désactivé par défaut. Quitter l'appli la met alors en veille
+     (musique coupée), et y revenir rouvre l'écran de connexion, comme une vraie fermeture. */
+  let _hiddenAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (typeof MUS === 'undefined' || MUS.bg || !state.profile) return;
+    const picking = typeof musRT !== 'undefined' && musRT.picking && Date.now() - musRT.picking < 120000;
+    if (document.visibilityState === 'hidden') {
+      if (picking) return; /* sélecteur de fichiers ouvert : ce n'est pas une sortie */
+      _hiddenAt = Date.now();
+      if (typeof musPlaying === 'function' && musPlaying() && musRT.audio) musRT.audio.pause();
+    } else if (_hiddenAt) {
+      const away = Date.now() - _hiddenAt; _hiddenAt = 0;
+      if (away > 1500 && MUS.splash !== false && typeof splashShow === 'function' && !document.getElementById('elx')) splashShow();
+      else if (MUS.on && typeof musResume === 'function' && musRT.cur) musResume();
+    }
+    if (typeof musRT !== 'undefined' && document.visibilityState === 'visible') musRT.picking = 0;
+  });
   window.addEventListener('pagehide', saveResume);
 }
 function boot() {
@@ -16744,7 +16766,8 @@ function boot() {
     if (RES.timer && RES.timer.end > Date.now()) { timer.end = RES.timer.end; timer.total = RES.timer.total; timer.label = RES.timer.label; drawTimer(); }
     setTimeout(() => window.scrollTo(0, RES.y || 0), 60);
   }
-  if (!RES && typeof splashShow === 'function' && (typeof MUS === 'undefined' || MUS.splash !== false)) splashShow();
+  /* L'écran de connexion s'affiche à chaque ouverture (l'onglet et le minuteur restent repris derrière) */
+  if (typeof splashShow === 'function' && (typeof MUS === 'undefined' || MUS.splash !== false)) splashShow();
   else {
     const e = document.getElementById('elx'); if (e) e.remove();
     if (RES && typeof musRestore === 'function') musRestore(RES.mus);
