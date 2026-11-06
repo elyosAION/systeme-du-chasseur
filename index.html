@@ -11877,7 +11877,11 @@ function syncToday() {
   if (!d) return;
   d.tg = snapTargets();
   d.plan = snapPlan(livePlan(today));
-  try { const b = boosts(); d.xm = 1 + b.xp / 100; d.km = 1 + b.kin / 100; } catch (e) {}
+  try {
+    const b = boosts(); d.xm = 1 + b.xp / 100; d.km = 1 + b.kin / 100;
+    /* un jour rempli après coup reçoit les bonus du moment, plutôt qu'aucun */
+    for (const k in state.days) { const x = state.days[k]; if (x && x.xm == null) x.xm = d.xm; if (x && x.km == null) x.km = d.km; }
+  } catch (e) {}
 }
 function save() {
   _memo = null;
@@ -12012,6 +12016,8 @@ function totals() {
   return _memo;
 }
 function kinahs() { return totals().kinah; }
+/* XP réelle d'un gain aujourd'hui, bonus en % compris */
+function xpK(base) { const d = state.days[dk()]; let m = d && d.xm ? d.xm : 1; if (!(d && d.xm)) { try { m = 1 + boosts().xp / 100; } catch (e) { } } return Math.round(base * m); }
 /* Montant réel d'une prime aujourd'hui, bonus en % compris */
 function primeK(base) {
   const d = state.days[dk()], F = state.followers || {};
@@ -12028,7 +12034,10 @@ function statValues(t = totals()) {
   for (const s in STATS) out[s] = BASE_STAT + (cls && cls.stat === s ? CLASS_BONUS : 0) + t.gains[s] + (state.alloc[s] || 0);
   return out;
 }
-function availablePoints(level) { const spent = Object.values(state.alloc).reduce((a, b) => a + b, 0); return Math.max(0, (level - 1) * POINTS_PER_LEVEL - spent); }
+/* Points de statistiques par niveau : +3 au rang E, +6 au rang D, +9 au rang C, +12 au B, +15 au A, +18 au S */
+function pointsPerLevel(level) { let i = 0; RANKS.forEach((x, j) => { if (level >= x.min) i = j; }); return POINTS_PER_LEVEL * (i + 1); }
+function pointsEarned(level) { let n = 0; for (let L = 2; L <= level; L++) n += pointsPerLevel(L); return n; }
+function availablePoints(level) { const spent = Object.values(state.alloc).reduce((a, b) => a + b, 0); return Math.max(0, pointsEarned(level) - spent); }
 /* Pause : jours exclus des pénalités et de la série */
 function isPaused(k) { return (state.pauses || []).some(p => k >= p.from && (!p.to || k <= p.to)); }
 function pauseActive() { return isPaused(dk()); }
@@ -12314,7 +12323,7 @@ function viewStatus() {
     <div class="sys umbra">
       <div class="flex items-center justify-between gap-2 mb-3">
         <div class="sys-title u">Statistiques</div>
-        <div class="flex items-center gap-2">${pts > 0 ? `<div class="text-xs f-display glow">${pts} point${pts > 1 ? 's' : ''} à répartir</div>` : `<div class="text-xs muted">+${POINTS_PER_LEVEL} points par niveau</div>`}${Object.values(state.alloc).some(Boolean) ? (ui.armed === 'respec' ? `<button type="button" class="btn sm danger" data-a="respec">Confirmer</button>` : `<button type="button" class="ibtn" data-a="arm" data-k="respec" title="Réinitialiser les points" aria-label="Réinitialiser les points">${icon('rotate-ccw', 'w-4 h-4')}</button>`) : ''}</div>
+        <div class="flex items-center gap-2">${pts > 0 ? `<div class="text-xs f-display glow">${pts} point${pts > 1 ? 's' : ''} à répartir</div>` : `<div class="text-xs muted">+${pointsPerLevel(levelInfo(totals().xp).level)} points par niveau</div>`}${Object.values(state.alloc).some(Boolean) ? (ui.armed === 'respec' ? `<button type="button" class="btn sm danger" data-a="respec">Confirmer</button>` : `<button type="button" class="ibtn" data-a="arm" data-k="respec" title="Réinitialiser les points" aria-label="Réinitialiser les points">${icon('rotate-ccw', 'w-4 h-4')}</button>`) : ''}</div>
       </div>
       ${Object.entries(STATS).map(([id, s]) => `
         <div class="flex items-center gap-3 py-2 border-b border-[#24242c] last:border-0">
@@ -12359,7 +12368,7 @@ function viewQuest() {
     ${line(r.nutritionDone, `Macros ${ph.toLowerCase()} : ${state.nutrition.kcal} kcal`, `[${r.nu.metCount}/4]`, 'food')}
     <div class="flex gap-3 text-[11px] mt-2 flex-wrap"><span class="${waterOk(state.days[dk()]) ? 'glow' : 'muted'}">${icon('droplets', 'w-3.5 h-3.5 inline -mt-0.5')} Prime eau +${primeK(WATER_K)}</span><span class="${sleepOk(state.days[dk()]) ? 'glow' : 'muted'}">${icon('moon', 'w-3.5 h-3.5 inline -mt-0.5')} Prime sommeil +${primeK(SLEEP_K)}</span><span class="muted">(bonus, hors quête)</span></div>
     <div class="mt-3 flex items-center justify-between gap-2 text-xs flex-wrap">
-      <span class="muted">Récompense : <b class="glow f-mono">${reward} XP</b></span>
+      <span class="muted">Récompense : <b class="glow f-mono">${xpK(reward)} XP</b>${xpK(reward) > reward ? ` <span class="text-[11px]">(dont bonus +${xpK(reward) - reward})</span>` : ''}</span>
       ${r.success ? `<span class="glow f-display tracking-widest uppercase">Accomplie</span>`
                   : `<span class="f-display tracking-wide red">${icon('triangle-alert', 'w-3.5 h-3.5 inline -mt-0.5')} Échec : −${PENALTY_XP} XP</span>`}
     </div>
@@ -12423,8 +12432,8 @@ function viewTraining() {
       </div>
       ${S.ex.length ? S.ex.map((e, i) => viewExercise(e, i, d, today)).join('') : `<div class="card text-sm muted">Cette séance n’a aucun exercice. Ajoute-les dans Réglages → Programme.</div>`}
       ${r.workoutDone
-        ? `<div class="sys pop"><div class="sys-title mb-2"><span class="bang">!</span>Donjon nettoyé</div><p class="f-display">Séance complète. +${WORKOUT_PART + WORKOUT_BONUS} XP et ${STATS[S.stat] ? STATS[S.stat].name : 'Force'} +${STAT_PART + STAT_BONUS}. Le Système prend acte.</p></div>`
-        : (r.n ? `<p class="text-xs muted px-1">Un exercice est validé dès que son nombre minimum de vraies séries est coché. La séance complète rapporte ${WORKOUT_PART + WORKOUT_BONUS} XP, autant que des macros atteintes.</p>` : '')}`;
+        ? `<div class="sys pop"><div class="sys-title mb-2"><span class="bang">!</span>Donjon nettoyé</div><p class="f-display">Séance complète. +${xpK(WORKOUT_PART + WORKOUT_BONUS)} XP et ${STATS[S.stat] ? STATS[S.stat].name : 'Force'} +${STAT_PART + STAT_BONUS}. Le Système prend acte.</p></div>`
+        : (r.n ? `<p class="text-xs muted px-1">Un exercice est validé dès que son nombre minimum de vraies séries est coché. La séance complète rapporte ${xpK(WORKOUT_PART + WORKOUT_BONUS)} XP, autant que des macros atteintes.</p>` : '')}`;
   }
   return `
   <section class="flex flex-col gap-4">
@@ -12683,7 +12692,7 @@ function viewNutrition() {
         <div class="min-w-0">
           <div class="label">Phase : ${esc(ph)}</div>
           <h2 class="f-display text-2xl font-bold glow-umbra">Ravitaillement</h2>
-          <div class="text-sm muted">4 objectifs atteints = ${NUTRI_PART + NUTRI_BONUS} XP, autant qu’une séance complète.</div>
+          <div class="text-sm muted">4 objectifs atteints = ${xpK(NUTRI_PART + NUTRI_BONUS)} XP, autant qu’une séance complète.</div>
         </div>
         <div class="text-right shrink-0">
           <div class="f-mono text-2xl font-bold">${nu.metCount}<span class="muted text-base">/4</span></div>
@@ -12978,7 +12987,7 @@ function showLevelUp(level, gained, newRank) {
       <div class="label">Niveau supérieur</div>
       <div class="lvlnum my-2">${level}</div>
       <p class="f-display">Vous êtes monté de ${gained} niveau${gained > 1 ? 'x' : ''}.</p>
-      <p class="text-sm muted mt-1"><b class="glow">+${gained * POINTS_PER_LEVEL}</b> points de statistiques à répartir.</p>
+      <p class="text-sm muted mt-1"><b class="glow">+${pointsEarned(level) - pointsEarned(level - gained)}</b> points de statistiques à répartir.</p>${newRank ? `<p class="text-xs mt-1" style="color:${newRank.color}">Rang ${newRank.r} : désormais +${pointsPerLevel(level)} points à chaque niveau.</p>` : ''}
       ${newRank ? `<div class="mt-5 flex items-center gap-3"><div class="rank" style="color:${newRank.color};width:48px;height:48px;font-size:26px">${newRank.r}</div><div><div class="label">Éveil</div><div class="f-display font-bold" style="color:${newRank.color}">${esc(newRank.title)}</div></div></div>` : ''}
       <button type="button" class="btn solid w-full mt-6" data-a="close-overlay">Continuer</button>
     </div>`);
@@ -14584,7 +14593,7 @@ function chatContext(id) {
 }
 function chatLoreDigest() {
   const G = state.story, L = ['\n=== SAVOIR DE DAMINU ==='];
-  L.push(`Règles : l’XP vient seulement des efforts réels (séance complète 300 XP, macros 4/4 300 XP). Kinahs = XP du jour, +100 si quête accomplie, +${WATER_K} eau, +${SLEEP_K} sommeil, plus combats et expéditions ; tous les bonus de kinahs en % (Maison, équipement, puces, Odile) s’appliquent sur tout, primes comprises. Pénalité d’une quête échouée : −150 XP, −100 kinahs (réduite par Ysolde et la puce Garde). Chaque niveau donne 3 points de statistiques. Rangs : E niv. 1, D 10, C 20, B 35, A 50, S 70. Clés de Faille : +3 par quête accomplie, +1 séance complète, +1 macros 4/4.`);
+  L.push(`Règles : l’XP vient seulement des efforts réels (séance complète 300 XP, macros 4/4 300 XP). Kinahs = XP du jour, +100 si quête accomplie, +${WATER_K} eau, +${SLEEP_K} sommeil, plus combats et expéditions ; tous les bonus de kinahs en % (Maison, équipement, puces, Odile) s’appliquent sur tout, primes comprises. Pénalité d’une quête échouée : −150 XP, −100 kinahs (réduite par Ysolde et la puce Garde). Points de statistiques par niveau : 3 au rang E, +3 à chaque rang (6 au D, 9 au C, 12 au B, 15 au A, 18 au S). Les bonus d’XP en % s’appliquent à toute l’XP du jour. Rangs : E niv. 1, D 10, C 20, B 35, A 50, S 70. Clés de Faille : +3 par quête accomplie, +1 séance complète, +1 macros 4/4.`);
   L.push(`Classes : ${Object.values(CLASSES).map(c => `${c.name} (${c.loadouts.map(l => l.join('+')).join(' / ')})`).join(' ; ')}.`);
   L.push(`Raretés : ${RARITIES.map(x => `${x.name} niv. ${x.lvl}`).join(', ')}. Amélioration jusqu’à +4 avec ferraille, éther, cœur de Faille, cendre de Monarque. Puces : ${Object.values(CHIP_TYPES).map(c => c.name).join(', ')} ; 12 emplacements ; fusion 2 Communes → 1 Raffinée, 3 → Rare, … 7 Mythiques → 1 Éternelle.`);
   L.push(`Zones d’expédition : ${ZONES.map(z => `rang ${z.rank} niv. ${z.level} (${z.name})`).join(' ; ')}. Monarques (3 clés, dans l’ordre) : ${MONARCHS.map(m => `${m.short} niv. ${m.level}`).join(', ')}. Être absolu : niv. 70 et les neuf Monarques vaincus.`);
@@ -16592,7 +16601,7 @@ const GUIDE = [
   { id: 'principe', icon: 'sparkles', t: 'Le jeu en une minute', p: [
     'Cette appli transforme ta vraie vie en jeu vidéo. Tu es un Chasseur. Chaque jour, le Système te donne une quête : faire ta séance de sport (ou te reposer si c’est un jour de repos) et bien manger.',
     'Quand tu fais ta séance en entier, tu gagnes 300 XP. Quand tu atteins tes 4 objectifs de nourriture (calories, protéines, glucides, lipides), tu gagnes 300 XP aussi. Le sport et l’assiette comptent autant : c’est fait exprès.',
-    'L’XP te fait monter de niveau. Chaque niveau te donne 3 points de statistiques. Tu gagnes aussi des kinahs, la monnaie du jeu, pour acheter des choses dans la boutique.',
+    'L’XP te fait monter de niveau. Chaque niveau te donne des points de statistiques : 3 au rang E, puis 3 de plus à chaque nouveau rang (6 au rang D, 9 au C, 12 au B, 15 au A, 18 au S). Tu gagnes aussi des kinahs, la monnaie du jeu, pour acheter des choses dans la boutique.',
     'Si tu rates ta quête, tu perds 150 XP et 100 kinahs. Mais tu peux mettre le jeu en pause quand tu as besoin de repos (voir « Pause »).',
     'Le plus important : l’XP ne vient que de tes vrais efforts. Les combats du jeu donnent des kinahs et des objets, jamais d’XP. Pour devenir fort dans le jeu, il faut devenir fort pour de vrai.'
   ] },
@@ -16637,7 +16646,7 @@ const GUIDE = [
     'En bas, note ton eau (en litres) et ton sommeil (en heures). Ce sont des primes de kinahs, en plus de la quête.'
   ] },
   { id: 'stats', icon: 'chart-column', t: 'Niveaux, kinahs et statistiques', p: [
-    'Chaque niveau te donne 3 points à placer dans tes statistiques, dans l’onglet « Statut ».',
+    'Chaque niveau te donne des points à placer dans tes statistiques, dans l’onglet « Statut » : 3 par niveau au rang E, 6 au rang D, 9 au C, 12 au B, 15 au A et 18 au S. Tes bonus d’XP en % (Intelligence, puces, monture, trophées…) s’appliquent à toute l’XP gagnée : séance et nutrition.',
     'Force : la puissance de tes coups, physiques ou magiques. Plus de Force, plus de dégâts.',
     'Endurance : tes points de vie et ta défense. Plus d’Endurance, tu tiens plus longtemps.',
     'Agilité : tes coups critiques (plus souvent, et plus forts) et ton esquive.',
