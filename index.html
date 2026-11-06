@@ -42,9 +42,12 @@
 .elx.awake .elx-tap{display:none}
 @keyframes elx-pulse{0%,100%{opacity:.35}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.elx *{transition-duration:.01s !important;transition-delay:0s !important;animation:none !important}}
+.elx-skip{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);text-align:center;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:rgba(200,240,255,.55);opacity:0;pointer-events:none}
+.elx.awake .elx-skip{animation:elx-skip 7.2s ease forwards}
+.elx.done .elx-skip{animation:none;opacity:0}
+@keyframes elx-skip{0%{opacity:0}12%{opacity:1}85%{opacity:1}100%{opacity:0}}
 .elx-row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;max-width:100%}
 .elx-pick{color:#bdf6ff;border:1px solid rgba(0,240,255,.35)}
-.elx-corner{position:absolute;z-index:3;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;padding:7px 12px;font-family:var(--font-mono);font-size:11.5px;letter-spacing:.12em;color:#bdf6ff;background:rgba(8,8,20,.55);border:1px solid rgba(0,240,255,.35);cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 </style>
 <meta name="theme-color" content="#0a0a0c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -339,7 +342,7 @@
 </head>
 <body>
 <div id="app" class="wrap"></div>
-<div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><button type="button" class="elx-corner" data-a="mus-open" aria-label="Choisir la musique">♪ Musique</button><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Quand je contemple les cieux, ouvrage de tes mains, la lune et les étoiles que tu as créées : qu’est-ce que l’homme, pour que tu te souviennes de lui ?<cite>Psaume 8.4-5</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button></div></div></div>
+<div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Quand je contemple les cieux, ouvrage de tes mains, la lune et les étoiles que tu as créées : qu’est-ce que l’homme, pour que tu te souviennes de lui ?<cite>Psaume 8.4-5</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button><div class="elx-skip" aria-hidden="true">Toucher l’écran pour passer</div></div></div></div>
 <script>try{var _m=JSON.parse(localStorage.getItem('elyos-music-v1')||'{}');if(_m.splash===false){var _e=document.getElementById('elx');if(_e)_e.remove();}}catch(_x){}</script>
 <div id="timer" class="timer" hidden></div>
 <nav id="nav" class="nav" hidden></nav>
@@ -15749,10 +15752,12 @@ async function musMineDel(id) {
 /* ---------- Réglages (sur cet appareil) ---------- */
 const MUS_KEY = 'elyos-music-v1';
 const MUS = (() => {
-  const d = { on: true, style: 'epic', idx: 0, vol: 0.7, shuffle: false, repeat: 'all', splash: true, intro: true, introSel: '' };
+  const d = { v: 4, on: true, style: 'calm', idx: 2, vol: 0.7, shuffle: false, repeat: 'one', splash: true, intro: false, introSel: 'style' };
   try { Object.assign(d, JSON.parse(localStorage.getItem(MUS_KEY) || '{}')); } catch (e) { }
   /* musique de l’écran d’accueil : 'default' (Zarathoustra), 'style' (aucune ouverture), 'style:index' ou 'mine:id' */
   if (!d.introSel) d.introSel = d.intro === false ? 'style' : 'default';
+  /* v4 : « On the Passing of Time » par défaut, à l’écran titre puis dans toute l’appli, en boucle */
+  if ((d.v || 0) < 4) Object.assign(d, { v: 4, style: 'calm', idx: 2, introSel: 'style', intro: false, repeat: 'one' });
   return d;
 })();
 function musSave() { try { localStorage.setItem(MUS_KEY, JSON.stringify(MUS)); } catch (e) { /* stockage indisponible */ } }
@@ -15821,6 +15826,7 @@ function musStart(t, fadeMs = 1200) {
   const p = a.play();
   if (p && p.catch) p.catch(() => { musRT.blocked = true; musRefresh(); });
   musFade(MUS.vol, fadeMs);
+  musRT.lastPlay = p;
   if (typeof navigator !== 'undefined' && navigator.mediaSession && typeof MediaMetadata !== 'undefined') {
     try { navigator.mediaSession.metadata = new MediaMetadata({ title: t[0], artist: t[1], album: 'Elyos System' }); } catch (e) { }
   }
@@ -15831,12 +15837,13 @@ function musPlay(styleId, idx) {
   MUS.style = S.id; MUS.idx = ((idx % S.tracks.length) + S.tracks.length) % S.tracks.length; MUS.on = true; musSave();
   musRT.intro = false;
   musStart(S.tracks[MUS.idx]);
+  return musRT.lastPlay;
 }
 function musPlayIntro() {
   if (!MUS.on) return;
   const t = musTrackRef(MUS.introSel);
-  if (t) { musRT.intro = true; musStart(t, 2500); }
-  else musPlay(MUS.style, MUS.idx);
+  if (t) { musRT.intro = true; musStart(t, 2500); return musRT.lastPlay; }
+  return musPlay(MUS.style, MUS.idx);
 }
 function musNext(dir) {
   const S = musStyle(MUS.style);
@@ -15904,7 +15911,7 @@ function musIntroPicker() {
   const opt = (ref, t, sub) => `<button type="button" class="mus-pickrow ${MUS.introSel === ref ? 'on' : ''}" data-a="mus-intro-choose" data-ref="${esc(ref)}"><span class="mus-rt"><span class="truncate text-[13px]">${esc(t)}</span>${sub ? `<span class="truncate text-[11px] muted">${esc(sub)}</span>` : ''}</span>${MUS.introSel === ref ? icon('check', 'w-4 h-4') : ''}</button>`;
   return `<div class="mus-picker">
     ${opt('default', 'Ainsi parlait Zarathoustra', 'Par défaut')}
-    ${opt('style', 'Aucune musique d’accueil', 'Le style choisi démarre tout de suite')}
+    ${opt('style', 'La piste en cours du style choisi', 'Elle démarre dès l’écran d’accueil et continue dans l’appli')}
     ${musAllStyles().filter(S => S.tracks.length).map(S => `<div class="label mt-3 mb-1">${esc(S.name)}</div>${S.tracks.map((t, i) => opt(musRef(S.id, i), t[0], t[1])).join('')}`).join('')}
   </div>`;
 }
@@ -15921,7 +15928,7 @@ function musRenderSheet(msg) {
     <div class="mus-box mt-3">
       <div class="label">${icon('sunrise', 'w-3.5 h-3.5')} Musique de l’écran d’accueil</div>
       <div class="mus-head mt-1">
-        <div class="min-w-0"><div class="text-sm truncate">${introT ? esc(introT[0]) : 'Aucune'}</div><div class="text-[11px] muted">Jouée à l’ouverture, puis le style choisi prend le relais.</div></div>
+        <div class="min-w-0"><div class="text-sm truncate">${introT ? esc(introT[0]) : esc((musStyle(MUS.style).tracks[MUS.idx] || musStyle(MUS.style).tracks[0])[0])}</div><div class="text-[11px] muted">${introT ? 'Jouée à l’ouverture, puis le style choisi prend le relais.' : 'Première piste du style ' + esc(musStyle(MUS.style).name) + ' : elle démarre dès l’écran d’accueil et continue dans l’appli.'}</div></div>
         <button type="button" class="btn sm" data-a="mus-intro-toggle">${musRT.pickIntro ? 'Fermer' : 'Changer'}</button>
       </div>
       ${musRT.pickIntro ? musIntroPicker() : ''}
@@ -16035,7 +16042,7 @@ function splashPlayer() {
 }
 /* Squelette de l’écran d’accueil. Il est aussi écrit en dur au début de la page (voir assemble.py),
    pour s’afficher dès la première image, avant le chargement du reste. */
-const ELX_HTML = `<div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><button type="button" class="elx-corner" data-a="mus-open" aria-label="Choisir la musique">♪ Musique</button><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Quand je contemple les cieux, ouvrage de tes mains, la lune et les étoiles que tu as créées : qu’est-ce que l’homme, pour que tu te souviennes de lui ?<cite>Psaume 8.4-5</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button></div></div></div>`;
+const ELX_HTML = `<div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Quand je contemple les cieux, ouvrage de tes mains, la lune et les étoiles que tu as créées : qu’est-ce que l’homme, pour que tu te souviennes de lui ?<cite>Psaume 8.4-5</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button><div class="elx-skip" aria-hidden="true">Toucher l’écran pour passer</div></div></div></div>`;
 function splashShow() {
   if (typeof document === 'undefined' || !document.body || typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') return;
   if (SPLASH.on) return;
@@ -16055,13 +16062,19 @@ function splashShow() {
   SPLASH.t0 = performance.now();
   /* Sans musique, aucun geste n’est nécessaire : l’éveil commence tout seul. */
   if (!MUS.on) splashAwaken();
+  else {
+    /* Si le navigateur autorise le son sans geste (souvent le cas d’une appli installée),
+       la cinématique démarre seule avec la musique ; sinon, on attend un toucher. */
+    const p = musPlayIntro();
+    if (p && p.then) p.then(() => splashAwaken(true)).catch(() => { });
+  }
   SPLASH.raf = requestAnimationFrame(splashFrame);
 }
-function splashAwaken() {
+function splashAwaken(musicAlready) {
   const el = document.getElementById('elx'); if (!el || SPLASH.phase) return;
   SPLASH.phase = 1; SPLASH.ta = performance.now();
   el.classList.add('awake');
-  musPlayIntro();
+  if (!musicAlready && !musPlaying()) musPlayIntro();
 }
 function splashSkip() { const el = document.getElementById('elx'); if (el) { el.classList.add('awake', 'done'); SPLASH.ta = performance.now() - 9000; } }
 function splashHide() {
@@ -16259,9 +16272,12 @@ if (typeof document !== 'undefined' && document.head) document.head.insertAdjace
 .elx.awake .elx-tap{display:none}
 @keyframes elx-pulse{0%,100%{opacity:.35}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.elx *{transition-duration:.01s !important;transition-delay:0s !important;animation:none !important}}
+.elx-skip{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);text-align:center;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:rgba(200,240,255,.55);opacity:0;pointer-events:none}
+.elx.awake .elx-skip{animation:elx-skip 7.2s ease forwards}
+.elx.done .elx-skip{animation:none;opacity:0}
+@keyframes elx-skip{0%{opacity:0}12%{opacity:1}85%{opacity:1}100%{opacity:0}}
 .elx-row{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;max-width:100%}
 .elx-pick{color:#bdf6ff;border:1px solid rgba(0,240,255,.35)}
-.elx-corner{position:absolute;z-index:3;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;padding:7px 12px;font-family:var(--font-mono);font-size:11.5px;letter-spacing:.12em;color:#bdf6ff;background:rgba(8,8,20,.55);border:1px solid rgba(0,240,255,.35);cursor:pointer;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 /*ELX-CSS-END*/
 </style>`);
 
@@ -16602,10 +16618,10 @@ const GUIDE = [
     'Tu peux installer l’appli comme une vraie application : sur Android ou un ordinateur, avec le bouton « Installer » ; sur iPhone, avec Safari → Partager → « Sur l’écran d’accueil ».'
   ] },
   { id: 'musique', icon: 'music', t: 'Musique et écran d’accueil', p: [
-    'À l’ouverture, l’écran d’accueil d’Elyos System montre le ciel profond et un homme tout petit sous les étoiles. Touche l’écran pour t’éveiller : la musique d’ouverture démarre, puis « Entrer dans le Système » t’emmène à ton tableau de bord.',
+    'À l’ouverture, l’écran d’accueil d’Elyos System montre le ciel profond et un homme tout petit sous les étoiles. Touche l’écran pour t’éveiller : la musique démarre et la cinématique commence. Pour aller plus vite, touche l’écran une seconde fois : tu arrives tout de suite sur « Entrer dans le Système ».',
     'La Salle de musique (icône ♪ en haut de l’écran, ou « Réglages → Salle de musique ») te laisse choisir ton style : épique fantasy, orchestre symphonique, violon et violoncelle, harpe douce, rétro synthwave, futuriste, électro, instrumental core (rock et métal) ou contemplatif. Sous le lecteur, choisis « Playlist en boucle », « Ce morceau en boucle » ou « Sans boucle », et active « Aléatoire » si tu veux.',
     'Toutes ces musiques sont composées et jouées par des humains (Kevin MacLeod, orchestres et quatuors Musopen, et d’autres musiciens), libres de droits ou dans le domaine public. Aucune n’est générée par IA. Elles sont lues depuis Wikimedia Commons : il faut une connexion internet. Les crédits complets sont en bas de la Salle de musique.',
-    'Tu choisis toi-même la musique de l’écran d’accueil : dans la Salle de musique, cadre « Musique de l’écran d’accueil », touche « Changer » et choisis une piste : elle se lance tout de suite. Le petit soleil levant à côté d’un titre fait la même chose. Sur l’écran d’accueil, le bouton « ♪ Musique » en haut à droite ouvre directement la Salle de musique.',
+    'Tu choisis toi-même la musique de l’écran d’accueil : dans la Salle de musique, cadre « Musique de l’écran d’accueil », touche « Changer » et choisis une piste : elle se lance tout de suite. Le petit soleil levant à côté d’un titre fait la même chose. Sur l’écran d’accueil, le bouton « Choisir la musique », sous « Entrer dans le Système », ouvre directement la Salle de musique. Par défaut, c’est « On the Passing of Time » (Kevin MacLeod) qui joue, en boucle, de l’écran titre jusque dans l’appli.',
     'Le cadre « Mes musiques », en haut de la Salle de musique, a un bouton « Ajouter des fichiers » : il te permet d’ajouter tes propres fichiers audio (un titre que tu as acheté, par exemple). Ils restent sur ton appareil, ne sont envoyés nulle part, et peuvent aussi servir de musique d’accueil. Ils ne sont pas inclus dans la sauvegarde exportée.',
     'Tu peux couper la musique, retirer la musique d’ouverture ou désactiver l’écran d’accueil dans les options de la Salle de musique.'
   ] }
