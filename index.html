@@ -159,6 +159,7 @@
   .sys-title.r { color: var(--blood); border-color: rgba(255,59,92,.6); text-shadow: 0 0 10px rgba(255,59,92,.6); }
   .sys-title .bang { display: inline-grid; place-items: center; width: 16px; height: 16px; border: 1px solid currentColor; font-size: 11px; line-height: 1; }
   .label { font-family: var(--font-display); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  .sys-home { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; } .sys-home:hover, .sys-home:focus-visible { color: var(--neon); }
   .glow { color: var(--neon); text-shadow: 0 0 12px rgba(0, 240, 255, .55); }
   .glow-umbra { color: #b79cff; text-shadow: 0 0 12px rgba(139, 92, 246, .7); }
   .red { color: var(--blood); }
@@ -343,7 +344,7 @@
 <body>
 <div id="app" class="wrap"></div>
 <div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Quand je contemple les cieux, ouvrage de tes mains, la lune et les étoiles que tu as créées : qu’est-ce que l’homme, pour que tu te souviennes de lui ?<cite>Psaume 8.4-5</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button><div class="elx-skip" aria-hidden="true">Toucher l’écran pour passer</div></div></div></div>
-<script>try{var _m=JSON.parse(localStorage.getItem('elyos-music-v1')||'{}');if(_m.splash===false){var _e=document.getElementById('elx');if(_e)_e.remove();}}catch(_x){}</script>
+<script>try{var _m=JSON.parse(localStorage.getItem('elyos-music-v1')||'{}'),_r=JSON.parse(localStorage.getItem('elyos-resume-v1')||'null');if(_m.splash===false||(_r&&!_r.splash&&Date.now()-_r.t<1800000)){var _e=document.getElementById('elx');if(_e)_e.remove();}}catch(_x){}</script>
 <div id="timer" class="timer" hidden></div>
 <nav id="nav" class="nav" hidden></nav>
 <div id="toasts" class="toasts" aria-live="polite"></div>
@@ -10689,7 +10690,7 @@ const FOLLOWERS = {
       { t: 'La main', body: `Je me souviens.\n\nQuand la lumière est venue, j’ai pris la main de la petite de la chambre 14. Elle m’a demandé si j’avais peur. J’ai dit oui. Elle a dit : « Ne t’inquiète pas, Papa viendra. Mais il faut pas qu’il ait mal. »\n\nPuis plus rien.\n\nJe crois que je suis resté parce que je n’avais pas transmis le message. Maintenant, je l’ai écrit. Je crois que je pourrai bientôt me reposer.` }
     ] },
   odile: { name: 'Dame Odile Fauré', role: 'Intendante', icon: 'scale', r: 4, price: 2500,
-    bonus: '+10 % de kinahs sur les gains quotidiens.',
+    bonus: '+10 % de kinahs sur tous les gains (primes, combats et expéditions compris).',
     desc: 'Intendante de la Guilde marchande. On l’appelle la femme de pierre. Elle compte tout.',
     letters: [
       { t: 'Le registre', body: `Je compte. Les sacs de farine, les bouches, les jours qui restent. Les chiffres ne mentent pas et ne pleurent pas.\n\nOn m’appelle la femme de pierre. Je laisse dire.\n\nLes pierres aussi ont été écrasées un jour, très fort et très longtemps, pour devenir ce qu’elles sont.` },
@@ -11990,17 +11991,17 @@ function totals() {
     const r = dayResult(k);
     xp += r.xp;
     for (const s in gains) gains[s] += r.gains[s];
-    /* Kinahs du jour : autant que l'XP, +100 si la quête est accomplie, bonus de la Maison */
-    let dk_ = Math.round((r.xp + (r.success ? 100 : 0)) * ((state.days[k] && state.days[k].km) || 1));
+    /* Kinahs du jour : autant que l'XP, +100 si la quête est accomplie, primes eau et sommeil,
+       puis tous les bonus en % (Maison, équipement, puces, Odile) s'appliquent sur le total, primes comprises */
+    const dd = state.days[k];
+    let dk_ = r.xp + (r.success ? 100 : 0) + (waterOk(dd) ? WATER_K : 0) + (sleepOk(dd) ? SLEEP_K : 0);
     if (r.workoutDone) sessions++;
     if (r.nutritionDone) nutrition++;
     keys += (r.success ? 3 : 0) + (r.workoutDone ? 1 : 0) + (r.nutritionDone ? 1 : 0);
-    if (F.odile && k >= F.odile.date) dk_ = Math.round(dk_ * 1.1);
     if (F.gaspard && k >= F.gaspard.date && r.success) dk_ += 30;
-    kin += dk_;
-    const dd = state.days[k];
-    if (waterOk(dd)) kin += WATER_K;
-    if (sleepOk(dd)) kin += SLEEP_K;
+    dk_ *= (dd && dd.km) || 1;
+    if (F.odile && k >= F.odile.date) dk_ *= 1.1;
+    kin += Math.round(dk_);
     if (r.success) success.push(k);
   }
   for (const p of state.penalties) { xp -= p.xp; kin -= (p.kinah || 0); }
@@ -12011,6 +12012,14 @@ function totals() {
   return _memo;
 }
 function kinahs() { return totals().kinah; }
+/* Montant réel d'une prime aujourd'hui, bonus en % compris */
+function primeK(base) {
+  const d = state.days[dk()], F = state.followers || {};
+  let m = d && d.km ? d.km : 1;
+  if (!(d && d.km)) { try { m = 1 + boosts().kin / 100; } catch (e) { } }
+  if (F.odile && dk() >= F.odile.date) m *= 1.1;
+  return Math.round(base * m);
+}
 function xpForNext(level) { return 200 + 50 * level; }
 function levelInfo(xp) { let L = 1, rem = xp; while (rem >= xpForNext(L)) { rem -= xpForNext(L); L++; } return { level: L, into: rem, need: xpForNext(L) }; }
 function rankOf(level) { let r = RANKS[0]; for (const x of RANKS) if (level >= x.min) r = x; return r; }
@@ -12216,7 +12225,7 @@ function viewHeader() {
   return `
   <header class="flex items-center justify-between gap-3 mb-4">
     <div class="min-w-0">
-      <div class="label">[ Système ]</div>
+      <button type="button" class="label sys-home" data-a="elx-home" aria-label="Revenir à l’écran d’accueil" title="Revenir à l’écran d’accueil">[ Système ]</button>
       <div class="f-display text-sm capitalize truncate">${esc(prettyDate(dk()))}</div>
     </div>
     <div class="flex items-center gap-2 f-display text-sm">
@@ -12348,7 +12357,7 @@ function viewQuest() {
       ? line(r.workoutDone, `Séance ${esc(r.plan.name)}${r.required ? '' : ' (facultative)'}`, `[${r.exDone}/${r.n}]`, 'train')
       : `<div class="flex items-center gap-3 py-2.5 border-b border-[#24242c]"><span class="check" style="border-style:dashed">${icon('moon', 'w-3 h-3 muted')}</span><span class="flex-1 muted">Repos : les muscles récupèrent</span><span class="f-mono text-sm muted">—</span></div>`}
     ${line(r.nutritionDone, `Macros ${ph.toLowerCase()} : ${state.nutrition.kcal} kcal`, `[${r.nu.metCount}/4]`, 'food')}
-    <div class="flex gap-3 text-[11px] mt-2 flex-wrap"><span class="${waterOk(state.days[dk()]) ? 'glow' : 'muted'}">${icon('droplets', 'w-3.5 h-3.5 inline -mt-0.5')} Prime eau +${WATER_K}</span><span class="${sleepOk(state.days[dk()]) ? 'glow' : 'muted'}">${icon('moon', 'w-3.5 h-3.5 inline -mt-0.5')} Prime sommeil +${SLEEP_K}</span><span class="muted">(bonus, hors quête)</span></div>
+    <div class="flex gap-3 text-[11px] mt-2 flex-wrap"><span class="${waterOk(state.days[dk()]) ? 'glow' : 'muted'}">${icon('droplets', 'w-3.5 h-3.5 inline -mt-0.5')} Prime eau +${primeK(WATER_K)}</span><span class="${sleepOk(state.days[dk()]) ? 'glow' : 'muted'}">${icon('moon', 'w-3.5 h-3.5 inline -mt-0.5')} Prime sommeil +${primeK(SLEEP_K)}</span><span class="muted">(bonus, hors quête)</span></div>
     <div class="mt-3 flex items-center justify-between gap-2 text-xs flex-wrap">
       <span class="muted">Récompense : <b class="glow f-mono">${reward} XP</b></span>
       ${r.success ? `<span class="glow f-display tracking-widest uppercase">Accomplie</span>`
@@ -12651,7 +12660,7 @@ function viewWaterSleep() {
           <button type="button" class="chip" data-a="water" data-v="0.5">+ gourde 50 cl</button>
           <button type="button" class="chip" data-a="water" data-v="1">+ 1 L</button>
         </div>
-        <div class="text-[11px] mt-1 ${wOk ? 'glow' : 'muted'}">${wOk ? `Prime d’hydratation obtenue : +${WATER_K} kinahs.` : over ? `Au-dessus de ${WATER_MAX} L : la prime ne compte que dans la zone ${String(WATER_MIN).replace('.', ',')}–${WATER_MAX} L.` : `Encore ${(Math.round((WATER_MIN - w) * 100) / 100).toLocaleString('fr-FR')} L pour la prime de ${WATER_K} kinahs.`}</div>
+        <div class="text-[11px] mt-1 ${wOk ? 'glow' : 'muted'}">${wOk ? `Prime d’hydratation obtenue : +${primeK(WATER_K)} kinahs (bonus compris).` : over ? `Au-dessus de ${WATER_MAX} L : la prime ne compte que dans la zone ${String(WATER_MIN).replace('.', ',')}–${WATER_MAX} L.` : `Encore ${(Math.round((WATER_MIN - w) * 100) / 100).toLocaleString('fr-FR')} L pour la prime de ${primeK(WATER_K)} kinahs.`}</div>
       </div>
       <div class="mt-4 pt-3 border-t border-[#24242c]">
         <div class="flex items-center justify-between gap-2 flex-wrap">
@@ -12659,7 +12668,7 @@ function viewWaterSleep() {
           <div class="flex items-center gap-2"><input id="sleep-h" type="number" inputmode="decimal" min="0" max="16" step="0.25" class="input sm f-mono" style="width:84px" value="${sl ?? ''}" placeholder="—"><span class="text-xs muted">h</span></div>
         </div>
         <div class="flex flex-wrap gap-1.5 mt-2">${[6, 7, 7.5, 8, 8.5, 9].map(h => `<button type="button" class="chip ${sl === h ? 'on' : ''}" data-a="sleep" data-v="${h}">${String(h).replace('.', ',')} h</button>`).join('')}</div>
-        <div class="text-[11px] mt-1 ${sOk ? 'glow' : 'muted'}">${sOk ? `Prime de récupération obtenue : +${SLEEP_K} kinahs.` : `${SLEEP_MIN} h ou plus : +${SLEEP_K} kinahs.`}</div>
+        <div class="text-[11px] mt-1 ${sOk ? 'glow' : 'muted'}">${sOk ? `Prime de récupération obtenue : +${primeK(SLEEP_K)} kinahs (bonus compris).` : `${SLEEP_MIN} h ou plus : +${primeK(SLEEP_K)} kinahs.`}</div>
       </div>
     </div>`;
 }
@@ -13877,7 +13886,7 @@ function addChip(type, r) { const k = chipKey(type, r); state.chips[k] = (state.
 function chipFree(k) { return (state.chips[k] || 0) - state.chipEq.filter(x => x === k).length; }
 function grantLoot(o) {
   const b = boosts(), loot = [];
-  const k = Math.round(rnd(o.kin[0], o.kin[1]) * (1 + b.kin / 100));
+  const k = Math.round(rnd(o.kin[0], o.kin[1]) * (1 + b.kin / 100) * (state.followers && state.followers.odile ? 1.1 : 1));
   state.bonus.push({ date: dk(), k, why: o.why });
   loot.push({ kind: 'kin', n: k });
   for (const m in o.mats || {}) {
@@ -14575,7 +14584,7 @@ function chatContext(id) {
 }
 function chatLoreDigest() {
   const G = state.story, L = ['\n=== SAVOIR DE DAMINU ==='];
-  L.push(`Règles : l’XP vient seulement des efforts réels (séance complète 300 XP, macros 4/4 300 XP). Kinahs = XP du jour, +100 si quête accomplie, +${WATER_K} eau, +${SLEEP_K} sommeil, plus combats et expéditions. Pénalité d’une quête échouée : −150 XP, −100 kinahs (réduite par Ysolde et la puce Garde). Chaque niveau donne 3 points de statistiques. Rangs : E niv. 1, D 10, C 20, B 35, A 50, S 70. Clés de Faille : +3 par quête accomplie, +1 séance complète, +1 macros 4/4.`);
+  L.push(`Règles : l’XP vient seulement des efforts réels (séance complète 300 XP, macros 4/4 300 XP). Kinahs = XP du jour, +100 si quête accomplie, +${WATER_K} eau, +${SLEEP_K} sommeil, plus combats et expéditions ; tous les bonus de kinahs en % (Maison, équipement, puces, Odile) s’appliquent sur tout, primes comprises. Pénalité d’une quête échouée : −150 XP, −100 kinahs (réduite par Ysolde et la puce Garde). Chaque niveau donne 3 points de statistiques. Rangs : E niv. 1, D 10, C 20, B 35, A 50, S 70. Clés de Faille : +3 par quête accomplie, +1 séance complète, +1 macros 4/4.`);
   L.push(`Classes : ${Object.values(CLASSES).map(c => `${c.name} (${c.loadouts.map(l => l.join('+')).join(' / ')})`).join(' ; ')}.`);
   L.push(`Raretés : ${RARITIES.map(x => `${x.name} niv. ${x.lvl}`).join(', ')}. Amélioration jusqu’à +4 avec ferraille, éther, cœur de Faille, cendre de Monarque. Puces : ${Object.values(CHIP_TYPES).map(c => c.name).join(', ')} ; 12 emplacements ; fusion 2 Communes → 1 Raffinée, 3 → Rare, … 7 Mythiques → 1 Éternelle.`);
   L.push(`Zones d’expédition : ${ZONES.map(z => `rang ${z.rank} niv. ${z.level} (${z.name})`).join(' ; ')}. Monarques (3 clés, dans l’ordre) : ${MONARCHS.map(m => `${m.short} niv. ${m.level}`).join(', ')}. Être absolu : niv. 70 et les neuf Monarques vaincus.`);
@@ -15131,7 +15140,7 @@ function finishBattle(B) {
     act(() => {
       if (B.win) {
         G.combats[id] = { won: dk() };
-        if (n.reward && !G.rewards[id]) { G.rewards[id] = 1; state.bonus.push({ date: dk(), k: n.reward, why: n.combat.name }); grantStoryLoot(n); }
+        if (n.reward && !G.rewards[id]) { G.rewards[id] = 1; state.bonus.push({ date: dk(), k: Math.round(n.reward * (1 + ((typeof boosts === 'function' ? boosts().kin : 0) || 0) / 100) * (state.followers && state.followers.odile ? 1.1 : 1)), why: n.combat.name }); grantStoryLoot(n); }
         const foe = n.combat.foe || STORY_FOES[id];
         if (foe) codexRecord(foe, true);
       } else G.combats[id] = { lastFail: dk() };
@@ -15796,7 +15805,16 @@ function musAudio() {
   });
   a.addEventListener('playing', () => { musRT.errors = 0; musRT.blocked = false; musRefresh(); });
   a.addEventListener('pause', () => musRefresh());
-  a.addEventListener('timeupdate', musProgress);
+  a.addEventListener('timeupdate', () => {
+    musProgress();
+    const ms = typeof navigator !== 'undefined' && navigator.mediaSession;
+    if (ms && ms.setPositionState && a.duration && isFinite(a.duration) && Date.now() - (musRT.posT || 0) > 5000) {
+      musRT.posT = Date.now();
+      try { ms.setPositionState({ duration: a.duration, position: Math.min(a.currentTime, a.duration), playbackRate: 1 }); } catch (e) { }
+    }
+  });
+  a.addEventListener('play', () => { try { navigator.mediaSession.playbackState = 'playing'; } catch (e) { } });
+  a.addEventListener('pause', () => { try { navigator.mediaSession.playbackState = 'paused'; } catch (e) { } });
   musRT.audio = a;
   if (typeof navigator !== 'undefined' && navigator.mediaSession) {
     try {
@@ -15824,7 +15842,7 @@ function musStart(t, fadeMs = 1200) {
   a.loop = MUS.repeat === 'one' && !musRT.intro;
   a.volume = 0;
   const p = a.play();
-  if (p && p.catch) p.catch(() => { musRT.blocked = true; musRefresh(); });
+  if (p && p.catch) p.catch(() => { musRT.blocked = true; musArmGesture(); musRefresh(); });
   musFade(MUS.vol, fadeMs);
   musRT.lastPlay = p;
   if (typeof navigator !== 'undefined' && navigator.mediaSession && typeof MediaMetadata !== 'undefined') {
@@ -15850,6 +15868,32 @@ function musNext(dir) {
   let i = MUS.idx + dir;
   if (MUS.shuffle && S.tracks.length > 1 && dir > 0) { do { i = Math.floor(Math.random() * S.tracks.length); } while (i === MUS.idx); }
   musPlay(S.id, i);
+}
+/* Si le navigateur refuse le son sans geste, on le relance au premier toucher, où qu’il soit */
+function musArmGesture() {
+  if (musRT.armed || typeof document === 'undefined' || !document.addEventListener) return;
+  musRT.armed = true;
+  const go = () => {
+    musRT.armed = false;
+    document.removeEventListener('pointerdown', go, true); document.removeEventListener('keydown', go, true);
+    const a = musRT.audio;
+    if (a && musRT.cur && a.paused && MUS.on) { a.volume = 0; const p = a.play(); if (p && p.then) p.then(() => { musRT.blocked = false; musFade(MUS.vol, 800); musRefresh(); }).catch(() => { }); }
+  };
+  document.addEventListener('pointerdown', go, true); document.addEventListener('keydown', go, true);
+}
+/* Reprise après une fermeture de l’appli par le téléphone */
+function musSnapshot() {
+  const a = musRT.audio;
+  return { playing: musPlaying(), intro: musRT.intro, time: a && musRT.cur ? a.currentTime : 0 };
+}
+function musRestore(s) {
+  if (!s || !s.playing || !MUS.on) return;
+  const t = s.intro ? musTrackRef(MUS.introSel) : musStyle(MUS.style).tracks[MUS.idx];
+  if (!t) return;
+  musRT.intro = !!s.intro;
+  musStart(t, 900);
+  const a = musRT.audio;
+  if (a && s.time > 1) a.addEventListener('loadedmetadata', () => { try { if (s.time < (a.duration || 0) - 1) a.currentTime = s.time; } catch (e) { } }, { once: true });
 }
 function musPlaying() { const a = musRT.audio; return !!(a && musRT.cur && !a.paused); }
 function musPause() { const a = musRT.audio; if (a && !a.paused) musFade(0, 400, () => { a.pause(); a.volume = MUS.vol; }); }
@@ -16043,7 +16087,8 @@ function splashPlayer() {
 /* Squelette de l’écran d’accueil. Il est aussi écrit en dur au début de la page (voir assemble.py),
    pour s’afficher dès la première image, avant le chargement du reste. */
 const ELX_HTML = `<div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Quand je contemple les cieux, ouvrage de tes mains, la lune et les étoiles que tu as créées : qu’est-ce que l’homme, pour que tu te souviennes de lui ?<cite>Psaume 8.4-5</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button><div class="elx-skip" aria-hidden="true">Toucher l’écran pour passer</div></div></div></div>`;
-function splashShow() {
+function splashShow(opts) {
+  opts = opts || {};
   if (typeof document === 'undefined' || !document.body || typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') return;
   if (SPLASH.on) return;
   SPLASH.on = true;
@@ -16062,6 +16107,7 @@ function splashShow() {
   SPLASH.t0 = performance.now();
   /* Sans musique, aucun geste n’est nécessaire : l’éveil commence tout seul. */
   if (!MUS.on) splashAwaken();
+  else if (opts.keepMusic && musPlaying()) splashAwaken(true); /* retour volontaire : la musique continue */
   else {
     /* Si le navigateur autorise le son sans geste (souvent le cas d’une appli installée),
        la cinématique démarre seule avec la musique ; sinon, on attend un toucher. */
@@ -16084,6 +16130,7 @@ function splashHide() {
 }
 Object.assign(handlers, {
   'elx-tap': () => splashAwaken(),
+  'elx-home': () => { musClose(); window.scrollTo({ top: 0 }); splashShow({ keepMusic: true }); },
   'elx-enter': () => splashHide(),
   'elx-mus': () => { if (musPlaying()) { musPause(); MUS.on = false; } else { MUS.on = true; if (musRT.cur) musResume(); else musPlayIntro(); } musSave(); setTimeout(musRefresh, 450); musRefresh(); }
 });
@@ -16553,7 +16600,7 @@ const GUIDE = [
     '1. Ouvre l’onglet « Statut ». Tu vois ta quête du jour : la séance prévue et tes objectifs de nourriture.',
     '2. Va dans « Donjon ». C’est là qu’est ta séance. Pour chaque exercice, fais tes séries, écris le poids que tu as utilisé, puis coche l’exercice. Quand tout est coché, la séance est validée.',
     '3. Va dans « Nutrition ». À chaque repas, ajoute ce que tu manges. Les barres se remplissent. Le but est de finir la journée dans la zone verte pour les 4 barres.',
-    '4. Toujours dans « Nutrition », note l’eau que tu bois et tes heures de sommeil. Entre 2,5 et 3 litres d’eau : +75 kinahs. 8 heures de sommeil ou plus : +75 kinahs.',
+    '4. Toujours dans « Nutrition », note l’eau que tu bois et tes heures de sommeil. Entre 2,5 et 3 litres d’eau : +75 kinahs. 8 heures de sommeil ou plus : +75 kinahs. Tes bonus de kinahs en % (Maison, équipement, puces) s’ajoutent aussi à ces primes.',
     '5. Le soir, reviens sur « Statut » : si tout est vert, la quête est accomplie. Bravo, tu viens de faire ta première journée de Chasseur.'
   ] },
   { id: 'muscu', icon: 'dumbbell', t: 'La musculation expliquée simplement', p: [
@@ -16659,11 +16706,40 @@ function dayRollover() {
   if (fails.length) showPenalties(fails);
   checkLevel();
 }
+/* Reprise : si le téléphone ferme l'appli en arrière-plan, on revient là où l'on était
+   (onglet, défilement, minuteur de repos, musique) sans repasser par l'écran d'accueil. */
+const RESUME_KEY = 'elyos-resume-v1', RESUME_MS = 30 * 60 * 1000;
+function saveResume() {
+  try {
+    localStorage.setItem(RESUME_KEY, JSON.stringify({
+      t: Date.now(), y: window.scrollY || 0,
+      timer: timer.end > Date.now() ? { end: timer.end, total: timer.total, label: timer.label } : null,
+      mus: typeof musSnapshot === 'function' ? musSnapshot() : null,
+      splash: !!document.getElementById('elx')
+    }));
+  } catch (e) { }
+}
+function readResume() {
+  try { const r = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null'); if (r && Date.now() - r.t < RESUME_MS && !r.splash) return r; } catch (e) { }
+  return null;
+}
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveResume(); });
+  window.addEventListener('pagehide', saveResume);
+}
 function boot() {
   save(); // enregistre une éventuelle migration v1 → v2
+  const RES = readResume();
   render();
-  if (typeof splashShow === 'function' && (typeof MUS === 'undefined' || MUS.splash !== false)) splashShow();
-  else { const e = document.getElementById('elx'); if (e) e.remove(); }
+  if (RES) {
+    if (RES.timer && RES.timer.end > Date.now()) { timer.end = RES.timer.end; timer.total = RES.timer.total; timer.label = RES.timer.label; drawTimer(); }
+    setTimeout(() => window.scrollTo(0, RES.y || 0), 60);
+  }
+  if (!RES && typeof splashShow === 'function' && (typeof MUS === 'undefined' || MUS.splash !== false)) splashShow();
+  else {
+    const e = document.getElementById('elx'); if (e) e.remove();
+    if (RES && typeof musRestore === 'function') musRestore(RES.mus);
+  }
   const fails = evaluateQuests();
   if (fails.length) { render(); showPenalties(fails); }
   checkLevel();
