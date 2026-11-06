@@ -52,7 +52,7 @@
 <meta name="theme-color" content="#0a0a0c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Spectral:ital,wght@0,400;0,500;1,400&family=Special+Elite&family=Caveat:wght@400;600&family=IM+Fell+English:ital@0;1&family=M+PLUS+1p:wght@300;400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Spectral:ital,wght@0,400;0,500;1,400&family=Special+Elite&family=Caveat:wght@400;600&family=IM+Fell+English:ital@0;1&family=M+PLUS+1p:wght@300;400&family=Zen+Kaku+Gothic+New:wght@400;500&family=IM+Fell+DW+Pica:ital@0;1&family=Cormorant+Garamond:wght@500;600&display=swap">
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script>
   tailwind.config = {
@@ -13601,6 +13601,7 @@ function viewStory() {
         <button type="button" class="btn sm ghost" data-a="reread-open">${icon('book-open-check', 'w-3.5 h-3.5')}Relire depuis le début</button>
         <span class="flex gap-2"><button type="button" class="btn sm ghost" data-a="pn-all" aria-label="Qui est qui">${icon('users', 'w-3.5 h-3.5')}Qui est qui</button><button type="button" class="btn sm ghost" data-a="reader-toggle" aria-label="Réglages de lecture">${icon('type', 'w-3.5 h-3.5')}Aa</button></span>
       </div>
+      <button type="button" class="btn sm u imm-open-btn" data-a="imm-open">${icon('sparkles', 'w-3.5 h-3.5')}Lecture immersive</button>
       ${viewReaderTools()}
       <article id="story-node" class="sys umbra ${readerClass()}" style="scroll-margin-top:16px;${readerStyle()}">
         <span class="tome-pct" title="Avancée du tome">${tomeProgress(T, n.id)} %</span>
@@ -16342,6 +16343,388 @@ if (typeof document !== 'undefined' && document.head) document.head.insertAdjace
 </style>`);
 
 /* ==========================================================================
+   ELYOS SYSTEM — Lecture immersive du livre-jeu
+   Repris du mode immersif de « La Sainte Bible · Darby » (même auteur) :
+   le texte s’écrit sous les yeux du lecteur, paragraphe après paragraphe.
+     Toucher / clic / Espace / Entrée / →  : termine le paragraphe, puis passe au suivant
+     ← : paragraphe précédent      A : avance automatique      Échap : quitter
+   À la fin d’un passage, les choix s’affichent dans le cadre : on lit tout le
+   tome sans quitter le mode immersif. Les combats se jouent dans la vue normale.
+   ========================================================================== */
+const IMM_THEMES = {
+  systeme: { nom: 'Système', font: "'Zen Kaku Gothic New', 'Barlow', sans-serif" },
+  nuit: { nom: 'Nuit', font: "'Zen Kaku Gothic New', 'Barlow', sans-serif" },
+  sable: { nom: 'Sable', font: "'Zen Kaku Gothic New', 'Barlow', sans-serif" },
+  parchemin: { nom: 'Parchemin', font: "'IM Fell DW Pica', 'Spectral', serif" },
+  celeste: { nom: 'Céleste', font: "'Cormorant Garamond', 'Spectral', serif" }
+};
+const IMM_SPEEDS = [{ v: 22, nom: 'Lente' }, { v: 40, nom: 'Normale' }, { v: 80, nom: 'Rapide' }, { v: 0, nom: 'Instantanée' }];
+const IMM = { root: null, paras: [], pi: 0, typed: 0, typing: false, raf: 0, lastT: 0, acc: 0, autoT: 0, ac: null, node: null, open: false };
+
+function immOpts() {
+  state.reader = state.reader || {};
+  const o = state.reader.imm = state.reader.imm || {};
+  if (!IMM_THEMES[o.theme]) o.theme = 'systeme';
+  if (!IMM_SPEEDS.some(s => s.v === o.speed)) o.speed = 40;
+  if (typeof o.sound !== 'boolean') o.sound = false;
+  if (typeof o.auto !== 'boolean') o.auto = false;
+  return o;
+}
+function immReduced() { return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+function immPlain(s) { return String(s || '').replace(/\{nom\}/g, (state.profile && state.profile.name) || 'personne'); }
+
+/* Paragraphes du passage en cours, dans l’ordre où la vue normale les montre */
+function immParas() {
+  const T = curTome(), S = TS(T.id), G = state.story;
+  if (S.pending) return [];
+  const n = ALL_NODES[S.node] || ALL_NODES[T.start];
+  const chap = chapOf(n), out = [];
+  if (chap.start === n.id && chap.verse) out.push({ verse: true, t: `« ${chap.verse} »`, ref: chap.ref });
+  const add = list => (list || []).forEach(p => {
+    if (typeof p === 'string') out.push({ t: immPlain(p) });
+    else if (p.sys) { if (!p.if || checkReq(p.if)) out.push({ sys: true, t: immPlain(p.sys) }); }
+    else if (p.if && checkReq(p.if)) out.push({ t: immPlain(p.t) });
+  });
+  add(n.text);
+  const won = n.combat && G.combats[n.id] && G.combats[n.id].won;
+  if (won) { out.push({ t: immPlain(n.combat.win), em: true }); add(n.after); }
+  return out;
+}
+
+/* ---------- Ouverture / fermeture ---------- */
+function immOpen(keepPos) {
+  if (typeof document === 'undefined' || !document.body) return;
+  if (!IMM.root) immBuild();
+  const S = TS();
+  const nodeId = S.pending ? 'pending:' + S.pending : S.node;
+  const same = keepPos && IMM.node === nodeId;
+  IMM.node = nodeId;
+  IMM.paras = immParas();
+  if (!same) IMM.pi = 0;
+  IMM.open = true;
+  IMM.root.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  immTheme();
+  immHeader();
+  if (!IMM.paras.length) { immEnd(); }
+  else immShow(Math.min(IMM.pi, IMM.paras.length - 1), true);
+  IMM.root.focus({ preventScroll: true });
+}
+function immClose() {
+  if (!IMM.root) return;
+  immStop(); clearTimeout(IMM.autoT);
+  IMM.root.classList.add('hidden');
+  document.body.style.overflow = '';
+  IMM.open = false;
+  render();
+  const art = document.getElementById('story-node');
+  if (art && art.scrollIntoView) art.scrollIntoView({ block: 'start' });
+}
+
+/* ---------- Interface ---------- */
+function immBuild() {
+  const r = document.createElement('div');
+  r.id = 'imm'; r.className = 'imm hidden'; r.tabIndex = -1;
+  r.setAttribute('role', 'dialog'); r.setAttribute('aria-label', 'Lecture immersive');
+  r.innerHTML = `
+    <div class="imm-bg" aria-hidden="true"></div>
+    <header class="imm-top">
+      <div class="imm-bar"><span class="imm-sq"></span><span>LECTURE</span><span class="imm-bar-sep"></span><span data-head class="imm-head"></span></div>
+      <div class="imm-tools">
+        <button type="button" data-act="auto" class="imm-btn" title="Avance automatique (A)">AUTO</button>
+        <button type="button" data-act="speed" class="imm-btn" title="Vitesse d’écriture"></button>
+        <button type="button" data-act="sound" class="imm-btn" title="Son du texte"></button>
+        <button type="button" data-act="theme" class="imm-btn" title="Ambiance"></button>
+        <button type="button" data-act="close" class="imm-btn imm-x" title="Quitter (Échap)" aria-label="Quitter la lecture immersive">✕</button>
+      </div>
+    </header>
+    <main class="imm-stage" data-stage>
+      <div class="imm-history" data-history aria-hidden="true"></div>
+      <section class="imm-box" data-box>
+        <div class="imm-box-head"><span data-ref></span><span class="imm-dots" aria-hidden="true">▪ ▪ ▪</span></div>
+        <p class="imm-text"><span data-typed></span><span class="imm-cursor" aria-hidden="true">■</span></p>
+        <p class="sr-only" aria-live="polite" data-live></p>
+      </section>
+      <div class="imm-hint" data-hint>▶ TOUCHER POUR CONTINUER</div>
+      <section class="imm-end hidden" data-end></section>
+    </main>
+    <footer class="imm-foot">
+      <div class="imm-progress"><i data-progress></i></div>
+      <div class="imm-foot-row"><span data-count></span><span class="imm-keys">ESPACE · ← → · A · ÉCHAP</span></div>
+    </footer>`;
+  document.body.appendChild(r);
+  IMM.root = r;
+  r.querySelector('[data-stage]').addEventListener('click', e => { if (e.target.closest('[data-end]')) return; immAdvance(); });
+  r.querySelector('.imm-tools').addEventListener('click', e => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    e.stopPropagation();
+    const o = immOpts();
+    switch (b.dataset.act) {
+      case 'auto': o.auto = !o.auto; if (o.auto && !IMM.typing && r.querySelector('[data-end]').classList.contains('hidden')) immAuto(); else clearTimeout(IMM.autoT); break;
+      case 'speed': { const i = IMM_SPEEDS.findIndex(s => s.v === o.speed); o.speed = IMM_SPEEDS[(i + 1) % IMM_SPEEDS.length].v; break; }
+      case 'sound': o.sound = !o.sound; if (o.sound) immTick(true); break;
+      case 'theme': { const k = Object.keys(IMM_THEMES); o.theme = k[(k.indexOf(o.theme) + 1) % k.length]; immTheme(); break; }
+      case 'close': immClose(); return;
+    }
+    save(); immTools();
+  });
+  r.querySelector('[data-end]').addEventListener('click', e => {
+    const b = e.target.closest('[data-imm]'); if (!b || b.disabled) return;
+    e.stopPropagation();
+    const k = b.dataset.imm;
+    if (k === 'choice') { handlers.choice(b); immOpen(); }
+    else if (k === 'pending') { handlers['continue-pending'](); immOpen(); }
+    else if (k === 'restart') immShow(0);
+    else if (k === 'fight' || k === 'quit') immClose();
+  });
+  document.addEventListener('keydown', e => {
+    if (!IMM.open) return;
+    const endOpen = !IMM.root.querySelector('[data-end]').classList.contains('hidden');
+    if (['Space', 'Enter', 'ArrowRight', 'ArrowDown', 'PageDown'].includes(e.code)) {
+      if (endOpen) return; /* le menu se pilote au clavier comme des boutons */
+      e.preventDefault(); immAdvance();
+    } else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.code)) { if (!endOpen || IMM.paras.length) { e.preventDefault(); immBack(); } }
+    else if (e.code === 'Escape') { e.preventDefault(); immClose(); }
+    else if (e.code === 'KeyA') { const o = immOpts(); o.auto = !o.auto; save(); immTools(); if (o.auto && !IMM.typing && !endOpen) immAuto(); }
+  });
+}
+function immTheme() {
+  const o = immOpts(), r = IMM.root;
+  r.className = r.className.replace(/\btheme-\S+/g, '').trim() + ' theme-' + o.theme;
+  r.style.setProperty('--imm-font', IMM_THEMES[o.theme].font);
+  immTools();
+}
+function immTools() {
+  const o = immOpts(), $ = s => IMM.root.querySelector(s);
+  $('[data-act="auto"]').classList.toggle('on', o.auto);
+  $('[data-act="speed"]').textContent = 'VITESSE : ' + (IMM_SPEEDS.find(s => s.v === o.speed) || IMM_SPEEDS[1]).nom.toUpperCase();
+  $('[data-act="sound"]').textContent = o.sound ? 'SON : OUI' : 'SON : NON';
+  $('[data-act="theme"]').textContent = IMM_THEMES[o.theme].nom.toUpperCase();
+}
+function immHeader() {
+  const T = curTome(), S = TS(T.id), n = ALL_NODES[S.pending || S.node] || ALL_NODES[T.start], chap = chapOf(n);
+  IMM.root.querySelector('[data-head]').textContent = `TOME ${T.num} · ${chap.title}`.toUpperCase();
+}
+
+/* ---------- Écriture du texte ---------- */
+function immShow(i, first) {
+  const r = IMM.root, p = IMM.paras[i];
+  clearTimeout(IMM.autoT);
+  r.querySelector('[data-end]').classList.add('hidden');
+  r.querySelector('[data-box]').classList.remove('hidden');
+  r.querySelector('[data-hint]').classList.remove('hidden');
+  IMM.pi = i;
+  const total = IMM.paras.length;
+  r.querySelector('[data-ref]').textContent = p.sys ? '[ SYSTÈME ]' : p.verse ? (p.ref || 'VERSET').toUpperCase() : `PARAGRAPHE ${String(i + 1).padStart(2, '0')}`;
+  r.querySelector('[data-count]').textContent = `${String(i + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+  r.querySelector('[data-progress]').style.width = ((i + 1) / Math.max(1, total)) * 100 + '%';
+  r.querySelector('[data-history]').innerHTML = IMM.paras.slice(Math.max(0, i - 2), i)
+    .map((q, k, arr) => `<p class="imm-past" style="opacity:${(k + 1) / (arr.length + 1) * 0.55}">${esc(q.t)}</p>`).join('');
+  r.querySelector('[data-hint]').classList.add('dim');
+  const box = r.querySelector('[data-box]');
+  box.classList.toggle('is-sys', !!p.sys); box.classList.toggle('is-verse', !!p.verse); box.classList.toggle('is-em', !!p.em);
+  if (!immReduced() && !first) { box.classList.remove('glitch'); void box.offsetWidth; box.classList.add('glitch'); }
+  IMM.typed = 0; IMM.acc = 0;
+  r.querySelector('[data-typed]').textContent = '';
+  r.querySelector('[data-live]').textContent = '';
+  if (immOpts().speed === 0 || immReduced()) { immFinish(); return; }
+  IMM.typing = true; r.classList.add('is-typing');
+  IMM.lastT = performance.now();
+  cancelAnimationFrame(IMM.raf); IMM.raf = requestAnimationFrame(immStep);
+}
+function immStep(t) {
+  const text = IMM.paras[IMM.pi].t, o = immOpts();
+  const dt = Math.min(100, t - IMM.lastT); IMM.lastT = t;
+  IMM.acc += dt * o.speed / 1000;
+  let n = 0;
+  while (IMM.acc >= 1 && IMM.typed < text.length) {
+    IMM.typed++; IMM.acc -= 1; n++;
+    if (/[.;:!?…]/.test(text[IMM.typed - 1])) { IMM.acc -= o.speed * 0.12; break; } /* pause brève après la ponctuation forte */
+  }
+  if (n) {
+    IMM.root.querySelector('[data-typed]').textContent = text.slice(0, IMM.typed);
+    if (o.sound && /\S/.test(text[IMM.typed - 1]) && IMM.typed % 2) immTick();
+  }
+  if (IMM.typed >= text.length) { immFinish(); return; }
+  IMM.raf = requestAnimationFrame(immStep);
+}
+function immStop() { cancelAnimationFrame(IMM.raf); IMM.typing = false; if (IMM.root) IMM.root.classList.remove('is-typing'); }
+function immFinish() {
+  immStop();
+  const text = IMM.paras[IMM.pi].t;
+  IMM.typed = text.length;
+  IMM.root.querySelector('[data-typed]').textContent = text;
+  IMM.root.querySelector('[data-live]').textContent = text;
+  IMM.root.querySelector('[data-hint]').classList.remove('dim');
+  if (immOpts().auto) immAuto();
+}
+function immAuto() {
+  clearTimeout(IMM.autoT);
+  const len = ((IMM.paras[IMM.pi] || {}).t || '').length;
+  IMM.autoT = setTimeout(() => { if (IMM.open && !IMM.typing) immAdvance(); }, Math.min(7000, 1400 + len * 22));
+}
+function immAdvance() {
+  if (!IMM.paras.length) return;
+  if (IMM.typing) { immFinish(); return; }
+  if (IMM.pi < IMM.paras.length - 1) immShow(IMM.pi + 1);
+  else immEnd();
+}
+function immBack() {
+  if (!IMM.paras.length) return;
+  if (!IMM.root.querySelector('[data-end]').classList.contains('hidden')) { immShow(IMM.paras.length - 1); return; }
+  if (IMM.pi > 0) immShow(IMM.pi - 1);
+}
+/* Petit « tic » synthétisé (désactivé par défaut) */
+function immTick(test) {
+  try {
+    IMM.ac = IMM.ac || new (window.AudioContext || window.webkitAudioContext)();
+    const a = IMM.ac, o = a.createOscillator(), g = a.createGain();
+    o.type = 'square'; o.frequency.value = 1500 + Math.random() * 300;
+    g.gain.setValueAtTime(test ? 0.04 : 0.018, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.025);
+    o.connect(g).connect(a.destination); o.start(); o.stop(a.currentTime + 0.03);
+  } catch (e) { /* audio indisponible */ }
+}
+
+/* ---------- Fin du passage : choix, combat, porte de niveau, fin ---------- */
+function immEnd() {
+  clearTimeout(IMM.autoT); immStop();
+  const r = IMM.root, T = curTome(), S = TS(T.id), G = state.story;
+  const n = ALL_NODES[S.node] || ALL_NODES[T.start];
+  r.querySelector('[data-box]').classList.add('hidden');
+  r.querySelector('[data-hint]').classList.add('hidden');
+  r.querySelector('[data-history]').innerHTML = IMM.paras.slice(-1).map(q => `<p class="imm-past" style="opacity:.4">${esc(q.t)}</p>`).join('');
+  let title = 'QUE FAITES-VOUS ?', msg = '', items = [];
+  if (S.pending) {
+    const pc = chapOf(ALL_NODES[S.pending]), lv = curLevel(), ok = lv >= pc.level;
+    title = ok ? 'ACCÈS ACCORDÉ' : 'ACCÈS REFUSÉ';
+    msg = ok ? `${pc.title}. Vous êtes prêt.` : `${pc.title}. Le Système vous juge trop faible : niveau ${pc.level} requis, vous êtes niveau ${lv}. Chaque séance et chaque jour de macros vous en rapprochent.`;
+    if (ok) items.push(`<li><button type="button" data-primary data-imm="pending">▶ Entrer</button></li>`);
+  } else if (n.combat && !(G.combats[n.id] && G.combats[n.id].won)) {
+    title = 'COMBAT';
+    msg = `${n.combat.name} vous barre la route. Le combat se joue dans la vue normale du récit.`;
+    items.push(`<li><button type="button" data-primary data-imm="fight">⚔ Affronter : ${esc(n.combat.name)}</button></li>`);
+  } else if (n.ending) {
+    const E = T.endings[n.ending] || {};
+    title = T.id === 'I' ? `FIN ${n.ending}` : `TOME ${T.num} · ISSUE ${n.ending}`;
+    msg = `${E.title || ''}${E.verse ? ` — « ${E.verse} » (${E.ref})` : ''}`;
+  } else if (n.choices) {
+    n.choices.forEach((c, i) => {
+      const ok = checkReq(c.req);
+      if (!ok && c.hidden) return;
+      if (!ok && c.sealed) { items.push(`<li><button type="button" disabled class="imm-sealed">🔒 ${esc(c.sealedLabel || 'Une voie scellée')}</button></li>`); return; }
+      if (!ok) return;
+      const seen = G.picked[`${n.id}:${i}`];
+      items.push(`<li><button type="button" ${items.length ? '' : 'data-primary'} data-imm="choice" data-i="${i}">▶ ${esc(c.t)}${seen ? ' <span class="imm-seen">· déjà choisi</span>' : ''}</button></li>`);
+    });
+  }
+  const end = r.querySelector('[data-end]');
+  end.innerHTML = `
+    <div class="imm-bar imm-bar-sm"><span class="imm-sq"></span><span>${esc(title)}</span></div>
+    ${msg ? `<p class="imm-end-msg">${esc(msg)}</p>` : ''}
+    <ul class="imm-menu">
+      ${items.join('')}
+      ${IMM.paras.length ? `<li><button type="button" data-imm="restart">↺ Relire ce passage</button></li>` : ''}
+      <li><button type="button" data-imm="quit">✕ Quitter le mode immersif</button></li>
+    </ul>`;
+  end.classList.remove('hidden');
+  r.querySelector('[data-count]').textContent = n.ending ? 'FIN' : 'FIN DU PASSAGE';
+  r.querySelector('[data-progress]').style.width = '100%';
+  const first = end.querySelector('button:not([disabled])'); if (first) first.focus({ preventScroll: true });
+}
+
+Object.assign(handlers, { 'imm-open': () => immOpen() });
+
+if (typeof document !== 'undefined' && document.head) document.head.insertAdjacentHTML('beforeend', `<style>
+.imm{position:fixed;inset:0;z-index:110;display:flex;flex-direction:column;background:var(--n-bg);color:var(--n-ink);font-family:var(--imm-font,'Zen Kaku Gothic New',sans-serif);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);outline:none;-webkit-font-smoothing:antialiased}
+.imm.hidden{display:none}
+.imm *,.imm *::before,.imm *::after{box-sizing:border-box}
+.imm.theme-systeme{--n-bg:#08080d;--n-ink:#cfeefc;--n-box:rgba(10,14,24,.86);--n-shadow:rgba(0,240,255,.16);--n-line:rgba(0,240,255,.26);--n-acc:#00f0ff}
+.imm.theme-sable{--n-bg:#cdc7b0;--n-ink:#4a473e;--n-box:rgba(220,215,197,.72);--n-shadow:rgba(74,71,62,.22);--n-line:rgba(74,71,62,.28);--n-acc:#4a473e}
+.imm.theme-nuit{--n-bg:#0f0f0e;--n-ink:#dad6c7;--n-box:rgba(26,26,24,.86);--n-shadow:rgba(218,214,199,.10);--n-line:rgba(218,214,199,.22);--n-acc:#dad6c7}
+.imm.theme-parchemin{--n-bg:#13161b;--n-ink:#d8cdb0;--n-box:rgba(25,29,36,.88);--n-shadow:rgba(168,143,92,.22);--n-line:rgba(168,143,92,.35);--n-acc:#d8cdb0}
+.imm-bg{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.imm-bg::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--n-line) 1px,transparent 1px),linear-gradient(90deg,var(--n-line) 1px,transparent 1px);background-size:64px 64px;opacity:.22}
+.imm-bg::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.035) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.18) 100%)}
+.theme-systeme .imm-bg::before{opacity:.14}
+.theme-systeme .imm-bg::after{background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),radial-gradient(ellipse 70% 50% at 50% 0%,rgba(139,92,246,.16),transparent 70%),radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.65) 100%)}
+.theme-nuit .imm-bg::after{background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.6) 100%)}
+.theme-parchemin .imm-bg::after{background:repeating-linear-gradient(0deg,rgba(0,0,0,.12) 0 1px,transparent 1px 3px),radial-gradient(ellipse at 50% 40%,rgba(168,143,92,.08),transparent 60%),radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.55) 100%)}
+.imm-top{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 24px 8px;flex-wrap:wrap}
+.imm-bar{display:inline-flex;align-items:center;gap:10px;background:var(--n-ink);color:var(--n-bg);padding:6px 16px 6px 10px;font-size:12px;letter-spacing:.26em;text-transform:uppercase;max-width:100%}
+.theme-systeme .imm-bar{background:linear-gradient(90deg,#7ff6ff,#00f0ff 50%,#a48bff);color:#05050a}
+.imm-bar-sm{font-size:11px;margin-bottom:14px}
+.imm-sq{width:9px;height:9px;background:currentColor;display:inline-block;flex:none}
+.imm-bar-sep{width:1px;height:12px;background:currentColor;opacity:.45}
+.imm-head{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.18em}
+.imm-tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.imm-btn{border:1px solid var(--n-ink);background:transparent;color:inherit;padding:5px 10px;font:inherit;font-size:11px;letter-spacing:.14em;cursor:pointer;transition:background .12s,color .12s}
+.imm-btn:hover,.imm-btn.on{background:var(--n-ink);color:var(--n-bg)}
+.imm-x{padding:5px 9px}
+.imm-stage{position:relative;flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:12px 24px;cursor:pointer;user-select:none;-webkit-user-select:none;min-height:0;overflow:hidden}
+.imm-history{width:min(880px,100%);margin-bottom:18px}
+.imm-past{font-size:clamp(14px,1.5vw,17px);line-height:1.7;margin:0 0 .5em;letter-spacing:.02em}
+.imm-box{position:relative;width:min(880px,100%);max-height:62vh;overflow:auto;border:1px solid var(--n-ink);background:var(--n-box);padding:16px 26px 26px;box-shadow:6px 6px 0 var(--n-shadow)}
+.imm-box::before,.imm-box::after{content:'';position:absolute;width:7px;height:7px;background:var(--n-ink)}
+.imm-box::before{top:-4px;left:-4px}.imm-box::after{bottom:-4px;right:-4px}
+.theme-systeme .imm-box{border-color:rgba(0,240,255,.55);box-shadow:0 0 0 1px rgba(0,240,255,.12),0 0 40px rgba(0,240,255,.10),6px 6px 0 var(--n-shadow)}
+.theme-systeme .imm-box::before,.theme-systeme .imm-box::after{background:var(--n-acc);box-shadow:0 0 8px var(--n-acc)}
+.theme-parchemin .imm-box{border:3px double var(--n-ink)}
+.imm-box-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.24em;padding-bottom:8px;margin-bottom:16px;border-bottom:1px solid var(--n-line)}
+.imm-dots{letter-spacing:.3em;opacity:.7}
+.imm-text{font-size:clamp(19px,2.3vw,27px);line-height:1.78;letter-spacing:.025em;min-height:3.6em;margin:0;white-space:pre-line}
+.imm-box.is-sys .imm-text{font-family:'JetBrains Mono',monospace;font-size:clamp(15px,1.9vw,21px);letter-spacing:.04em;color:var(--n-acc)}
+.imm-box.is-sys .imm-box-head{color:var(--n-acc)}
+.imm-box.is-verse .imm-text,.imm-box.is-em .imm-text{font-style:italic}
+.theme-parchemin .imm-text{letter-spacing:.01em}
+.imm-cursor{display:inline-block;margin-left:3px;font-size:.62em;vertical-align:.12em;animation:imm-blink 1s steps(1) infinite}
+.theme-systeme .imm-cursor{color:var(--n-acc);text-shadow:0 0 8px var(--n-acc)}
+.is-typing .imm-cursor{animation:none}
+.imm-hint{margin-top:20px;font-size:11px;letter-spacing:.32em;animation:imm-pulse 1.8s ease-in-out infinite}
+.imm-hint.dim{opacity:.12;animation:none}
+.imm-end{width:min(620px,100%);max-height:70vh;overflow:auto;border:1px solid var(--n-ink);background:var(--n-box);padding:20px 22px 14px;box-shadow:6px 6px 0 var(--n-shadow);cursor:default}
+.imm-end-msg{font-size:15px;line-height:1.6;margin:0 0 14px}
+.imm-menu{list-style:none;margin:0;padding:0}
+.imm-menu li+li{border-top:1px solid var(--n-line)}
+.imm-menu button{width:100%;text-align:left;background:transparent;color:inherit;border:0;font:inherit;font-size:15px;letter-spacing:.04em;line-height:1.45;padding:12px 12px 12px 26px;position:relative;cursor:pointer}
+.imm-menu button::before{content:'';position:absolute;left:9px;top:50%;width:7px;height:7px;margin-top:-3.5px;background:currentColor;opacity:0}
+.imm-menu button:hover:not([disabled]),.imm-menu button:focus-visible{background:var(--n-ink);color:var(--n-bg);outline:none}
+.imm-menu button:hover::before,.imm-menu button:focus-visible::before{opacity:1}
+.imm-menu button[disabled]{opacity:.45;cursor:not-allowed}
+.imm-seen{opacity:.6;font-size:12px}
+.imm-foot{position:relative;padding:8px 24px 18px}
+.imm-progress{height:2px;background:var(--n-line)}
+.imm-progress i{display:block;height:100%;background:var(--n-ink);transition:width .3s}
+.theme-systeme .imm-progress i{background:linear-gradient(90deg,var(--n-acc),#8b5cf6);box-shadow:0 0 8px var(--n-acc)}
+.imm-foot-row{display:flex;justify-content:space-between;font-size:10.5px;letter-spacing:.22em;margin-top:8px;opacity:.85}
+.imm-box.glitch{animation:imm-glitch .3s steps(2,end)}
+.imm-box.glitch .imm-text{animation:imm-split .3s steps(3,end)}
+@keyframes imm-blink{50%{opacity:0}}
+@keyframes imm-pulse{50%{opacity:.35}}
+@keyframes imm-glitch{0%{transform:translate(0,0);clip-path:inset(0 0 0 0)}20%{transform:translate(-6px,1px);clip-path:inset(12% 0 58% 0)}40%{transform:translate(5px,-1px);clip-path:inset(62% 0 8% 0)}60%{transform:translate(-2px,0);clip-path:inset(30% 0 35% 0)}100%{transform:translate(0,0);clip-path:inset(0 0 0 0)}}
+@keyframes imm-split{0%{text-shadow:3px 0 0 var(--n-line),-3px 0 0 var(--n-shadow)}100%{text-shadow:none}}
+@media (max-width:640px){.imm-top{padding:12px 14px 6px}.imm-stage{padding:10px 14px}.imm-box{padding:12px 16px 20px;box-shadow:4px 4px 0 var(--n-shadow)}.imm-foot{padding:6px 14px 14px}.imm-keys{display:none}.imm-history{display:none}.imm-btn{font-size:10px;padding:4px 7px;letter-spacing:.1em}}
+@media (prefers-reduced-motion:reduce){.imm-box.glitch,.imm-box.glitch .imm-text,.imm-hint,.imm-cursor{animation:none !important}}
+.imm .hidden{display:none !important}
+.imm.theme-celeste{--n-bg:#f4f7fc;--n-ink:#2c3a55;--n-box:rgba(255,255,255,.55);--n-shadow:rgba(201,162,79,.18);--n-line:rgba(201,162,79,.35);--n-acc:#8a6a26;background:radial-gradient(ellipse 120% 70% at 50% -10%,#fffaf0 0%,#fdf3dc 18%,#eaf1fb 48%,#d9e6f7 75%,#c9dbf2 100%)}
+.theme-celeste .imm-bg::before{background-image:none;opacity:1;background:conic-gradient(from 180deg at 50% -8%,transparent 0deg,rgba(255,236,190,.38) 8deg,transparent 16deg,rgba(255,236,190,.28) 26deg,transparent 36deg,rgba(255,236,190,.34) 48deg,transparent 60deg,transparent 300deg,rgba(255,236,190,.34) 312deg,transparent 324deg,rgba(255,236,190,.28) 334deg,transparent 344deg,rgba(255,236,190,.38) 352deg,transparent 360deg);animation:imm-rays 40s linear infinite alternate;transform-origin:50% 0}
+.theme-celeste .imm-bg::after{background:radial-gradient(ellipse 40% 12% at 18% 82%,rgba(255,255,255,.95),transparent 70%),radial-gradient(ellipse 35% 10% at 78% 88%,rgba(255,255,255,.9),transparent 70%),radial-gradient(ellipse 50% 14% at 50% 100%,rgba(255,255,255,1),transparent 70%),radial-gradient(1.5px 1.5px at 20% 30%,rgba(214,178,96,.9),transparent),radial-gradient(1.5px 1.5px at 70% 22%,rgba(214,178,96,.8),transparent),radial-gradient(1px 1px at 40% 60%,rgba(214,178,96,.8),transparent),radial-gradient(1px 1px at 85% 55%,rgba(214,178,96,.7),transparent),radial-gradient(1.2px 1.2px at 10% 50%,rgba(214,178,96,.7),transparent);animation:imm-float 12s ease-in-out infinite alternate}
+.theme-celeste .imm-bar{background:linear-gradient(100deg,#b8913e,#e8cf8a 45%,#b8913e);color:#fffdf6}
+.theme-celeste .imm-box{border:1px solid rgba(201,162,79,.55);border-radius:18px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 0 0 6px rgba(255,255,255,.35),0 20px 60px -20px rgba(120,150,200,.45),0 0 80px rgba(255,236,190,.45)}
+.theme-celeste .imm-box::before,.theme-celeste .imm-box::after{width:9px;height:9px;border-radius:50%;background:#d4b062;box-shadow:0 0 10px #f3dc9a}
+.theme-celeste .imm-text{font-size:clamp(22px,2.7vw,31px);line-height:1.7;letter-spacing:.01em;font-weight:500}
+.theme-celeste .imm-btn{border-color:rgba(44,58,85,.35);border-radius:999px}
+.theme-celeste .imm-btn:hover,.theme-celeste .imm-btn.on{background:#2c3a55;color:#fffdf6}
+.theme-celeste .imm-end{border-radius:18px;border-color:rgba(201,162,79,.55);box-shadow:0 20px 60px -20px rgba(120,150,200,.45),0 0 60px rgba(255,236,190,.4)}
+.theme-celeste .imm-menu button:hover:not([disabled]),.theme-celeste .imm-menu button:focus-visible{background:rgba(44,58,85,.9)}
+.theme-celeste .imm-cursor{color:#c9a24f;text-shadow:0 0 8px #f3dc9a}
+@keyframes imm-rays{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+@keyframes imm-float{from{transform:translateY(0)}to{transform:translateY(-14px)}}
+@media (prefers-reduced-motion:reduce){.theme-celeste .imm-bg::before,.theme-celeste .imm-bg::after{animation:none}}
+.imm-open-btn{width:100%;justify-content:center}
+</style>`);
+
+/* ==========================================================================
    PERSONNAGES — puissance, statistiques, classement de tout le lore,
    profils à compléter (archives, lettres, faits) · BIBLE DU LORE (vue)
    ========================================================================== */
@@ -16663,6 +17046,7 @@ const GUIDE = [
     'Récit : une histoire dont tu es le héros, découpée en tomes. Chaque chapitre s’ouvre à un certain niveau : plus tu t’entraînes, plus tu avances. Tes choix changent la fin. Le bouton « Relire depuis le début » te fait relire tout ce que tu as lu, sans pouvoir changer tes choix. Le bouton « Aa » change la police, la taille du texte et le papier (clair ou sombre). Le petit nombre en % en haut à droite montre ton avancée dans le tome.',
     'Combats : au tour par tour. Tu choisis tes compétences. Les compétences ultimes se chargent pendant le combat : quand la jauge est pleine, elles font d’énormes dégâts. De nouvelles compétences se débloquent avec ton niveau, différentes pour chaque classe.',
     'Expéditions : dépense une clé de Faille pour combattre des monstres et gagner des objets, des matériaux et des kinahs. Tu gagnes des clés en accomplissant tes quêtes.',
+    'Lecture immersive : dans le Récit, le bouton « Lecture immersive » ouvre le texte en plein écran. Il s’écrit sous tes yeux, paragraphe après paragraphe. Touche l’écran (ou Espace) pour finir le paragraphe puis passer au suivant ; ← revient en arrière. À la fin du passage, les choix apparaissent dans le même cadre. En haut : avance automatique, vitesse d’écriture, petit son de frappe et cinq ambiances (Système, Nuit, Sable, Parchemin, Céleste). Les combats se jouent dans la vue normale.',
     'Arsenal : équipe tes armes, armures et puces. Améliore-les jusqu’à +4 avec des matériaux. Fusionne les puces pour en faire de meilleures.',
     'Boutique : achète équipement, cosmétiques, montures, instruments et demeures avec tes kinahs.',
     'Maison : recrute les personnages rencontrés dans le récit. Chacun te donne un bonus et t’écrit des lettres quand votre lien grandit.',
