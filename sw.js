@@ -1,6 +1,6 @@
 /* Service worker : appli disponible hors connexion */
-const CACHE = 'elyos-system-v10';
-const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
+const CACHE = 'elyos-system-v11';
+const CORE = ['./', './index.html', './elyos3d.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 const CDN = [
   'https://cdn.tailwindcss.com/3.4.17',
   'https://unpkg.com/lucide@0.453.0/dist/umd/lucide.min.js',
