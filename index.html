@@ -16229,22 +16229,55 @@ function optMissing(ideal) {
   return out;
 }
 /* Applique le plan « maintenant » : points, équipement possédé, puces possédées */
+/* emplacement compatible avec un objet (sans tenir compte de ce qui est déjà porté) */
+function optSlotOk(s, it) {
+  if (s === 'main') return !!WEAPON_TYPES[it.type] && canMain(it.type);
+  if (s === 'off') { const m = invItem(state.gear.main); return !!m && m.uid !== it.uid && (!!WEAPON_TYPES[it.type] || it.type === 'bouclier') && classOffs().includes(it.type) && canOff(it.type, m.type); }
+  return it.type === s;
+}
+/* recherche locale sur la vraie puissance de combat : chaque emplacement essaie les meilleurs objets possédés et garde ce qui fait monter le chiffre */
+function optRefineGear(score) {
+  const slots = ['main', 'off', ...OPT_ARMOR]; let best = score();
+  for (let pass = 0; pass < 2; pass++) for (const s of slots) {
+    const cands = state.inv.filter(it => optSlotOk(s, it)).sort((a, c) => c.r - a.r || (c.up || 0) - (a.up || 0) || (c.runes || []).length - (a.runes || []).length).slice(0, 12);
+    for (const it of cands) { if (state.gear[s] === it.uid) continue; const keep = { ...state.gear }, prev = equippedSlot(it.uid);
+      if (prev) state.gear[prev] = null; state.gear[s] = it.uid; validateGear(); _bm = null;
+      const v = score(); if (v > best + 1e-9) best = v; else { state.gear = keep; _bm = null; } }
+  }
+  return best;
+}
+/* Applique le plan « maintenant » : points, équipement, puces, cosmétiques, monture, puis runes.
+   Garantie : avec l'objectif « Puissance de combat », la puissance ne baisse jamais (sinon on garde la meilleure des configurations essayées). */
 function optApply(goal) {
-  const before = playerCombat(), now = optPlan(goal, false), ideal = optPlan(goal, true);
+  const before = playerCombat(), pBefore = combatPower().power;
+  const snap = { alloc: { ...state.alloc }, gear: { ...state.gear }, chipEq: (state.chipEq || []).slice() };
+  const now = optPlan(goal, false), ideal = optPlan(goal, true);
+  /* cosmétiques, skins d'armes et monture les plus rares : ils ne font que monter les statistiques */
+  const applyCosm = () => { const worn = Object.values(state.gear).map(u => invItem(u)).filter(Boolean), C = optCosm(worn.filter(it => WEAPON_TYPES[it.type]).map(it => it.type), false); state.cosmEq = state.cosmEq || {}; let n = 0; for (const k in C.eq) { if (state.cosmEq[k] !== C.eq[k]) n++; state.cosmEq[k] = C.eq[k]; } if (C.mount && state.equip.mount !== C.mount) { state.equip.mount = C.mount; n++; } _bm = null; return n; };
+  let cosmN = applyCosm();
+  const power = () => combatPower().power;
+  /* 1. le plan calculé */
   state.alloc = { str: now.x.str, agi: now.x.agi, end: now.x.end, int: now.x.int };
   state.gear = { main: null, off: null, casque: null, plastron: null, jambieres: null, bottes: null, bijou: null, ceinture: null };
   for (const s in now.gear) if (now.gear[s] && !now.gear[s].virtual) state.gear[s] = now.gear[s].uid;
-  validateGear();
-  state.chipEq = now.chips.slice();
-  /* runes possédées serties dans les emplacements libres des pièces portées ; cosmétiques, skins d'armes et monture les plus rares */
+  validateGear(); state.chipEq = now.chips.slice(); _bm = null;
+  /* 2. affinage pièce par pièce sur la vraie puissance, puis points et puces recalculés pour ces pièces */
+  /* l'Égide (survie) et la Céleste (combat en vol) ne changent pas le chiffre de puissance : on leur donne un petit poids pour ne pas les jeter */
+  const worth = () => { const R = runePerks(); return power() * (1 + 0.10 * Math.min(1, R.egide / 60) + 0.05 * (R.celeste > 0 ? 1 : 0)); };
+  if (goal === 'combat') { optRefineGear(worth);
+    const g = {}; for (const s in state.gear) g[s] = invItem(state.gear[s]); const n = pointsEarned(levelInfo(totals().xp).level), r2 = optEval(goal, g, false, n);
+    const keepA = { ...state.alloc }, keepC = state.chipEq.slice(), p1 = power();
+    state.alloc = { str: r2.x.str, agi: r2.x.agi, end: r2.x.end, int: r2.x.int }; state.chipEq = r2.chips.slice(); _bm = null;
+    if (power() < p1) { state.alloc = keepA; state.chipEq = keepC; _bm = null; } }
+  /* 3. garde-fou : jamais moins que la configuration de départ (points, pièces, puces) */
+  let kept = false;
+  if (goal === 'combat' && power() < pBefore) { state.alloc = snap.alloc; state.gear = snap.gear; state.chipEq = snap.chipEq; _bm = null; cosmN = applyCosm() + cosmN; kept = true; }
+  /* 4. runes possédées serties dans les emplacements libres des armures portées (elles ne font que monter la puissance) */
   const worn = Object.values(state.gear).map(u => invItem(u)).filter(Boolean), R = optRunes(worn, false);
   let socketed = 0; for (const x of R.sockets) { const it = invItem(x.uid); if (!it || !(state.runes[x.k] > 0) || (it.runes || []).length >= runeSlots(it)) continue; state.runes[x.k]--; it.runes = (it.runes || []).concat([x.k]); socketed++; }
-  const C = optCosm(worn.filter(it => WEAPON_TYPES[it.type]).map(it => it.type), false);
-  state.cosmEq = state.cosmEq || {}; let cosmN = 0; for (const k in C.eq) { if (state.cosmEq[k] !== C.eq[k]) cosmN++; state.cosmEq[k] = C.eq[k]; }
-  if (C.mount && state.equip.mount !== C.mount) { state.equip.mount = C.mount; cosmN++; }
   _bm = null; save();
   const after = playerCombat();
-  ui.optPlan = { goal, socketed, cosmN, powBefore: _optNRef, powAfter: combatPower().power, missing: optMissing(ideal), now: now.m, ideal: ideal.m, loadout: ideal.loadout, gainDps: dpsScore(after) / Math.max(1, dpsScore(before)), hp: [before.hp, after.hp] };
+  ui.optPlan = { goal, socketed, cosmN, kept, powBefore: pBefore, powAfter: combatPower().power, missing: optMissing(ideal), now: now.m, ideal: ideal.m, loadout: ideal.loadout, gainDps: dpsScore(after) / Math.max(1, dpsScore(before)), hp: [before.hp, after.hp] };
   return ui.optPlan;
 }
 function optItemLabel(m) {
@@ -16268,7 +16301,7 @@ function viewOptimizer() {
     <div style="${row};margin-bottom:4px">${icon('wand-2', 'w-4 h-4 glow-umbra')}<span class="f-display text-sm uppercase tracking-wide">Optimisation automatique</span></div>
     <p class="text-[11px] muted" style="margin-bottom:8px">Choisissez un objectif : <b>tout</b> s’équipe tout seul avec ce que vous possédez : points de statistiques, arme, armures, bottes, bijou, ceinture, puces, runes (serties dans les emplacements libres des pièces portées ; une rune sertie ne se retire plus), cosmétiques, skins d’armes et monture. Ce qui manque pour le plan idéal est proposé à l’achat, puis équipé automatiquement.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${Object.entries(OPT_GOALS).map(([id, g]) => `<button type="button" class="btn sm ${P && P.goal === id ? 'u' : ''}" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left;height:auto;padding:7px 8px;gap:3px" data-a="opt-goal" data-g="${id}"><span style="${row};gap:4px">${icon(g.icon, 'w-3.5 h-3.5')}${esc(g.name)}</span><span style="font-size:10px;opacity:.7;text-transform:none;letter-spacing:0;white-space:normal;line-height:1.25">${esc(g.desc)}</span></button>`).join('')}</div>
-    ${P ? `<div class="text-[11px]" style="margin-top:8px"><b class="glow-umbra">${esc(OPT_GOALS[P.goal].name)}</b> appliqué · puissance de combat ${fmt(P.powBefore)} → <b>${fmt(P.powAfter)}</b>${P.socketed ? ` · ${P.socketed} rune${P.socketed > 1 ? 's' : ''} sertie${P.socketed > 1 ? 's' : ''}` : ''}${P.cosmN ? ` · ${P.cosmN} cosmétique${P.cosmN > 1 ? 's' : ''} ou monture changé${P.cosmN > 1 ? 's' : ''}` : ''} · dégâts ×${P.gainDps.toFixed(2)} · PV ${fmt(P.hp[0])} → ${fmt(P.hp[1])} · gains d’XP et de kinahs +${fmt(P.now.xp)} %</div>
+    ${P ? `<div class="text-[11px]" style="margin-top:8px"><b class="glow-umbra">${esc(OPT_GOALS[P.goal].name)}</b> appliqué · puissance de combat ${fmt(P.powBefore)} → <b>${fmt(P.powAfter)}</b>${P.kept ? ' (votre configuration était déjà la meilleure : pièces et points gardés)' : ''}${P.socketed ? ` · ${P.socketed} rune${P.socketed > 1 ? 's' : ''} sertie${P.socketed > 1 ? 's' : ''}` : ''}${P.cosmN ? ` · ${P.cosmN} cosmétique${P.cosmN > 1 ? 's' : ''} ou monture changé${P.cosmN > 1 ? 's' : ''}` : ''} · dégâts ×${P.gainDps.toFixed(2)} · PV ${fmt(P.hp[0])} → ${fmt(P.hp[1])} · gains d’XP et de kinahs +${fmt(P.now.xp)} %</div>
       ${P.missing.length ? `<div class="text-[11px]" style="margin-top:8px"><div class="label" style="margin-bottom:4px">Plan idéal (${P.loadout.filter(Boolean).map(t => (WEAPON_TYPES[t] || ARMOR_TYPES[t]).name.toLowerCase()).join(' + ')}) : dégâts ×${(P.ideal.dps / Math.max(1, P.now.dps)).toFixed(2)} par rapport à maintenant, PV ${fmt(P.ideal.hp)}, gains +${fmt(P.ideal.xp)} %</div>
         <div style="display:flex;flex-direction:column;gap:4px">${optGroups(P).map(g => { const pr = g.m.price * g.n; return `<div style="${row}"><span style="flex:1;min-width:0">${g.n > 1 ? `${g.n} × ` : ''}${optItemLabel(g.m)}</span><span class="f-mono">${fmt(pr)} ₭</span><button type="button" class="btn sm" style="padding:4px 8px" data-a="opt-buy" data-i="${g.idx.join(',')}" ${K < pr ? 'disabled' : ''} aria-label="Acheter et équiper">${icon('shopping-cart', 'w-3 h-3')}Acheter</button></div>`; }).join('')}</div>
         <div style="${row};flex-wrap:wrap;margin-top:8px"><button type="button" class="btn sm u" data-a="opt-buy" data-i="all" ${K < total ? 'disabled' : ''}>${icon('shopping-cart', 'w-3.5 h-3.5')}Tout acheter et équiper · ${fmt(total)} ₭</button>${K < total ? `<span class="text-[10px] muted">il vous manque ${fmt(total - K)} ₭ (vous avez ${fmt(K)} ₭)</span>` : ''}</div></div>`
@@ -19149,7 +19182,7 @@ Object.assign(handlers, {
 if (typeof document !== 'undefined' && document.head) document.head.insertAdjacentHTML('beforeend', `<style>
 .hero-slot{position:relative;height:min(52vh,420px);margin-top:10px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#1d1d30 0%,#0c0c14 62%,#07070b 100%);overflow:hidden}
 .hero-cv{width:100%;height:100%;display:block;cursor:grab;touch-action:pan-y}
-.hero-plate{position:absolute;left:0;right:0;top:10px;z-index:2;text-align:center;pointer-events:none;line-height:1.25}
+.hero-plate{position:relative;z-index:2;text-align:center;pointer-events:none;line-height:1.25;padding:2px 0 6px}
 .hero-plate .hp-t{font:700 13px 'Oxanium','Barlow',sans-serif;letter-spacing:.04em}
 .hero-plate .hp-n{font:600 12px 'Barlow',sans-serif;color:#fff;text-shadow:0 1px 3px #000}
 .hero-load{position:absolute;inset:0;display:grid;place-items:center;font-size:12px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.1em}
