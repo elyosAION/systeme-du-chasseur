@@ -14953,10 +14953,11 @@ function viewCombatSummary() {
   const b = boosts();
   return `<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
       ${cell('swords', 'Attaque (Force)', c.atk, `Force ${c.F}`)}
-      ${cell('heart-pulse', 'PV (Endurance)', c.hp, `défense ${c.def}`)}
+      ${cell('heart-pulse', 'PV (Endurance)', c.hp, `défense ${c.def} · ténacité ×${String(c.tough).replace('.', ',')}`)}
       ${cell('zap', 'Critique (Agilité)', Math.round(c.crit * 100) + ' %', `×${c.critDmg.toFixed(2)} · esquive ${Math.round(c.dodge * 100)} %`)}
       ${cell('brain', 'Gains (Intel.)', '+' + b.xp + ' %', `XP et kinahs`)}
     </div>
+    <div class="text-[11px] muted mt-2">Ténacité ×${String(c.tough).replace('.', ',')} : un coup ennemi ne retire qu’une part de vos PV max ; vous encaissez environ <b class="glow">${Math.floor(12 * c.tough)} coups à la vague 1000</b> et ${Math.floor(6 * c.tough)} à la vague 2500 (davantage plus tôt). Elle monte avec la rareté et l’amélioration du casque, du plastron et des jambières, un bouclier, et la part de l’Endurance dans vos statistiques.</div>
     <div class="text-[11px] muted mt-2">Puissance de combat : <b class="glow f-mono">${combatRating(c)}</b> · bonus de gains : Intelligence +${b.parts ? b.parts.int : 0} %, monture +${b.parts ? b.parts.mount : 0} %, cosmétiques +${b.parts ? b.parts.cosm : 0} %, puces et trophées inclus.${cosmStatPct() ? ` · cosmétiques, monture et reliques : <b class="glow">+${cosmStatPct()} %</b> sur toutes les statistiques` : ''}</div>`;
 }
 
@@ -15408,21 +15409,31 @@ const CLASS_TIER = { assassin: 1.10, gladiateur: 1.09, sorcier: 1.08, pistolero:
 const classTier = id => CLASS_TIER[id] || 0.90;
 /* valeur moyenne d'un coup selon l'Attaque et le critique : sert à la répartition optimale des points */
 function dpsScore(c) { return c.atk * (1 + Math.min(STAT_CAPS.crit, c.crit) * (c.critDmg - 1)); }
+/* Ténacité : armures (rareté, amélioration) × part de l'Endurance dans les statistiques. 1 = équipement Éternel complet. */
+const ARMOR_TOUGH = [0.6, 0.65, 0.7, 0.75, 0.8, 0.9, 1, 1.3];
+function toughness(F, A, E) {
+  const g = s => typeof invItem === 'function' && state.gear ? invItem(state.gear[s]) : null;
+  let a = 0; for (const s of ['casque', 'plastron', 'jambieres']) { const it = g(s); a += it ? ARMOR_TOUGH[it.r] + (it.up || 0) * 0.0375 : 0.5; } a /= 3;
+  const sh = g('off'); if (sh && sh.type === 'bouclier') a += 0.05 + sh.r * 0.015;
+  const I = effStat('int'), share = E / Math.max(1, F + A + E + I);
+  return Math.round(a * (0.9 + 1.5 * share) * 100) / 100;
+}
 function playerCombat() {
   const b = boosts();
   const F = effStat('str') * (1 + (b.force || 0) / 100);
   const E = effStat('end') * (1 + (b.rempart || 0) / 100);
   const A = effStat('agi') * (1 + (b.vitesse || 0) / 100);
   const atk = Math.round((10 + F * 1.1) * (hasF('yanis') ? 1.1 : 1));
-  const hp = Math.round(120 + E * 6);
-  const def = Math.round(E * 0.6);
+  const hp = Math.round(120 + E * 10);
+  const def = Math.round(E * 1.0);
   /* l'arme tenue en main droite apporte son critique de base, son multiplicateur de critique et la régularité de ses dégâts */
   const wt = typeof invItem === 'function' && state.gear ? (invItem(state.gear.main) || {}).type : null, W = weaponStats(wt);
   const crit = Math.min(STAT_CAPS.crit, 0.05 + W.crit + A * 0.0018 + b.crit / 100);
   const critDmg = W.cdm + A * 0.004;
   const dodge = Math.min(STAT_CAPS.dodge, A * 0.0012);
   const power = classTier(state.profile && state.profile.cls), pk = typeof gearPerks === 'function' ? gearPerks() : { cdr: 0, spd: 0, hpPct: 0, cast: false };
-  return { atk, hp, def, crit, critDmg, dodge, power, cdr: pk.cdr, spd: pk.spd, hpPct: pk.hpPct, exec: pk.exec || 0, runes: pk.runes || {}, cast: pk.cast, variance: W.var, hits: W.hits, weapon: wt, F: Math.round(F), E: Math.round(E), A: Math.round(A) };
+  const tough = toughness(F, A, E);
+  return { tough, atk, hp, def, crit, critDmg, dodge, power, cdr: pk.cdr, spd: pk.spd, hpPct: pk.hpPct, exec: pk.exec || 0, runes: pk.runes || {}, cast: pk.cast, variance: W.var, hits: W.hits, weapon: wt, F: Math.round(F), E: Math.round(E), A: Math.round(A) };
 }
 function combatRating(c) { return Math.round(c.atk * 2.2 + c.hp * 0.35 + c.def * 1.5 + c.crit * 300 + (c.critDmg - 1.5) * 150 + c.dodge * 300); }
 function foeCombat(foe) {
@@ -15868,8 +15879,9 @@ function optMetrics(B, x, chips) {
   const atk = (10 + F * 1.1) * B.yan;
   const crit = Math.min(STAT_CAPS.crit, 0.05 + B.W.crit + A * 0.0018 + (b.crit || 0) / 100), cdm = B.W.cdm + A * 0.004;
   const dps = atk * (1 + crit * (cdm - 1)) * B.power * (1 + 0.5 * B.spd) * (1 + 0.5 * B.cdr) * (1 + B.hpPct / 50);
-  const hp = 120 + E * 6, def = E * 0.6, dodge = Math.min(STAT_CAPS.dodge, A * 0.0012);
-  const tank = hp * (1 + def / 100) / (1 - dodge) * (1 + (b.regen || 0) / 100) * (1 + (b.soin || 0) / 100);
+  const hp = 120 + E * 10, def = E * 1.0, dodge = Math.min(STAT_CAPS.dodge, A * 0.0012), share = E / Math.max(1, F + A + E + I);
+  /* la ténacité (part de l'Endurance) compte double : aux vagues hautes, c'est elle qui fixe le nombre de coups encaissés */
+  const tank = hp * (1 + def / 100) / (1 - dodge) * Math.pow(0.9 + 1.5 * share, 2) * (1 + (b.regen || 0) / 100) * (1 + (b.soin || 0) / 100);
   const xp = b.xp - B.intPart + I * 0.25, kin = b.kin - B.intPart + I * 0.25;
   const gain = Math.sqrt((1 + xp / 100) * (1 + kin / 100)) * Math.pow((1 + (b.rar || 0) / 100) * (1 + (b.mat || 0) / 100) * (1 + (b.echo || 0) / 100), 0.25);
   return { dps, tank, gain, hp: Math.round(hp), xp: Math.round(xp), kin: Math.round(kin), crit };
@@ -19037,7 +19049,7 @@ const GUIDE = [
   { id: 'stats', icon: 'chart-column', t: 'Niveaux, kinahs et statistiques', p: [
     'Chaque niveau te donne des points à placer dans tes statistiques, dans l’onglet « Statut » : 3 par niveau au rang E, 6 au rang D, 9 au C, 12 au B, 15 au A et 18 au S. Tes bonus d’XP en % (Intelligence, puces, monture, trophées…) s’appliquent à toute l’XP gagnée : séance et nutrition.',
     'Force : la puissance de tes coups, physiques ou magiques. Plus de Force, plus de dégâts.',
-    'Endurance : tes points de vie et ta défense. Plus d’Endurance, tu tiens plus longtemps.',
+    'Endurance : tes points de vie (10 par point), ta défense (1 par point) et ta ténacité. Plus d’Endurance, tu tiens plus longtemps.',
     'Agilité : tes coups critiques (plus souvent, et plus forts) et ton esquive.',
     'Intelligence : +0,25 % d’XP et de kinahs gagnés par point. Utile pour progresser plus vite.',
     'Tu t’es trompé ? Le petit bouton en forme de flèche qui tourne, à côté de tes statistiques, te rend tous tes points (appuie deux fois pour confirmer). Autant de fois que tu veux, gratuitement.',
@@ -19094,6 +19106,7 @@ const GUIDE = [
     'Bijou et ceinture : deux nouveaux emplacements dans l’Arsenal. Le bijou réduit le temps de recharge des techniques et accélère d’autant la jauge des ultimes : de −5 % en Commun à −70 % en Éternel (jauge 3,3 fois plus rapide), −100 % (plus aucune recharge, ultimes prêts presque aussitôt) en De toute éternité. Si tu changes d’équipement dans le monde ouvert, l’effet s’applique en y revenant. La ceinture augmente la vitesse d’attaque, ou la vitesse d’incantation pour le Sorcier, le Spiritualiste, le Clerc et le Barde : de +5 % à +70 % en Éternel, +100 % (deux fois plus vite) en De toute éternité. Les deux s’achètent à l’Armurerie et se trouvent en expédition ; ceux de rareté De toute éternité se gagnent aux tomes VI et VII.',
     'Dégâts en % des PV : chaque attaque ou technique retire en plus un pourcentage des PV actuels de la cible (une fois par cible). Une arme en donne selon sa rareté (Légendaire 1,5 %, Mythique 3 %, Éternel 6 %, De toute éternité 15 %) et selon son amélioration (+1 : 0,75 %, +2 : 1,5 %, +3 : 3 %, +4 : 6 %) ; une arme à deux mains compte double (elle ne laisse pas de place pour une seconde arme) ; une armure (casque, plastron, jambières, bouclier) en donne la moitié. Les pourcentages s’additionnent, jusqu’à 95 % des PV restants de la cible par attaque ; la fiche de chaque objet les indique.',
     'Exécution : toute arme Légendaire ou mieux tue l’ennemi sur le coup dès que ses PV passent sous un seuil — Légendaire 3 %, Mythique 5 %, Éternel 10 %, De toute éternité 20 %. Avec deux armes, c’est la meilleure des deux qui compte. Vaut dans le monde ouvert, l’arène, les expéditions et le récit (pas sur les mannequins).',
+    'Ténacité (Arsenal, sous les statistiques) : dans le monde ouvert et l’arène, un coup ennemi ne peut retirer qu’une part de vos PV max, qui grandit doucement avec la vague. Avec une ténacité de 1 (casque, plastron et jambières Éternels), vous encaissez 12 coups normaux à la vague 1000 et 6 à la vague 2500 ; bien davantage aux vagues basses. La ténacité monte avec la rareté et l’amélioration des armures (+4 : +15 %), un bouclier, et la part de l’Endurance dans vos statistiques (tout en Endurance : environ ×2,5). Les coups lourds et les boss frappent un peu plus fort. L’Endurance donne aussi davantage de PV (10 par point) et de défense (1 par point).',
     'Apparence des armes : plus une arme est rare, plus elle est grande et somptueuse. Rare : un éclat lumineux ; Épique : runes et éclats violets ; Légendaire : plus grande, poussière d’or et halo ; Mythique : flammes et braises ; Éternel : gigantesque, couronnée d’une auréole et d’une étoile, baignée de lumière et de flammes lumineuses dorées ; De toute éternité : plus grande encore, flammes de lumière cyan, double auréole et poussière d’étoiles.',
     'Skins par type d’arme (Boutique → Cosmétiques, puis Codex → Cosmétiques) : un skin pour chacun des 14 types d’arme et chacune des 8 raretés (rouille, corail, sylve, jade, givre, abîme, aurore, origine : chacun a sa couleur, différente de celle de la rareté). Porté, il donne à l’arme de ce type l’apparence de sa rareté et son thème, en plus grand et plus orné que l’arme de base : gaine d’énergie, cristaux le long de l’arme, sceau qui tourne autour, gemmes en orbite et, à partir d’Épique, ailes d’énergie ; il se porte type par type. Seul le meilleur des skins des armes en main compte pour les statistiques. Le « De toute éternité » coûte 100 000 gloire de l’arène.',
     'Runes (Boutique → Runes) : six runes, de Commun à De toute éternité, très chères (25 000 à 6 millions de kinahs ; la De toute éternité coûte 150 000 gloire de l’arène). Elles se sertissent dans une arme ou une armure Légendaire et plus (Arsenal → l’objet → Sertir une rune), pour toujours : une rune sertie ne se retire plus. Un objet +4 reçoit deux runes. Les effets de même type s’additionnent.',
