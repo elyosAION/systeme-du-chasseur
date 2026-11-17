@@ -12685,7 +12685,7 @@ function viewStatus() {
         </div>
         <div class="text-right">
           <div class="label">Niveau</div>
-          <div class="f-display text-4xl font-extrabold glow f-mono leading-none">${li.level}</div>
+          <div class="f-display text-4xl font-extrabold glow f-mono leading-none">${li.level}</div>          ${typeof combatPower === 'function' ? `<div class="label mt-2">Puissance</div><div class="f-mono text-lg glow leading-none">${combatPower().power.toLocaleString('fr-FR')}</div>` : ''}
         </div>
       </div>
       <div class="mt-4">
@@ -12694,6 +12694,7 @@ function viewStatus() {
         <div class="text-xs muted mt-1.5 f-mono">${t.xp} XP au total${nextRank ? ` · rang ${nextRank.r} au niveau ${nextRank.min}` : ' · rang maximal'}</div>
       </div>
     </div>
+    ${typeof viewPowerCard === 'function' ? `<div class="sys" style="padding-top:4px">${viewPowerCard()}</div>` : ''}
     ${typeof viewHeroCard === 'function' ? viewHeroCard() : ''}
     ${viewQuest()}
     <div class="sys umbra">
@@ -14999,12 +15000,12 @@ Object.assign(handlers, {
   }
 });
 
-function viewCombatSummary() {
-  const c = playerCombat();
-  const cell = (ic, label, val, sub) => `<div class="border border-[#26262f] py-2 px-1 min-w-0 text-center"><div class="glow flex justify-center">${icon(ic, 'w-4 h-4')}</div><div class="f-mono text-base mt-0.5">${val}</div><div class="text-[10px] muted truncate">${label}</div>${sub ? `<div class="text-[10px] muted truncate">${sub}</div>` : ''}</div>`;
-  const b = boosts(), cp = combatPower(c), o = cp.o, fpct = Math.min(0.95, o.hpp * (1 + o.crit * o.fr / 100)), pc = v => String(Math.round(v * 1000) / 10).replace('.', ',');
+/* carte « Puissance de combat » (Statut et Royaume) */
+function viewPowerCard(c) {
+  c = c || playerCombat();
+  const cp = combatPower(c), o = cp.o, fpct = Math.min(0.95, o.hpp * (1 + o.crit * o.fr / 100)), pc = v => String(Math.round(v * 1000) / 10).replace('.', ',');
   const WBL = typeof WB_MANUAL !== 'undefined' ? WB_MANUAL.map((R, i) => ({ ...R, i })) : [], below = WBL.filter(R => R.lvl <= cp.power).length, next = WBL.find(R => R.lvl > cp.power);
-  const powCard = `<div class="card mt-3" style="border-color:rgba(0,240,255,.45)"><div class="flex items-center justify-between gap-2"><div><div class="label">Puissance de combat</div><div class="f-mono text-3xl glow">${cp.power.toLocaleString('fr-FR')}</div></div><div class="text-right text-[11px] muted">même échelle que les vagues d’arène<br>et les Éternels (puissance 200 à 100 000)</div></div>
+  return `<div class="card mt-3" style="border-color:rgba(0,240,255,.45)"><div class="flex items-center justify-between gap-2"><div><div class="label">Puissance de combat</div><div class="f-mono text-3xl glow">${cp.power.toLocaleString('fr-FR')}</div></div><div class="text-right text-[11px] muted">même échelle que les vagues d’arène<br>et les Éternels (puissance 200 à 100 000)</div></div>
     <div class="grid grid-cols-2 gap-2 mt-2 text-[12px]">
       <div><div class="label">Dégâts par seconde</div>${String(o.aps).replace('.', ',')} attaques/s · ${pc(fpct)} % des PV de la cible par attaque${o.exec ? ` · exécution sous ${pc(o.exec)} %` : ''}${o.rico ? ' · ricochet' : ''}</div>
       <div><div class="label">Coups critiques</div>${pc(o.crit)} % de chance · dégâts ×${String(o.cdm).replace('.', ',')}${o.fr ? ` · Fracture +${o.fr} %` : ''}</div>
@@ -15012,7 +15013,12 @@ function viewCombatSummary() {
       <div><div class="label">Résistance</div>ténacité ×${String(o.tough).replace('.', ',')} · ${c.hp.toLocaleString('fr-FR')} PV · esquive ${pc(o.dodge)} %</div>
     </div>
     <div class="text-[11px] muted mt-2">Vous tenez la vague ${cp.power.toLocaleString('fr-FR')} de l’arène. ${below ? `Plus puissant que ${below} Éternel${below > 1 ? 's' : ''} sur 16.` : 'Plus faible que tous les Éternels.'}${next ? ` Prochain : ${esc(next.n)} (${next.lvl.toLocaleString('fr-FR')}).` : ''} Le combat automatique et l’esquive ne sont pas comptés : ils peuvent faire tomber plus fort que soi.</div></div>`;
-  return powCard + `<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+}
+function viewCombatSummary() {
+  const c = playerCombat();
+  const cell = (ic, label, val, sub) => `<div class="border border-[#26262f] py-2 px-1 min-w-0 text-center"><div class="glow flex justify-center">${icon(ic, 'w-4 h-4')}</div><div class="f-mono text-base mt-0.5">${val}</div><div class="text-[10px] muted truncate">${label}</div>${sub ? `<div class="text-[10px] muted truncate">${sub}</div>` : ''}</div>`;
+  const b = boosts();
+  return viewPowerCard(c) + `<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
       ${cell('swords', 'Attaque (Force)', c.atk, `Force ${c.F}`)}
       ${cell('heart-pulse', 'PV (Endurance)', c.hp, `défense ${c.def} · ténacité ×${String(c.tough).replace('.', ',')}`)}
       ${cell('zap', 'Critique (Agilité)', Math.round(c.crit * 100) + ' %', `×${c.critDmg.toFixed(2)} · esquive ${Math.round(c.dodge * 100)} %`)}
