@@ -10908,10 +10908,25 @@ const RARITY_STAT = [0, 0, 0, 0, 25, 50, 100, 1000];
 const JEWEL_CDR = [5, 10, 15, 25, 40, 55, 70, 100];
 const BELT_SPEED = [5, 10, 15, 25, 40, 55, 70, 100];
 /* Dégâts en % des PV actuels de la cible, une fois par attaque ou technique : arme (Légendaire et plus) et amélioration +1 à +4 ; armures : moitié */
-const HP_PCT_RARITY = [0, 0, 0, 0, 1, 2, 4, 10];
-const HP_PCT_UP = [0, 0.5, 1, 2, 4];
+const HP_PCT_RARITY = [0, 0, 0, 0, 1.5, 3, 6, 15];
+const HP_PCT_UP = [0, 0.75, 1.5, 3, 6];
 /* Armes Légendaire et plus : la cible meurt aussitôt quand ses PV passent sous ce seuil (%) */
-const EXEC_RARITY = [0, 0, 0, 0, 3, 5, 10, 20];   /* le total est plafonné à 95 % des PV restants de la cible */
+const EXEC_RARITY = [0, 0, 0, 0, 3, 5, 10, 20];
+/* ---------- Runes : serties dans une arme ou une armure Légendaire et plus, pour toujours (2 emplacements à +4) ----------
+   v : valeur selon la rareté de la rune (Commun … De toute éternité). Les effets de même type s'additionnent. */
+const RUNE_TYPES = {
+  fracture:   { name: 'Rune de Fracture',   icon: 'zap',        v: [20, 30, 40, 55, 70, 85, 100, 200], txt: v => `les dégâts en % des PV peuvent être critiques (${v} % du bonus critique)` },
+  echo:       { name: 'Rune d’Écho',        icon: 'timer-reset', v: [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.75, 1.5], txt: v => `chaque coup critique réduit les recharges de ${String(v).replace('.', ',')} s` },
+  egide:      { name: 'Rune d’Égide',       icon: 'shield',     v: [2, 3, 5, 7, 10, 14, 20, 35], txt: v => `bouclier égal à ${v} % des dégâts infligés (jusqu’à la moitié des PV)` },
+  ricochet:   { name: 'Rune de Ricochet',   icon: 'git-fork',   v: [15, 20, 25, 30, 40, 50, 65, 100], txt: v => `chaque attaque ricoche sur tous les ennemis à 7 m de la cible (${v} % des dégâts)` },
+  laceration: { name: 'Rune de Lacération', icon: 'wind',       v: [25, 35, 45, 55, 65, 75, 90, 120], txt: v => `les attaques de corps à corps partent aussi à distance (lame d’éther, ${v} % des dégâts, 20 m)` },
+  celeste:    { name: 'Rune céleste',       icon: 'feather',    v: [5, 8, 10, 15, 20, 25, 35, 60], txt: v => `combattre en vol : intouchable par les ennemis de corps à corps, +${v} % de dégâts dans les airs` }
+};
+const RUNE_MIN_RARITY = 4;   /* Légendaire */
+const RUNE_PRICES = [25000, 60000, 150000, 400000, 1000000, 2500000, 6000000];   /* kinahs ; « De toute éternité » : gloire de l'arène */
+const RUNE_GLORY_PRICE = 150000;
+function runeKey(t, r) { return t + ':' + r; }
+function runeSlots(it) { return it && it.r >= RUNE_MIN_RARITY ? ((it.up || 0) >= 4 ? 2 : 1) : 0; }   /* le total est plafonné à 95 % des PV restants de la cible */
 /* classes qui incantent (la ceinture accélère leurs sorts) */
 const CAST_CLASSES = ['sorcier', 'spiritualiste', 'clerc', 'barde'];
 
@@ -12060,6 +12075,7 @@ function freshState() {
     gear: { main: null, off: null, casque: null, plastron: null, jambieres: null, bijou: null, ceinture: null },
     mats: { ferraille: 0, ether: 0, coeur: 0, cendre: 0 },
     chips: {},                 // { 'type:r': nombre }
+    runes: {},                 // runes en stock { 'type:r': nombre } ; serties : item.runes
     chipEq: [],                // ['type:r', ...] (12 max)
     cosm: {},                  // cosmétiques obtenus { id: date }
     cosmEq: { tenue: 'ten_e', accessoire: null, aura: null, titre: 'tit_sacs', skin: null, ailes: null },
@@ -14311,11 +14327,18 @@ function mountStatPct() { const m = SHOP.find(x => x.id === state.equip.mount &&
 function relicGearPct() { let p = 0; for (const s in state.gear || {}) { const it = invItem(state.gear[s]); if (it) p += RARITY_STAT[it.r] || 0; } return p; }
 /* effets de combat de l'équipement porté : recharge, vitesse, dégâts en % des PV de la cible */
 function itemHpPct(it) { if (!it || !(WEAPON_TYPES[it.type] || ['casque', 'plastron', 'jambieres', 'bouclier'].includes(it.type))) return 0; const k = WEAPON_TYPES[it.type] ? 1 : 0.5; return k * ((HP_PCT_RARITY[it.r] || 0) + (HP_PCT_UP[it.up || 0] || 0)); }
+/* effets des runes serties dans l'équipement porté (les mêmes s'additionnent ; ricochet plafonné à 100 %) */
+function runePerks() {
+  const R = { fracture: 0, echo: 0, egide: 0, ricochet: 0, laceration: 0, celeste: 0 };
+  for (const s in state.gear || {}) { const it = invItem(state.gear[s]); if (!it || !it.runes) continue; for (const k of it.runes) { const [t, r] = k.split(':'); if (RUNE_TYPES[t]) R[t] += RUNE_TYPES[t].v[+r]; } }
+  R.ricochet = Math.min(100, R.ricochet); R.egide = Math.min(60, R.egide);
+  return R;
+}
 function gearPerks() {
   const g = s => invItem((state.gear || {})[s]); let hp = 0; for (const s in state.gear || {}) hp += itemHpPct(g(s));
   const bj = g('bijou'), ce = g('ceinture'), cast = CAST_CLASSES.includes(state.profile && state.profile.cls);
   const ex = Math.max(0, ...['main', 'off'].map(s => { const w = g(s); return w && WEAPON_TYPES[w.type] ? EXEC_RARITY[w.r] || 0 : 0; }));
-  return { exec: ex / 100, cdr: bj && bj.type === 'bijou' ? JEWEL_CDR[bj.r] / 100 : 0, spd: ce && ce.type === 'ceinture' ? BELT_SPEED[ce.r] / 100 : 0, cast, hpPct: Math.round(hp * 100) / 100 };
+  return { runes: runePerks(), exec: ex / 100, cdr: bj && bj.type === 'bijou' ? JEWEL_CDR[bj.r] / 100 : 0, spd: ce && ce.type === 'ceinture' ? BELT_SPEED[ce.r] / 100 : 0, cast, hpPct: Math.round(hp * 100) / 100 };
 }
 /* ligne d'effets d'un objet (fiche) */
 function itemPerkLine(it) {
@@ -14323,6 +14346,7 @@ function itemPerkLine(it) {
   if (RARITY_STAT[it.r]) L.push(`+${RARITY_STAT[it.r].toLocaleString('fr-FR')} % toutes les statistiques`);
   if (it.type === 'bijou') L.push(`−${JEWEL_CDR[it.r]} % de recharge des techniques et de la jauge d’ultime`);
   if (it.type === 'ceinture') L.push(`+${BELT_SPEED[it.r]} % de vitesse ${CAST_CLASSES.includes(state.profile && state.profile.cls) ? 'd’incantation' : 'd’attaque'}`);
+  for (const k of it.runes || []) { const [t, r] = k.split(':'); if (RUNE_TYPES[t]) L.push(`${RUNE_TYPES[t].name} (${RARITIES[+r].name}) : ${RUNE_TYPES[t].txt(RUNE_TYPES[t].v[+r])}`); }
   if (WEAPON_TYPES[it.type] && EXEC_RARITY[it.r]) L.push(`Exécution : tue aussitôt l’ennemi sous ${EXEC_RARITY[it.r]} % de ses PV`);
   const hp = itemHpPct(it); if (hp) L.push(`+${String(hp).replace('.', ',')} % des PV actuels de la cible à chaque attaque`);
   return L.join(' · ');
@@ -14396,6 +14420,10 @@ function itemActions(it) {
     acts.push(`<span class="text-[11px] f-mono self-center">${costLine(c)}</span>`);
     { const mc = missingCost(c); if (mc.k && kinahs() >= mc.k + c.kin) acts.push(`<button type="button" class="btn sm ghost" data-a="buy-missing" data-uid="${it.uid}" title="Achète les matériaux qui manquent">${icon('shopping-cart', 'w-3.5 h-3.5')}Acheter ce qui manque · ${fmtK(mc.k)}</button>`); }
   }
+  { const free = runeSlots(it) - (it.runes || []).length, owned = Object.keys(state.runes || {}).filter(k => state.runes[k] > 0);
+    if (free > 0) acts.push(owned.length ? `<button type="button" class="btn sm u" data-a="rune-pick" data-uid="${it.uid}">${icon('gem', 'w-3.5 h-3.5')}Sertir une rune (${free} emplacement${free > 1 ? 's' : ''})</button>` : `<span class="text-[11px] muted self-center">${free} emplacement${free > 1 ? 's' : ''} de rune libre${free > 1 ? 's' : ''} (Boutique → Runes)</span>`);
+    else if (it.r < RUNE_MIN_RARITY) acts.push(`<span class="text-[11px] muted self-center">Runes : Légendaire et plus</span>`);
+    if (ui.runeFor === it.uid && free > 0) acts.push(`<div class="w-full flex flex-col gap-1 mt-1">${owned.map(k => { const [t, r] = k.split(':'), T = RUNE_TYPES[t], armed = ui.armed === 'rune-' + it.uid + '-' + k; return `<button type="button" class="res" data-a="${armed ? 'rune-set' : 'arm'}" data-k="${armed ? k : 'rune-' + it.uid + '-' + k}" data-uid="${it.uid}" style="color:${RARITIES[+r].color}">${icon(T.icon, 'w-4 h-4')}<span class="flex-1 min-w-0 text-left"><span class="block f-display text-sm">${esc(T.name)} · ${RARITIES[+r].name} ×${state.runes[k]}</span><span class="text-[11px] muted">${armed ? 'Touchez encore : la rune ne pourra plus être retirée.' : esc(T.txt(T.v[+r]))}</span></span></button>`; }).join('')}</div>`); }
   if (!slot) acts.push(`<button type="button" class="btn sm ghost" data-a="recycle" data-uid="${it.uid}" title="Recycler en matériaux">${icon('recycle', 'w-3.5 h-3.5')}</button>`);
   return acts.join('');
 }
@@ -14557,7 +14585,7 @@ function viewExpeditions() {
 }
 
 /* ---------- Boutique ---------- */
-const SHOP_TABS = [['armurerie', 'Armurerie', 'swords'], ['puces', 'Puces', 'cpu'], ['materiaux', 'Matériaux', 'cog'], ['cosm', 'Cosmétiques', 'sparkles'], ['mount', 'Montures', 'rabbit'], ['instrument', 'Instruments', 'music-2'], ['house', 'Demeures', 'castle']];
+const SHOP_TABS = [['armurerie', 'Armurerie', 'swords'], ['puces', 'Puces', 'cpu'], ['runes', 'Runes', 'gem'], ['materiaux', 'Matériaux', 'cog'], ['cosm', 'Cosmétiques', 'sparkles'], ['mount', 'Montures', 'rabbit'], ['instrument', 'Instruments', 'music-2'], ['house', 'Demeures', 'castle']];
 const CHIP_PRICES = [150, 450, 1200, 3000, 7500, 18000, 45000];
 /* prix à l'unité ; les gros lots sont un peu moins chers */
 const MAT_UNIT = { ferraille: 20, ether: 150, coeur: 1500, cendre: 5000 };
@@ -14570,7 +14598,13 @@ function viewShop() {
   if (!SHOP_TABS.some(t => t[0] === cat)) cat = 'armurerie';
   const k = kinahs(), L = curLevel();
   let body = '';
-  if (cat === 'armurerie') {
+  if (cat === 'runes') {
+    const G = typeof arenaState === 'function' ? arenaState().glory : 0;
+    body = `<p class="text-[11px] muted px-1">Une rune se sertit dans une arme ou une armure Légendaire, Mythique, Éternelle ou De toute éternité, pour toujours : elle ne peut plus être retirée. Un objet porté à +4 reçoit deux runes. Les effets de même type s’additionnent. La rareté « De toute éternité » s’achète avec la gloire de l’arène (vous en avez ${G.toLocaleString('fr-FR')}).</p>` +
+      Object.entries(RUNE_TYPES).map(([t, T]) => `<div class="card"><div class="flex items-center gap-2"><span class="glow-umbra">${icon(T.icon, 'w-4 h-4')}</span><span class="f-display font-semibold">${esc(T.name)}</span></div>
+        <div class="flex flex-col gap-1 mt-2">${[0, 1, 2, 3, 4, 5, 6, 7].map(r => { const glory = r === 7, p = glory ? RUNE_GLORY_PRICE : RUNE_PRICES[r], ok = glory ? G >= p : k >= p, own = (state.runes || {})[runeKey(t, r)] || 0;
+          return `<div class="flex items-center gap-2 text-[12px]"><span class="w-28 f-display" style="color:${RARITIES[r].color}">${RARITIES[r].name}</span><span class="flex-1 min-w-0 muted">${esc(T.txt(T.v[r]))}${own ? ` · ×${own} en stock` : ''}</span><button type="button" class="btn sm" data-a="buy-rune" data-t="${t}" data-r="${r}" ${ok ? '' : 'disabled'}>${glory ? p.toLocaleString('fr-FR') + ' gloire' : fmtK(p)}</button></div>`; }).join('')}</div></div>`).join('');
+  } else if (cat === 'armurerie') {
     const { weapons, armors } = lootTypes(), mine = new Set([...weapons, ...armors]);
     const all = [...Object.keys(WEAPON_TYPES), ...Object.keys(ARMOR_TYPES)].sort((x, y) => (mine.has(y) ? 1 : 0) - (mine.has(x) ? 1 : 0));
     body = all.map((t, i) => {
@@ -14776,13 +14810,27 @@ Object.assign(handlers, {
   'recycle': el => {
     const it = invItem(el.dataset.uid);
     if (!it || equippedSlot(it.uid)) return;
-    if (ui.armed !== 'rec-' + it.uid) { ui.armed = 'rec-' + it.uid; toast(`${icon('recycle', 'w-4 h-4')}<span>Touchez encore pour recycler ${esc(itemName(it))}.</span>`, 'redt'); return; }
+    if (ui.armed !== 'rec-' + it.uid) { ui.armed = 'rec-' + it.uid; toast(`${icon('recycle', 'w-4 h-4')}<span>Touchez encore pour recycler ${esc(itemName(it))}${(it.runes || []).length ? ' — ses runes seront perdues' : ''}.</span>`, 'redt'); return; }
     ui.armed = null;
     const g = recycleGain(it);
     state.inv = state.inv.filter(x => x.uid !== it.uid);
     for (const m in g) state.mats[m] = (state.mats[m] || 0) + g[m];
     save(); render();
     toast(`${icon('recycle', 'w-4 h-4')}<span>Recyclé : ${Object.entries(g).filter(([, n]) => n).map(([m, n]) => `${n} ${MATERIALS[m].name.toLowerCase()}`).join(', ')}</span>`);
+  },
+  'rune-pick': el => { ui.runeFor = ui.runeFor === el.dataset.uid ? null : el.dataset.uid; render(); },
+  'rune-set': el => {
+    const it = invItem(el.dataset.uid), k = el.dataset.k; ui.armed = null;
+    if (!it || !state.runes || !(state.runes[k] > 0) || (it.runes || []).length >= runeSlots(it)) return;
+    state.runes[k]--; it.runes = (it.runes || []).concat([k]); ui.runeFor = null; _bm = null; save(); render();
+    const [t, r] = k.split(':'); toast(`${icon(RUNE_TYPES[t].icon, 'w-4 h-4')}<span><b style="color:${RARITIES[+r].color}">${esc(RUNE_TYPES[t].name)}</b> sertie dans ${esc(itemName(it))}</span>`, 'umbra');
+  },
+  'buy-rune': el => {
+    const t = el.dataset.t, r = Number(el.dataset.r); if (!RUNE_TYPES[t]) return;
+    if (r === 7) { const A = typeof arenaState === 'function' ? arenaState() : null; if (!A || A.glory < RUNE_GLORY_PRICE) return; A.glory -= RUNE_GLORY_PRICE; }
+    else { const p = RUNE_PRICES[r]; if (p === undefined || kinahs() < p) return; state.buys.push({ id: 'r:' + t + r, price: p, date: dk() }); }
+    state.runes = state.runes || {}; state.runes[runeKey(t, r)] = (state.runes[runeKey(t, r)] || 0) + 1; save(); render();
+    toast(`${icon(RUNE_TYPES[t].icon, 'w-4 h-4')}<span>${esc(RUNE_TYPES[t].name)} <b style="color:${RARITIES[r].color}">${RARITIES[r].name}</b> achetée (Arsenal → sertir sur un objet Légendaire et plus)</span>`, 'umbra');
   },
   'chip-eq': el => {
     const k = el.dataset.k;
@@ -15345,7 +15393,7 @@ function playerCombat() {
   const critDmg = W.cdm + A * 0.004;
   const dodge = Math.min(STAT_CAPS.dodge, A * 0.0012);
   const power = classTier(state.profile && state.profile.cls), pk = typeof gearPerks === 'function' ? gearPerks() : { cdr: 0, spd: 0, hpPct: 0, cast: false };
-  return { atk, hp, def, crit, critDmg, dodge, power, cdr: pk.cdr, spd: pk.spd, hpPct: pk.hpPct, exec: pk.exec || 0, cast: pk.cast, variance: W.var, hits: W.hits, weapon: wt, F: Math.round(F), E: Math.round(E), A: Math.round(A) };
+  return { atk, hp, def, crit, critDmg, dodge, power, cdr: pk.cdr, spd: pk.spd, hpPct: pk.hpPct, exec: pk.exec || 0, runes: pk.runes || {}, cast: pk.cast, variance: W.var, hits: W.hits, weapon: wt, F: Math.round(F), E: Math.round(E), A: Math.round(A) };
 }
 function combatRating(c) { return Math.round(c.atk * 2.2 + c.hp * 0.35 + c.def * 1.5 + c.crit * 300 + (c.critDmg - 1.5) * 150 + c.dodge * 300); }
 function foeCombat(foe) {
@@ -15379,10 +15427,17 @@ function hitEnemy(B, mult, o = {}) {
   let d = P.atk * (P.power || 1) * (1 + (P.buffT > 0 ? P.buff / 100 : 0)) * mult * (1 - (P.variance ?? 0.1) + rnd01() * 2 * (P.variance ?? 0.1));
   if (foe.weak === 'str') d *= 1.25; if (foe.resist === 'str') d *= 0.8;
   const isCrit = o.crit || rnd01() < Math.max(0, critC);
-  if (isCrit) { d *= P.critDmg; B.crits++; chargeGain(B, 10); }
+  if (isCrit) { d *= P.critDmg; B.crits++; chargeGain(B, 10);
+    /* rôdeur : ses coups critiques étourdissent */
+    if (state.profile && state.profile.cls === 'rodeur' && !E.stun) { E.stun = true; bLog(B, `Coup critique : ${foe.name} est étourdi.`); }
+    /* rune d'Écho : chaque critique peut retirer un tour de recharge */
+    const ec = (P.runes || {}).echo || 0; if (ec > 0) for (const i in P.cds) if (P.cds[i] > 0 && rnd01() < Math.min(1, ec)) P.cds[i]--;
+  }
   if (!o.pierce) d *= 100 / (100 + E.def);
   d = Math.max(1, Math.round(d));
   E.cur = Math.max(0, E.cur - d);
+  /* rune d'Égide : bouclier selon les dégâts infligés */
+  const eg = (P.runes || {}).egide || 0; if (eg > 0) P.shield = Math.min(Math.round(P.hp * 0.5), (P.shield || 0) + Math.round(d * eg / 100));
   execCheck(B);
   return { d, isCrit };
 }
@@ -15404,7 +15459,7 @@ function playerAct(B, idx) {
     /* attaque de base : chaque coup supplémentaire de l'arme ajoute 10 % */
     if (idx === 0 && s.mult) for (let h = 1; h < (P.hits || 1); h++) { const r = hitEnemy(B, s.mult * 0.1, {}); if (r) { total += r.d; if (r.isCrit) crits++; } }
     /* équipement : dégâts en % des PV actuels de la cible, une fois par action */
-    if (s.mult && total > 0 && P.hpPct > 0 && B.E.cur > 0) { const x = Math.max(1, Math.round(B.E.cur * Math.min(95, P.hpPct) / 100)); B.E.cur = Math.max(0, B.E.cur - x); total += x; execCheck(B); }
+    if (s.mult && total > 0 && P.hpPct > 0 && B.E.cur > 0) { const fr = (P.runes || {}).fracture || 0, hc = fr > 0 && rnd01() < P.crit, x = Math.max(1, Math.round(B.E.cur * Math.min(95, P.hpPct) / 100 * (hc ? 1 + (P.critDmg - 1) * fr / 100 : 1))); B.E.cur = Math.max(0, B.E.cur - x); total += x; execCheck(B); }
     const parts = [];
     if (s.mult) parts.push(`${total} dégâts${crits ? ` (${crits} critique${crits > 1 ? 's' : ''})` : ''}`);
     if (s.steal && total) { const h = Math.round(total * s.steal / 100); P.cur = Math.min(P.hp, P.cur + h); parts.push(`+${h} PV`); }
@@ -15839,7 +15894,7 @@ function optChips(goal, B, x, shop) {
 }
 /* Meilleure pièce possédée d'un type (hors uids exclus) ; en mode boutique, une pièce Éternelle neuve si rien de mieux */
 function optPiece(type, exclude, shop) {
-  const own = state.inv.filter(it => it.type === type && !exclude.includes(it.uid)).sort((a, c) => c.r - a.r || (c.up || 0) - (a.up || 0))[0];
+  const own = state.inv.filter(it => it.type === type && !exclude.includes(it.uid)).sort((a, c) => c.r - a.r || (c.up || 0) - (a.up || 0) || (c.runes || []).length - (a.runes || []).length)[0];
   if (shop && (!own || own.r < OPT_SHOP_R)) return { uid: 'opt-v-' + type + '-' + exclude.length, type, r: OPT_SHOP_R, up: 0, virtual: true };
   return own || null;
 }
@@ -19007,8 +19062,11 @@ const GUIDE = [
     'Rareté « De toute éternité » : au-dessus de l’Éternel, elle ne se vend nulle part ; elle se reçoit dans le récit, à la fin de chaque tome (quelle que soit la fin). Tomes I à III : casque, plastron, jambières. Tome IV : une arme de ta classe et la monture « Destrier d’avant le monde ». Tome V : la seconde arme ou le bouclier. Tome VI : un bijou ; tome VII : une ceinture. Tomes VI à XI : tenue, accessoire, aura, titre, skin d’arme et ailes ; le tome VIII donne aussi le « Dragon de l’origine », le tome XI la « Bête de toute éternité ». Chaque tome donne en plus une puce « De toute éternité » (+50 %). Chaque pièce, cosmétique ou monture de cette rareté portée donne +1 000 % à toutes les statistiques. La liste est dans Codex → Cosmétiques.',
     'Équipement de grande rareté : tout ce que tu portes ou montes de rareté Légendaire et plus (arme, armure, bijou, ceinture, cosmétique, monture) augmente toutes tes statistiques : Légendaire +25 %, Mythique +50 %, Éternel +100 %, De toute éternité +1 000 %, cumulés pièce par pièce.',
     'Bijou et ceinture : deux nouveaux emplacements dans l’Arsenal. Le bijou réduit le temps de recharge des techniques et accélère d’autant la jauge des ultimes : de −5 % en Commun à −70 % en Éternel (jauge 3,3 fois plus rapide), −100 % (plus aucune recharge, ultimes prêts presque aussitôt) en De toute éternité. Si tu changes d’équipement dans le monde ouvert, l’effet s’applique en y revenant. La ceinture augmente la vitesse d’attaque, ou la vitesse d’incantation pour le Sorcier, le Spiritualiste, le Clerc et le Barde : de +5 % à +70 % en Éternel, +100 % (deux fois plus vite) en De toute éternité. Les deux s’achètent à l’Armurerie et se trouvent en expédition ; ceux de rareté De toute éternité se gagnent aux tomes VI et VII.',
-    'Dégâts en % des PV : chaque attaque ou technique retire en plus un pourcentage des PV actuels de la cible (une fois par cible). Une arme en donne selon sa rareté (Légendaire 1 %, Mythique 2 %, Éternel 4 %, De toute éternité 10 %) et selon son amélioration (+1 : 0,5 %, +2 : 1 %, +3 : 2 %, +4 : 4 %) ; une armure (casque, plastron, jambières, bouclier) en donne la moitié. Les pourcentages s’additionnent, jusqu’à 95 % des PV restants de la cible par attaque ; la fiche de chaque objet les indique.',
+    'Dégâts en % des PV : chaque attaque ou technique retire en plus un pourcentage des PV actuels de la cible (une fois par cible). Une arme en donne selon sa rareté (Légendaire 1,5 %, Mythique 3 %, Éternel 6 %, De toute éternité 15 %) et selon son amélioration (+1 : 0,75 %, +2 : 1,5 %, +3 : 3 %, +4 : 6 %) ; une armure (casque, plastron, jambières, bouclier) en donne la moitié. Les pourcentages s’additionnent, jusqu’à 95 % des PV restants de la cible par attaque ; la fiche de chaque objet les indique.',
     'Exécution : toute arme Légendaire ou mieux tue l’ennemi sur le coup dès que ses PV passent sous un seuil — Légendaire 3 %, Mythique 5 %, Éternel 10 %, De toute éternité 20 %. Avec deux armes, c’est la meilleure des deux qui compte. Vaut dans le monde ouvert, l’arène, les expéditions et le récit (pas sur les mannequins).',
+    'Runes (Boutique → Runes) : six runes, de Commun à De toute éternité, très chères (25 000 à 6 millions de kinahs ; la De toute éternité coûte 150 000 gloire de l’arène). Elles se sertissent dans une arme ou une armure Légendaire et plus (Arsenal → l’objet → Sertir une rune), pour toujours : une rune sertie ne se retire plus. Un objet +4 reçoit deux runes. Les effets de même type s’additionnent.',
+    'Fracture : les dégâts en % des PV deviennent critiques avec ton critique. Écho : chaque critique réduit les recharges. Égide : un bouclier égal à une part des dégâts infligés. Ricochet : chaque attaque rebondit sur tous les ennemis autour de la cible (monde ouvert). Lacération : les classes de corps à corps lancent aussi leurs attaques à distance, comme une lame d’éther (monde ouvert). Céleste : on peut combattre en vol, intouchable par les ennemis de corps à corps, avec des dégâts en plus dans les airs (monde ouvert).',
+    'Rôdeur : ses coups critiques étourdissent l’ennemi (environ 1 s dans le monde ouvert, un tour au tour par tour).',
     'Montures : 40, de toutes les raretés (loups, chevaux, ours, cerfs, félins, sangliers, salamandre, griffons, wyverne, dragons, licornes, pégase, phénix, motos). La monture montée augmente les gains d’XP et de kinahs et toutes tes statistiques, comme un cosmétique : +2 % en Commun jusqu’à +25 % en Éternel, +100 % pour les trois montures « De toute éternité » du récit. Plus elle est rare, plus elle va vite.',
     'Boutique : toutes les armes et toutes les armures se vendent dans l’Armurerie, du Commun à l’Éternel, sans condition de niveau ; celles de ta classe sont en tête. Toutes les puces se vendent aussi, du Commun (+2 %) à l’Éternel (+25 %). Tous les matériaux d’amélioration s’achètent, Cendre de Monarque comprise, à l’unité ou par lots de 10 (−10 %) et de 100 (−20 %) ; dans l’Arsenal, « Acheter ce qui manque » complète d’un coup ce qu’il faut pour l’amélioration suivante.',
     'Titres : le titre porté s’affiche au-dessus de ton personnage, avec ton nom, dans sa fiche et dans le monde ouvert (il se masque avec « Affichage »).',
