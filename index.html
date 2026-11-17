@@ -14516,12 +14516,13 @@ function viewArsenal() {
         ${slots.map(([s, l]) => {
           const it = invItem(state.gear[s]);
           const blocked = s === 'off' && invItem(state.gear.main) && WEAPON_TYPES[invItem(state.gear.main).type].hands === 2;
-          return `<div class="card min-w-0" style="padding:8px 10px;${it ? `border-color:${RARITIES[it.r].color}66` : ''}">
-            <div class="text-[10px] label">${l}</div>
+          return `<button type="button" class="card min-w-0 text-left" data-a="slot-pick" data-s="${s}" style="padding:8px 10px;cursor:pointer;${ui.slotPick === s ? 'outline:2px solid var(--cyan);' : ''}${it ? `border-color:${RARITIES[it.r].color}66` : ''}">
+            <div class="text-[10px] label flex justify-between"><span>${l}</span><span class="muted">${ui.slotPick === s ? 'fermer ▲' : 'changer ▼'}</span></div>
             <div class="text-sm truncate f-display" style="color:${it ? RARITIES[it.r].color : 'var(--muted)'}">${it ? `${esc(itemName(it))}${it.up ? ` +${it.up}` : ''}` : blocked ? 'Arme à deux mains' : 'Vide'}</div>
-            ${it ? `<div class="text-[10px] muted f-mono">+${Math.round(itemValue(it, s))} ${STATS[itemStat(it)].name}</div>` : ''}</div>`;
+            ${it ? `<div class="text-[10px] muted f-mono">+${Math.round(itemValue(it, s))} ${STATS[itemStat(it)].name}${(it.runes || []).length ? ` · ${it.runes.length} rune${it.runes.length > 1 ? 's' : ''}` : ''}</div>` : ''}</button>`;
         }).join('')}
       </div>
+      ${ui.slotPick ? viewSlotPicker(ui.slotPick) : ''}
       <div class="mt-3">
 ${viewCombatSummary()}
       </div>
@@ -14578,8 +14579,49 @@ ${viewCombatSummary()}
     <div class="sys">
       <div class="flex items-center justify-between gap-2 mb-2 flex-wrap"><div class="sys-title">Inventaire</div>
         <div class="flex gap-1.5"><button type="button" class="chip ${filter === 'usable' ? 'on' : ''}" data-a="inv-filter" data-f="usable">Utilisables</button><button type="button" class="chip ${filter === 'all' ? 'on' : ''}" data-a="inv-filter" data-f="all">Tout (${state.inv.length})</button></div></div>
+      ${viewInvControls(inv)}
     </div>
-    ${inv.length ? inv.map(it => itemCard(it, itemActions(it))).join('') : `<div class="card text-sm muted">Votre inventaire est vide. Partez en expédition, gagnez des combats du récit ou passez à l’armurerie.</div>`}`;
+    ${viewInvList(inv)}`;
+}
+
+/* ---------- Inventaire : tri, filtres par rareté et par type, porté / non porté, recyclage par rareté ---------- */
+const INV_KIND = [['all', 'Tout'], ['weapon', 'Armes'], ['armor', 'Armures'], ['casque', 'Casques'], ['plastron', 'Plastrons'], ['jambieres', 'Jambières'], ['bottes', 'Bottes'], ['bijou', 'Bijoux'], ['ceinture', 'Ceintures']];
+function invKindOk(it, k) { return k === 'all' || (k === 'weapon' ? !!WEAPON_TYPES[it.type] || it.type === 'bouclier' : k === 'armor' ? !!ARMOR_TYPES[it.type] && it.type !== 'bouclier' : it.type === k); }
+function viewInvControls(inv) {
+  const rf = ui.invRar == null ? 'all' : ui.invRar, kf = ui.invKind || 'all', sort = ui.invSort || 'rar';
+  const counts = RARITIES.map((R, r) => inv.filter(it => it.r === r).length);
+  const free = r => state.inv.filter(it => it.r === r && !equippedSlot(it.uid) && !(it.runes || []).length).length;
+  return `<div class="flex flex-col gap-2 mt-1">
+    <div class="flex flex-wrap gap-1.5"><button type="button" class="chip ${rf === 'all' ? 'on' : ''}" data-a="inv-rar" data-r="all">Toutes raretés</button>${RARITIES.map((R, r) => counts[r] ? `<button type="button" class="chip ${rf === r ? 'on' : ''}" data-a="inv-rar" data-r="${r}" style="${rf === r ? '' : `color:${R.color};border-color:${R.color}66`}">${esc(R.name)} ${counts[r]}</button>` : '').join('')}</div>
+    <div class="flex flex-wrap gap-1.5">${INV_KIND.map(([k, l]) => { const n = inv.filter(it => invKindOk(it, k)).length; return n || k === 'all' ? `<button type="button" class="chip ${kf === k ? 'on' : ''}" data-a="inv-kind" data-k="${k}">${l} ${n}</button>` : ''; }).join('')}</div>
+    <div class="flex flex-wrap items-center gap-1.5 text-[11px]"><span class="muted">Trier :</span>${[['rar', 'Rareté'], ['up', 'Amélioration'], ['type', 'Type'], ['new', 'Plus récent']].map(([k, l]) => `<button type="button" class="chip ${sort === k ? 'on' : ''}" data-a="inv-sort" data-k="${k}">${l}</button>`).join('')}</div>
+    ${rf !== 'all' && free(rf) ? `<div class="flex flex-wrap items-center gap-2 text-[11px]"><button type="button" class="btn sm ghost" data-a="${ui.armed === 'recall-' + rf ? 'inv-recycle-rar' : 'arm'}" data-k="recall-${rf}" data-r="${rf}" style="border-color:#ff4d6d88;color:#ff8a9a">${icon('recycle', 'w-3.5 h-3.5')}${ui.armed === 'recall-' + rf ? 'Confirmer' : 'Recycler'} les ${free(rf)} objets ${esc(RARITIES[rf].name)} non portés</button><span class="muted">les objets portés et ceux qui ont des runes sont gardés</span></div>` : ''}
+  </div>`;
+}
+function viewInvList(inv) {
+  const rf = ui.invRar == null ? 'all' : ui.invRar, kf = ui.invKind || 'all', sort = ui.invSort || 'rar';
+  let L = inv.filter(it => (rf === 'all' || it.r === rf) && invKindOk(it, kf));
+  const typeName = it => (WEAPON_TYPES[it.type] || ARMOR_TYPES[it.type] || { name: it.type }).name;
+  L.sort(sort === 'up' ? (a, x) => (x.up || 0) - (a.up || 0) || x.r - a.r : sort === 'type' ? (a, x) => typeName(a).localeCompare(typeName(x)) || x.r - a.r : sort === 'new' ? (a, x) => state.inv.indexOf(x) - state.inv.indexOf(a) : (a, x) => x.r - a.r || (x.up || 0) - (a.up || 0));
+  const worn = L.filter(it => equippedSlot(it.uid)), rest = L.filter(it => !equippedSlot(it.uid));
+  if (!state.inv.length) return `<div class="card text-sm muted">Votre inventaire est vide. Partez en expédition, gagnez des combats du récit ou passez à l’armurerie.</div>`;
+  const head = (t, n) => `<div class="label mt-3 mb-1 flex items-center gap-2">${t} <span class="f-mono muted">${n}</span></div>`;
+  /* sans filtre de rareté, les objets non portés sont groupés par rareté (repliables) */
+  const groups = rf !== 'all' ? [[rf, rest]] : RARITIES.map((R, r) => [r, rest.filter(it => it.r === r)]).reverse().filter(([, g]) => g.length);
+  return `${worn.length ? head('Porté', worn.length) + worn.map(it => itemCard(it, itemActions(it))).join('') : ''}
+    ${head('Dans le sac', rest.length)}${rest.length ? groups.map(([r, g]) => { const open = rf !== 'all' || (ui.invOpen || {})[r] || g.length <= 3; return `<button type="button" class="res mb-1" data-a="inv-open" data-r="${r}" style="border-color:${RARITIES[r].color}55"><span class="f-display text-sm" style="color:${RARITIES[r].color}">${esc(RARITIES[r].name)}</span><span class="f-mono muted">${g.length}</span><span class="flex-1"></span><span class="muted text-xs">${open ? '▲' : '▼'}</span></button>${open ? g.map(it => itemCard(it, itemActions(it))).join('') : ''}`; }).join('') : `<div class="card text-sm muted">Rien d’autre dans le sac pour ce filtre.</div>`}`;
+}
+/* choix rapide depuis un emplacement (Main droite, Jambières…) */
+function viewSlotPicker(s) {
+  const main = invItem(state.gear.main), cur = invItem(state.gear[s]);
+  const ok = it => { if (equippedSlot(it.uid) && equippedSlot(it.uid) !== s) return false;
+    if (s === 'main') return !!WEAPON_TYPES[it.type] && canMain(it.type);
+    if (s === 'off') return main && it.uid !== main.uid && (WEAPON_TYPES[it.type] || it.type === 'bouclier') && classOffs().includes(it.type) && canOff(it.type, main.type);
+    return it.type === s; };
+  const L = state.inv.filter(ok).sort((a, x) => x.r - a.r || (x.up || 0) - (a.up || 0) || (x.runes || []).length - (a.runes || []).length);
+  const name = { main: 'Main droite', off: 'Main gauche', casque: 'Casque', plastron: 'Plastron', jambieres: 'Jambières', bottes: 'Bottes', bijou: 'Bijou', ceinture: 'Ceinture' }[s];
+  return `<div class="card mt-2" style="padding:8px 10px;border-color:var(--cyan)"><div class="flex items-center justify-between mb-1"><span class="label">${esc(name)} : choisir</span>${cur ? `<button type="button" class="btn sm ghost" data-a="uneq" data-slot="${s}">Retirer</button>` : ''}</div>
+    ${L.length ? `<div class="flex flex-col gap-1">${L.map(it => { const on = cur && cur.uid === it.uid; return `<button type="button" class="res" data-a="${on ? 'slot-pick' : 'slot-eq'}" data-s="${s}" data-uid="${it.uid}" style="border-color:${RARITIES[it.r].color}66;${on ? 'background:rgba(0,240,255,.08)' : ''}"><span class="flex-1 min-w-0 text-left"><span class="block truncate f-display text-sm" style="color:${RARITIES[it.r].color}">${esc(itemName(it))}${it.up ? ` +${it.up}` : ''}</span><span class="text-[10px] muted">${esc(RARITIES[it.r].name)} · ${esc((WEAPON_TYPES[it.type] || ARMOR_TYPES[it.type] || {}).name || '')}${(it.runes || []).length ? ` · ${it.runes.map(k => RUNE_TYPES[k.split(':')[0]].name.replace('Rune de ', '').replace('Rune d’', '').replace('Rune ', '')).join(', ')}` : ''}</span></span><span class="text-xs ${on ? 'glow' : ''}">${on ? 'porté' : 'équiper'}</span></button>`; }).join('')}</div>` : `<div class="text-xs muted">Aucun objet pour cet emplacement${s === 'off' && !main ? ' (équipez d’abord la main droite)' : ''}.</div>`}</div>`;
 }
 
 /* ---------- Expéditions ---------- */
@@ -14861,6 +14903,17 @@ function expResolve(B) {
    ========================================================================== */
 Object.assign(handlers, {
   'inv-filter': el => { ui.invFilter = el.dataset.f; render(); },
+  'inv-rar': el => { ui.invRar = el.dataset.r === 'all' ? 'all' : +el.dataset.r; render(); },
+  'inv-kind': el => { ui.invKind = el.dataset.k; render(); },
+  'inv-sort': el => { ui.invSort = el.dataset.k; render(); },
+  'inv-open': el => { ui.invOpen = ui.invOpen || {}; ui.invOpen[el.dataset.r] = !ui.invOpen[el.dataset.r]; render(); },
+  'slot-pick': el => { ui.slotPick = ui.slotPick === el.dataset.s ? null : el.dataset.s; render(); },
+  'slot-eq': el => { const it = invItem(el.dataset.uid), s = el.dataset.s; if (!it) return; const prev = equippedSlot(it.uid); if (prev && prev !== s) state.gear[prev] = null; state.gear[s] = it.uid; validateGear(); _bm = null; ui.slotPick = null; save(); render(); toast(`${icon('check', 'w-4 h-4')}<span>${esc(itemName(it))} équipé</span>`); },
+  'inv-recycle-rar': el => { const r = +el.dataset.r; ui.armed = null;
+    const L = state.inv.filter(it => it.r === r && !equippedSlot(it.uid) && !(it.runes || []).length); if (!L.length) return;
+    const g = {}; for (const it of L) { const x = recycleGain(it); for (const m in x) g[m] = (g[m] || 0) + x[m]; }
+    const ids = new Set(L.map(it => it.uid)); state.inv = state.inv.filter(it => !ids.has(it.uid)); for (const m in g) state.mats[m] = (state.mats[m] || 0) + g[m];
+    save(); render(); toast(`${icon('recycle', 'w-4 h-4')}<span>${L.length} objets ${esc(RARITIES[r].name)} recyclés : ${Object.entries(g).filter(([, n]) => n).map(([m, n]) => `${n} ${MATERIALS[m].name.toLowerCase()}`).join(', ')}</span>`); },
   'codex-tab': el => { ui.codexTab = el.dataset.t; ui.person = null; render(); },
   'eq': el => {
     const it = invItem(el.dataset.uid), slot = el.dataset.slot;
@@ -16129,20 +16182,22 @@ function optPlan(goal, shop) {
   return best;
 }
 /* ---------- Tout le reste : runes, cosmétiques, skins d'armes, monture ----------
-   Runes : d'abord une Ricochet (les attaques touchent tous les ennemis proches), puis des Fracture jusqu'au plafond de 150 %,
-   puis Égide (bouclier), Écho, Lacération, céleste. Une rune sertie ne se retire plus : seules les pièces portées en reçoivent. */
-const OPT_RUNE_ORDER = ['ricochet', 'fracture', 'egide', 'echo', 'laceration', 'celeste'];
+   Runes, sur les armures seulement (l'arme change avec la classe) : Ricochet jusqu'à 100 %, Fracture jusqu'à 150 %, Égide jusqu'à 60 %,
+   une Céleste, une Lacération pour les classes de corps à corps. Pas d'Écho. Une rune sertie ne se retire plus. */
+const OPT_RUNE_ORDER = ['ricochet', 'fracture', 'egide', 'celeste', 'laceration', 'echo'];
 function optRunes(items, shop) {
+  items = items.filter(it => it && ARMOR_TYPES[it.type]);   /* seulement les armures : communes à toutes les classes, contrairement à l'arme */
   const pool = { ...(state.runes || {}) }, sum = { fracture: 0, echo: 0, egide: 0, ricochet: 0, laceration: 0, celeste: 0 }, sockets = [], buy = [];
   for (const it of items) for (const k of it.runes || []) { const [t, r] = k.split(':'); if (RUNE_TYPES[t]) sum[t] += RUNE_TYPES[t].v[+r]; }
-  const need = t => t === 'ricochet' ? sum.ricochet < 1 : t === 'fracture' ? sum.fracture < 150 : t === 'egide' ? sum.egide < 60 : true;
+  const melee = !['rodeur', 'sorcier', 'spiritualiste', 'clerc', 'aede', 'pistolero', 'barde', 'peintre'].includes(state.profile && state.profile.cls);
+  const need = t => t === 'ricochet' ? sum.ricochet < 100 : t === 'fracture' ? sum.fracture < 150 : t === 'egide' ? sum.egide < 60 : t === 'celeste' ? sum.celeste < 1 : t === 'laceration' ? melee && sum.laceration < 1 : false;
   /* une rune trop faible gâcherait un emplacement définitif : au moins Mythique (ou une rareté de moins que la pièce) */
   const bestOwned = (t, it) => Object.keys(pool).filter(k => k.startsWith(t + ':') && pool[k] > 0 && +k.split(':')[1] >= Math.min(5, it.r - 1)).sort((a, b) => +b.split(':')[1] - +a.split(':')[1])[0];
   for (const it of items) { let free = runeSlots(it) - (it.runes || []).length;
     while (free-- > 0) { let done = false;
       for (const t of OPT_RUNE_ORDER) { if (!need(t)) continue; const o = bestOwned(t, it);
         if (o) { pool[o]--; sockets.push({ uid: it.uid, k: o }); sum[t] += RUNE_TYPES[t].v[+o.split(':')[1]]; done = true; break; }
-        if (shop && (t === 'ricochet' || t === 'fracture')) { buy.push({ kind: 'rune', t, r: 6, price: RUNE_PRICES[6] }); sum[t] += RUNE_TYPES[t].v[6]; done = true; break; } }
+        if (shop && ['ricochet', 'fracture', 'egide', 'celeste'].includes(t)) { buy.push({ kind: 'rune', t, r: 6, price: RUNE_PRICES[6] }); sum[t] += RUNE_TYPES[t].v[6]; done = true; break; } }
       if (!done) break; } }
   return { sockets, buy };
 }
@@ -19563,6 +19618,20 @@ const GUIDE = [
     'Codex : le bestiaire, les Monarques, les fins, les archives, les cosmétiques, les trophées, la Bible du lore (les secrets que tu as découverts et les liens entre eux) et le classement de puissance de tous les personnages, toi compris.',
     'Conseil : discute avec Pernos (ton coach de sport et de nutrition), Daminu (il connaît toute l’histoire et toutes les règles du jeu) et les membres de ta Maison. Il faut une clé personnelle : suis les 4 étapes dans « Réglages → Discussion IA ».'
   ] },
+  { id: 'stuff', icon: 'gem', t: 'Optimisation de stuff', p: [
+    'La règle d’or : sertis tes runes sur les armures, jamais sur l’arme. Le casque, le plastron, les jambières, les bottes, le bijou et la ceinture sont les mêmes pour toutes les classes ; l’arme, elle, change quand tu changes de classe. Une rune sertie ne se retire plus : sur une arme, elle est perdue le jour où tu prends une autre classe. En +4, les 6 pièces d’armure t’offrent 12 emplacements, assez pour tout ce qui compte.',
+    'Pourquoi la puissance peut s’effondrer en changeant de classe : trois choses se multiplient. Perdre la rune de Ricochet (restée sur l’ancienne arme) divise la puissance par environ 2,5 : sans elle, il faut abattre les ennemis un par un. Passer d’une arme De toute éternité (exécution sous 20 %) à une arme Éternelle (exécution sous 10 %) peut doubler le nombre de coups pour abattre un ennemi. Et la classe elle-même change un peu la vitesse (Sorcier → Rôdeur : environ −10 %, c’est l’ordre normal des classes). Exemple réel : 1 / (2,5 × 2 × 1,1) ≈ 0,18, soit −82 %.',
+    'Rune 1 — Ricochet (plafond 100 %) : 1 De toute éternité, ou 2 Éternelles. Chaque attaque touche tous les ennemis à 7 m. C’est la plus importante.',
+    'Rune 2 — Fracture (plafond 150 %) : 1 De toute éternité + 1 Éternelle, ou 3 Éternelles. La part de PV retirée devient critique ; au plafond de 50 % de critique, c’est énorme. Au-delà de 150 %, inutile.',
+    'Rune 3 — Égide (plafond 60 %) : 2 De toute éternité, ou 3 Éternelles. Un bouclier tiré de tes dégâts, jusqu’à la moitié de tes PV. Elle ne change pas le chiffre de puissance, mais c’est ta survie contre les Éternels.',
+    'Rune 4 — Céleste : 1 suffit (De toute éternité de préférence). Sans elle, impossible de combattre en vol. Avec elle : les ennemis de corps à corps ne te touchent plus en vol, et +60 % de dégâts dans les airs (De toute éternité). Les suivantes ajoutent encore des dégâts en vol, sans plafond.',
+    'Rune 5 — Lacération : 1, seulement pour une classe de corps à corps (Assassin, Gladiateur…) : tes coups partent aussi jusqu’à 20 m. Inutile pour le Rôdeur et le Sorcier, déjà à distance.',
+    'En dernier — Écho : une technique gagne sa valeur avec le temps écoulé depuis son dernier lancer ; la relancer plus vite n’ajoute presque plus de dégâts (seulement plus de contrôles et de soins).',
+    'Plan type sur 12 emplacements. Avec des runes De toute éternité : 1 Ricochet, 2 Fracture, 2 Égide, 1 Céleste = 6 ; 6 emplacements libres. Avec des Éternelles seulement : 2 Ricochet, 3 Fracture, 3 Égide, 1 Céleste = 9 ; 3 libres. Les emplacements libres : d’autres Céleste si tu combats souvent en vol, sinon garde-les pour de meilleures runes.',
+    'L’arme : la plus rare possible. La rareté de l’arme fixe le seuil d’exécution (Légendaire 3 %, Mythique 5 %, Éternel 10 %, De toute éternité 20 %), et chaque pièce De toute éternité ajoute +1 000 % à toutes les statistiques (Éternelle +100 %). Les armes De toute éternité ne se vendent pas : coffres à 40 clés et Éternels du monde ouvert.',
+    'Cosmétiques, skin d’arme et monture : chacun ajoute un % à toutes les statistiques selon sa rareté (De toute éternité +1 000 %). Le skin d’arme ne compte que pour le type d’arme en main.',
+    'Le plus simple : Arsenal → Optimisation automatique → « Puissance de combat ». Tout s’équipe seul (points, pièces, puces, runes sur les armures dans l’ordre ci-dessus, cosmétiques, skin, monture) et ce qui manque est proposé à l’achat. Si ta puissance bouge, la carte Puissance de combat (Statut) explique pourquoi, sous « Pourquoi ma puissance a changé ».'
+  ] },
   { id: 'pause', icon: 'pause', t: 'Pause, repos et pénalités', p: [
     'Le repos fait partie de l’entraînement. Dans « Réglages → Pause », tu peux mettre le jeu en pause pour aujourd’hui, pour le week-end, pour 7 ou 14 jours, ou pour les dates que tu veux.',
     'Pendant une pause, pas de pénalité et ta série de jours n’est pas cassée. Si tu fais quand même du sport ou si tu notes tes repas, tu gagnes quand même ton XP et tes kinahs.'
@@ -19587,7 +19656,7 @@ const GUIDE = [
     'Puissance de combat (Statut, classement du Codex, barre de l’ennemi) : une seule échelle pour tout l’univers, la vague d’arène la plus haute que l’on tient. Elle ne mesure que ce qui décide d’un combat : les dégâts par seconde (attaques par seconde, part des PV de la cible retirée à chaque attaque, exécution), les coups critiques, la vitesse d’attaque et la résistance (PV, ténacité, esquive). La carte du Statut affiche aussi le DPS : les dégâts bruts par seconde (Attaque × critique moyen × attaques par seconde) et la part des PV d’une cible retirée chaque seconde. Aux vagues hautes, les PV ennemis sont si grands que seule cette part compte : la Force n’y change presque plus rien, l’Agilité plafonne vite (critique 50 %, esquive 30 %), et l’Endurance fait la ténacité (armure × (0,9 + 1,5 × Endurance / (Endurance + 20 × niveau + 200))). Pour monter sa puissance : optimiseur → « Puissance de combat ».',
     'Techniques et ultimes à haut niveau : une ultime ajoute à chaque cible touchée la part de PV que retireraient 7 secondes d’attaques de base (lancée à son rythme normal ; davantage si on l’a gardée, moins si on l’enchaîne). Les techniques de dégâts valent ensemble le même poids pour toutes les classes : chacune vaut 0,62 × sa recharge ÷ le nombre de techniques de dégâts de la classe (2,8 s d’attaques de base pour une recharge de 9 s dans une classe à deux techniques de dégâts). Le temps d’incantation s’ajoute : un sort long ne fait jamais perdre de dégâts. La valeur s’accumule depuis le dernier lancer (jusqu’à 2 minutes) : une classe qui ne peut pas tout lancer dès que c’est prêt libère des coups plus lourds. Résultat, vérifié par simulation de 0 à 90 % de réduction de recharge : l’ordre des classes (Assassin, Gladiateur, Sorcier, Pistolero, Rôdeur, Spiritualiste, Barde et Peintre, puis les autres) tient pour l’attaque de base, l’ultime et le total, à tous les niveaux. Le combat automatique ne lance plus Sommeil ni Métamorphose sur une cible seule.',
     'Sorcier : temps d’incantation longs, à la manière d’Aion, et des sorts d’autant plus lourds. Flèche de feu (attaque de base) 2 s, Sommeil 2 s, Chaîne de glace 2 s, Métamorphose 1,5 s, Feu de l’enfer (ultime) 4 s, Néant 3 s. Pendant l’incantation on avance au ralenti ; la vitesse d’incantation (ceinture) les raccourcit. Il reste la 3e classe en dégâts.',
-    'Optimisation automatique (Arsenal) : tout s’équipe avec ce que vous possédez — points, arme, armures, bottes, bijou, ceinture, puces, runes (serties dans les emplacements libres des pièces portées : d’abord une Ricochet, puis des Fracture jusqu’au plafond de 150 %, puis Égide, Écho… ; jamais une rune de moins de Mythique, pour ne pas gâcher un emplacement définitif), cosmétiques (le plus rare de chaque catégorie : chacun ajoute un % à toutes les statistiques), skins d’armes et monture. Ce qui manque au plan idéal (pièces, puces, runes, cosmétiques, skin, monture) est proposé à l’achat et s’équipe tout seul. Changer de classe relance l’optimisation. La carte Puissance de combat montre, sous « Pourquoi ma puissance a changé », chaque variation : ce qui a changé (pièce, rune, points, classe, cosmétique, monture, niveau) et l’effet sur les attaques par seconde, la part des PV, le critique, l’exécution, la ténacité et l’esquive.',
+    'Optimisation automatique (Arsenal) : tout s’équipe avec ce que vous possédez — points, arme, armures, bottes, bijou, ceinture, puces, runes (serties sur les armures seulement, dans l’ordre de « Optimisation de stuff » : Ricochet, Fracture, Égide, une Céleste, une Lacération pour le corps à corps ; jamais une rune de moins de Mythique), cosmétiques (le plus rare de chaque catégorie : chacun ajoute un % à toutes les statistiques), skins d’armes et monture. Ce qui manque au plan idéal (pièces, puces, runes, cosmétiques, skin, monture) est proposé à l’achat et s’équipe tout seul. Changer de classe relance l’optimisation. La carte Puissance de combat montre, sous « Pourquoi ma puissance a changé », chaque variation : ce qui a changé (pièce, rune, points, classe, cosmétique, monture, niveau) et l’effet sur les attaques par seconde, la part des PV, le critique, l’exécution, la ténacité et l’esquive.',
     'Son : le monde ouvert a désormais un moteur audio, sans aucun fichier à télécharger (tous les sons sont synthétisés). Coups d’épée et d’acier, tirs, arcs, explosions, sorts, carillons et soins, chaînes, harpes et tambours, pistons, vapeur, lasers, missiles et moteur du Mecha, alertes, fin de vague. Bouton « Son » (touche N) pour couper ou rallumer ; le choix est gardé.',
     'Chaque classe a sa signature visuelle, inspirée d’Aion : tourbillons d’acier, fissures et rage rouge du gladiateur ; sceaux dorés, chaînes, ailes et barrières du templier ; toxines bleues et pourpres et rémanences de l’assassin ; flèches de feu, de givre et de foudre et runes de pièges du rôdeur ; cercles runiques et explosions élémentaires du sorcier ; esprits immenses, fumées et mains fantomatiques du spiritualiste ; vagues harmoniques et bannières de l’aède ; rayons du ciel, pétales et dômes du clerc ; pigments, cadres et calligraphie du peintre ; traînées d’éther et bras chauffés au rouge du pistolero ; vapeur, missiles, lasers et boucliers hexagonaux de l’éthertech ; ondes arc-en-ciel, clés de sol et partitions du barde.',
     'Options de combat (boutons Auto, Verrou et Vol en haut de l’écran ; au clavier G, T et B) : « Verrou » fixe la caméra sur l’ennemi le plus proche (un anneau doré le marque) et tes attaques le visent en priorité ; appuie de nouveau dans la seconde et demie pour passer à l’ennemi suivant. « Auto » fait combattre ton personnage tout seul : il se place, enchaîne ses meilleures techniques et ses ultimes, et esquive chaque coup ; en combat automatique, tu ne prends aucun dégât. Les deux réglages sont gardés d’une visite à l’autre.',
