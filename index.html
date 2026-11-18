@@ -10830,6 +10830,7 @@ const SHOP = [
   { id: 'i4', cat: 'instrument', r: 4, name: 'Piano de la salle commune', lore: 'Le vieux piano de la Miséricorde, au bout du couloir de la chambre 14. Les touches noires sont usées par des doigts d’enfant.' },
   { id: 'i5', cat: 'instrument', r: 5, name: 'Orgue de Sainte-Claire', lore: 'Il a joué pour les mariages, pour les enterrements, et une fois pour une enfant déposée sur les marches.' },
   { id: 'i6', cat: 'instrument', r: 6, name: 'Harpe de David', lore: '« David prenait la harpe et jouait de sa main ; Saül respirait alors plus à l’aise. » Elle n’apaise pas les monstres. Elle apaise ceux qui le sont devenus.' },
+  { id: 'i7', cat: 'instrument', r: 5, name: 'Orgue de Barbarie du marchand', lore: 'Le marchand jure qu’il vient d’une foire de Clairval. La manivelle grince sur le même temps que la vieille roue du fauteuil de Nour.', merchant: true },
   /* Demeures */
   { id: 'h0', cat: 'house', r: 0, name: 'Grotte des Brèches', lore: 'Humide, gratuite pour les rats. Vous payez pour le droit de dire « chez nous ».' },
   { id: 'h1', cat: 'house', r: 1, name: 'Galerie souterraine', lore: 'Là où Nour chantait. Les murs ont gardé l’écho.' },
@@ -11174,6 +11175,8 @@ const COSMETICS = [
   C_('ail_wb15', 'ailes', 7, 'Ailes du Roi des Ruines', { type: 'eternal', txt: 'Vaincre le Roi des Ruines sans combat automatique' }),
   C_('tit_wb16', 'titre', 7, 'Celui qui n’a pas fermé les yeux', { type: 'eternal', txt: 'Vaincre l’Éternel du Sommet sans combat automatique' }),
   C_('aur_wb16', 'aura', 7, 'Lumière du Sommet', { type: 'eternal', txt: 'Vaincre l’Éternel du Sommet sans combat automatique' }),
+  C_('tit_bas', 'titre', 3, 'Client des bas-fonds', { type: 'merchant', txt: 'Marchand louche des galeries souterraines' }),
+  C_('aur_contre', 'aura', 4, 'Fumée de contrebande', { type: 'merchant', txt: 'Marchand louche des galeries souterraines' }),
   C_('ail_wb16', 'ailes', 7, 'Ailes du Sommet', { type: 'eternal', txt: 'Vaincre l’Éternel du Sommet sans combat automatique' }),
   C_('tit_wb_all', 'titre', 7, 'Les Seize sans filet', { type: 'eternal', txt: 'Vaincre les seize Éternels sans combat automatique' }),
   /* Tenues */
@@ -14202,7 +14205,7 @@ Object.assign(handlers, {
   },
   'buy': el => {
     const it = SHOP.find(x => x.id === el.dataset.id);
-    if (!it || state.owned[it.id] || it.story || it.eternal) return;
+    if (!it || state.owned[it.id] || it.story || it.eternal || it.merchant) return;
     const price = itemPrice(it);
     if (curLevel() < RARITIES[it.r].lvl || (it.req === 'trueEnd' && !trueEnd()) || kinahs() < price) return;
     state.owned[it.id] = dk();
@@ -14443,7 +14446,7 @@ function avatarLine() {
   if (!state.profile) return '';
   const V = heroVis(), t = V.titre ? cosmOf('titre') : null, te = V.tenue ? cosmOf('tenue') : null, ac = cosmOf('accessoire'), w = invItem(state.gear.main);
   return `<div class="text-[11px] mt-1 leading-snug">
-    ${t ? `<span class="f-display" style="color:${t.color}">« ${esc(t.name)} »</span>` : ''}
+    ${t ? titleHTML(t.name, t.r) : ''}
     <span class="muted block">${te ? esc(te.name) : ''}${ac ? ` · ${esc(ac.name)}` : ''}${w ? ` · ${esc(itemName(w))}${w.up ? ` +${w.up}` : ''}` : ''}</span></div>`;
 }
 
@@ -14743,7 +14746,7 @@ function viewShop() {
     const G = typeof arenaState === 'function' ? arenaState().glory : 0;
     body = Object.entries(COSMETIC_CATS).map(([cat, label]) => cat === 'armeskin' ? `<div class="sys-title mt-3 px-1">${label}</div><p class="text-[11px] muted px-1">Un skin par type d’arme et par rareté : l’arme de ce type prend l’apparence de la rareté du skin (taille, ornements, lumière) et son thème. Ils se portent type par type (Codex → Cosmétiques) ; seul le meilleur des skins des armes en main compte pour les statistiques. « De toute éternité » : ${WSKIN_GLORY.toLocaleString('fr-FR')} gloire (vous en avez ${G.toLocaleString('fr-FR')}).</p>` + Object.keys(WEAPON_TYPES).map(t => `<div class="card"><div class="f-display text-sm mb-1">${esc(WEAPON_TYPES[t].name)}</div><div class="flex flex-wrap gap-1.5">${COSMETICS.filter(c => c.cat === 'armeskin' && c.wtype === t).map(c => { const own = cosmOwned(c.id), gl = c.how.type === 'glory'; return `<button type="button" class="gearbuy" style="color:${c.color}" data-a="buy-cosm" data-id="${c.id}" ${own || (gl ? G < WSKIN_GLORY : k < c.price) ? 'disabled' : ''} title="${esc(c.name)}">${artGear(t, c.r, 46)}<span>${RARITIES[c.r].name}</span><span class="f-mono">${own ? 'possédé' : gl ? '100 k gloire' : fmtK(c.price)}</span></button>`; }).join('')}</div></div>`).join('') : `<div class="sys-title mt-3 px-1">${label}</div>` + COSMETICS.filter(c => c.how.type === 'shop' && c.cat === cat).map(c => { const own = cosmOwned(c.id);
       return `<div class="card flex items-center gap-3">${artCosm(c, 52)}
-        <span class="flex-1 min-w-0"><span class="block f-display" style="color:${c.color}">${esc(c.name)}</span><span class="text-[11px] muted">${RARITIES[c.r].name} · porté : +${COSMETIC_PCT[c.r]} % XP et kinahs, +${COSMETIC_STAT[c.r]} % statistiques</span></span>
+        <span class="flex-1 min-w-0">${c.cat === 'titre' ? `<span class="block">${titleHTML(c.name, c.r)}</span>` : `<span class="block f-display" style="color:${c.color}">${esc(c.name)}</span>`}<span class="text-[11px] muted">${RARITIES[c.r].name} · porté : +${COSMETIC_PCT[c.r]} % XP et kinahs, +${COSMETIC_STAT[c.r]} % statistiques</span></span>
         ${own ? `<span class="rar" style="color:var(--ok)">Possédé</span>` : `<button type="button" class="btn sm" data-a="buy-cosm" data-id="${c.id}" ${k < c.price ? 'disabled' : ''}>${fmtK(c.price)}</button>`}</div>`; }).join('')).join('') + `<p class="text-[11px] muted px-1">Les autres cosmétiques se trouvent en expédition, sur les Monarques, avec les trophées et les fins. Tout se porte dans Codex → Cosmétiques.</p>`;
   } else {
     body = SHOP.filter(it => it.cat === cat).map(it => {
@@ -14753,6 +14756,7 @@ function viewShop() {
       let action;
       if (own && cat === 'mount') action = equipped ? `<span class="rar glow" style="color:var(--neon)">Montée</span>` : `<button type="button" class="btn sm" data-a="equip" data-id="${it.id}">Monter</button>`;
       else if (own) action = `<span class="rar" style="color:var(--ok)">Possédé</span>`;
+      else if (it.merchant) action = `<span class="text-xs" style="color:${RARITIES[5].color}">Chez le marchand louche, dans les galeries</span>`;
       else if (it.eternal) action = `<span class="text-xs" style="color:${RARITIES[7].color}">Éternel ${it.eternal} vaincu sans combat automatique</span>`;
       else if (it.story) action = `<span class="text-xs" style="color:${RARITIES[7].color}">${icon('book-open', 'w-3.5 h-3.5 inline -mt-0.5')} Récit : fin du tome ${it.story}</span>`;
       else if (reqLock) action = `<span class="text-xs muted">${icon('lock', 'w-3.5 h-3.5 inline -mt-0.5')} Fin L requise</span>`;
@@ -14855,7 +14859,7 @@ function codexCosmetics() {
     <details class="sys" ${state.cosmEq[cat] ? '' : ''}><summary class="flex items-center justify-between gap-2 mb-2" style="cursor:pointer;list-style:none"><div class="sys-title">${label}</div><span class="f-mono text-sm">${COSMETICS.filter(c => c.cat === cat && cosmOwned(c.id)).length} / ${COSMETICS.filter(c => c.cat === cat).length} ${cosmOf(cat) ? `· <span style="color:${cosmOf(cat).color}">${esc(cosmOf(cat).name)}</span>` : ''}</span></summary>
       ${COSMETICS.filter(c => c.cat === cat).map(c => { const own = cosmOwned(c.id), on = state.cosmEq[cat] === c.id;
         return `<div class="res" style="cursor:default">${artCosm(c, 48, own ? '' : 'lock')}
-          <span class="flex-1 min-w-0"><span class="block truncate f-display" style="color:${own ? c.color : 'var(--muted)'}">${own ? esc(c.name) : '???'}</span><span class="text-[11px] muted">${RARITIES[c.r].name} · +${COSMETIC_PCT[c.r]} % XP et kinahs · +${COSMETIC_STAT[c.r]} % stats · ${esc(cosmSource(c))}</span></span>
+          <span class="flex-1 min-w-0">${own && c.cat === 'titre' ? `<span class="block" style="overflow:hidden">${titleHTML(c.name, c.r)}</span>` : `<span class="block truncate f-display" style="color:${own ? c.color : 'var(--muted)'}">${own ? esc(c.name) : '???'}</span>`}<span class="text-[11px] muted">${RARITIES[c.r].name} · +${COSMETIC_PCT[c.r]} % XP et kinahs · +${COSMETIC_STAT[c.r]} % stats · ${esc(cosmSource(c))}</span></span>
           ${own ? (on ? `<button type="button" class="btn sm ghost" data-a="cosm-eq" data-c="${cat}" data-id="">Retirer</button>` : `<button type="button" class="btn sm u" data-a="cosm-eq" data-c="${cat}" data-id="${c.id}">Porter</button>`) : icon('lock', 'w-4 h-4 muted')}</div>`; }).join('')}
     </details>`).join('');
 }
@@ -17204,7 +17208,7 @@ for (const tier of [1, 5, 10, 20, 30, 40]) EX_CHEST_W[tier].forEach((w, i) => ex
 
 /* ---------- état, récompenses ---------- */
 function exState() { const W = state.world || (state.world = {}); const X = W.ex || (W.ex = { got: {} }); X.got = X.got || {}; return X; }
-function exKeys() { const X = exState(); return EX_ITEMS.filter(i => i.kind === 'cle' && X.got[i.id]).length; }
+function exKeys() { const X = exState(); return Math.min(40, EX_ITEMS.filter(i => i.kind === 'cle' && X.got[i.id]).length + ((state.merchant && state.merchant.keys) || 0)); }
 /* récompense d'un coffre selon son palier (clés possédées requises, non consommées) */
 function exChestReward(tier) {
   const cls = curClass(), w = [...new Set([...classMains(), ...classOffs()])].filter(t => WEAPON_TYPES[t]), arm = ['casque', 'plastron', 'jambieres', 'bottes', 'bijou', 'ceinture'];
@@ -17313,6 +17317,82 @@ function codexEternals() {
 }
 handlers['wb-read'] = el => { const i = +el.dataset.i, R = WB_MANUAL[i]; if (!wbManualHas(i)) return;
   showOverlay(`<div class="sys pop w-full max-w-md" style="padding:20px"><div class="flex items-center justify-between gap-2 mb-3"><span class="sys-title">Archive des Éternels · ${ROMAN_WB[i]}</span><button type="button" class="ibtn" data-a="close-overlay">✕</button></div><h3 class="f-display text-lg font-bold">${esc(R.t)}</h3><div class="text-xs muted mt-1">${esc(R.n)}</div><div class="text-[14px] mt-3 leading-relaxed" style="color:#cfd3dc;font-family:var(--font-prose)">${esc(R.b)}</div></div>`); };
+
+/* ==========================================================================
+   Le marchand louche des galeries souterraines (monde ouvert).
+   Il vend ce qu'on ne trouve nulle part ailleurs : des runes De toute éternité contre des kinahs,
+   une pièce d'armure De toute éternité par semaine, un instrument, une aura, un titre, une boussole,
+   un passe-partout pour les coffres. Quatre objets par jour, tirés au sort selon la date.
+   Aussi : le trésor des demeures (une fois par jour et par demeure).
+   ========================================================================== */
+const MX_RUNES = ['ricochet', 'fracture', 'egide', 'celeste'];
+const MX_POOL = ['gear7', 'i7', 'tit_bas', 'aur_contre', 'compass', 'passkey', 'mats', 'ws7'];
+function mxState() { const M = state.merchant = state.merchant || {}; M.sold = M.sold || {}; M.keys = M.keys || 0; return M; }
+function mxWeek(d) { const t = fromKey(d || dk()); const j = Math.floor((t.getTime() / 86400000 + 3) / 7); return 'w' + j; }
+function mxSeed(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+/* le stock du jour : une rune, puis trois objets du tiroir (les objets uniques déjà achetés n'y reviennent pas) */
+function mxStock() {
+  const d = dk(), M = mxState(); let h = mxSeed('marchand' + d); const R = () => { h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489909) >>> 0; h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+  const out = ['rune:' + MX_RUNES[Math.floor(R() * 4)]];
+  const pool = MX_POOL.filter(id => !mxOwned(id));
+  while (out.length < 4 && pool.length) out.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
+  return out;
+}
+function mxOwned(id) {
+  if (id === 'i7') return !!state.owned.i7;
+  if (id === 'tit_bas' || id === 'aur_contre') return cosmOwned(id);
+  if (id === 'compass') return !!mxState().compass;
+  if (id === 'passkey') return !!mxState().passkey;
+  return false;
+}
+function mxWeapType() { const w = invItem(state.gear.main); return w && WEAPON_TYPES[w.type] ? w.type : null; }
+function mxItem(id) {
+  const M = mxState(), K = kinahs(), d = dk(), sold = (M.sold[d] || []).includes(id);
+  let it;
+  if (id.startsWith('rune:')) { const t = id.slice(5); it = { name: `${RUNE_TYPES[t].name} De toute éternité`, desc: `D’ordinaire payée en gloire. ${RUNE_TYPES[t].txt(RUNE_TYPES[t].v[7])}. Une seule par jour.`, price: 30000000, r: 7 }; }
+  else if (id === 'gear7') it = { name: 'Une armure De toute éternité, sans étiquette', desc: 'Une pièce que la boutique ne vend jamais (le type est tiré au sort). Une par semaine.', price: 250000000, r: 7, week: true };
+  else if (id === 'i7') it = { name: 'Orgue de Barbarie du marchand', desc: 'Instrument unique : on tourne la manivelle, il joue. À poser dans vos demeures.', price: 2500000, r: 5 };
+  else if (id === 'tit_bas') it = { name: 'Titre « Client des bas-fonds »', desc: 'Titre Épique, introuvable ailleurs.', price: 400000, r: 3 };
+  else if (id === 'aur_contre') it = { name: 'Aura « Fumée de contrebande »', desc: 'Aura Légendaire : une brume violette qui traîne derrière vous.', price: 3000000, r: 4 };
+  else if (id === 'compass') it = { name: 'Boussole du contrebandier', desc: 'Sur la grande carte, montre les archives, clés et coffres qui restent dehors.', price: 1500000, r: 5 };
+  else if (id === 'passkey') it = { name: 'Passe-partout', desc: 'Compte pour cinq clés devant les coffres.', price: 5000000, r: 5 };
+  else if (id === 'mats') it = { name: 'Sac de contrebande', desc: '40 cendres, 80 cœurs de Faille, 300 éclats d’éther : de quoi monter plusieurs pièces à +4.', price: 1200000, r: 4 };
+  else if (id === 'ws7') { const t = mxWeapType(); it = { name: t ? `Skin d’arme De toute éternité : ${WEAPON_TYPES[t].name}` : 'Skin d’arme De toute éternité', desc: t ? 'Pour l’arme que vous tenez. D’ordinaire payé en gloire.' : 'Prenez d’abord une arme en main.', price: 40000000, r: 7, need: !!t && !cosmOwned('ws_' + t + '_7') }; }
+  else return null;
+  const weekDone = it.week && M.gearWeek === mxWeek();
+  const can = !sold && !weekDone && K >= it.price && it.need !== false;
+  return { id, name: it.name, desc: it.desc, price: it.price, priceTxt: it.price.toLocaleString('fr-FR') + ' ₭', color: RARITIES[it.r].color, sold: sold || weekDone, can };
+}
+function mxView() { return { kinahs: kinahs(), items: mxStock().map(mxItem).filter(Boolean) }; }
+function mxBuy(id) {
+  if (!mxStock().includes(id)) return { ok: false, msg: 'Ça, je ne l’ai plus.' };
+  const it = mxItem(id); if (!it || it.sold) return { ok: false, msg: 'Déjà vendu. Revenez demain.' };
+  if (!it.can) return { ok: false, msg: kinahs() < it.price ? 'Pas assez de kinahs. Je ne fais pas crédit.' : 'Pas aujourd’hui.' };
+  const M = mxState(), d = dk(); let got = it.name;
+  if (id.startsWith('rune:')) { const t = id.slice(5); state.runes = state.runes || {}; state.runes[runeKey(t, 7)] = (state.runes[runeKey(t, 7)] || 0) + 1; }
+  else if (id === 'gear7') { const it2 = makeItem(7, pick(Object.keys(ARMOR_TYPES))); state.inv.push(it2); M.gearWeek = mxWeek(); got = itemName(it2); }
+  else if (id === 'i7') state.owned.i7 = true;
+  else if (id === 'tit_bas' || id === 'aur_contre') state.cosm[id] = d;
+  else if (id === 'compass') M.compass = 1;
+  else if (id === 'passkey') { M.passkey = 1; M.keys = 5; }
+  else if (id === 'mats') { for (const [m, n] of [['cendre', 40], ['coeur', 80], ['ether', 300]]) state.mats[m] = (state.mats[m] || 0) + n; }
+  else if (id === 'ws7') { const t = mxWeapType(); if (!t) return { ok: false, msg: 'Prenez d’abord une arme en main.' }; state.cosm['ws_' + t + '_7'] = d; }
+  state.buys.push({ id: 'mx:' + id, price: it.price, date: d }); _memo = null; _bm = null;
+  (M.sold[d] = M.sold[d] || []).push(id); for (const k in M.sold) if (k < addDays(d, -7)) delete M.sold[k];
+  save();
+  return { ok: true, msg: `Marché conclu : ${got}.` };
+}
+/* le trésor des demeures : une fois par jour et par demeure, selon la rareté */
+function estateTreasure(hid, r) {
+  const T = state.estateGift = state.estateGift || {}, d = dk();
+  if (T[hid] === d) return { title: 'Salle du trésor', msg: 'Les coffres se remplissent pendant la nuit. Revenez demain.' };
+  T[hid] = d; const k = Math.round(6000 * Math.pow(3.2, r));
+  state.bonus.push({ date: d, k, why: 'Trésor de la demeure' });
+  const mats = r >= 5 ? [['cendre', r - 3], ['coeur', r * 3]] : [['coeur', r], ['ether', r * 6]];
+  for (const [m, n] of mats) state.mats[m] = (state.mats[m] || 0) + n;
+  _memo = null; save();
+  return { title: 'Trésor de la demeure', msg: `+${k.toLocaleString('fr-FR')} kinahs · ${mats.map(([m, n]) => n + ' ' + MATERIALS[m].name.toLowerCase()).join(', ')}` };
+}
 
 /* ==========================================================================
    LECTEUR — relecture du chemin parcouru, polices, tailles, papiers, progression
@@ -17930,6 +18010,32 @@ function musNowHTML(msg) {
     </div>
   </div>`;
 }
+/* ---------- Musique des demeures (monde ouvert) ----------
+   MUS.homeSel : 'synth' (morceau intégré, joué au piano dans la demeure) | 'off' (on garde la musique en cours)
+                 | 'style:index' | 'mine:id' (un de vos fichiers, par exemple le morceau que vous possédez) */
+function musHomeLabel() { const s = MUS.homeSel || 'synth'; if (s === 'synth') return 'Morceau intégré : Gymnopédie n° 1 (Satie), au piano'; if (s === 'off') return 'Aucune : la musique en cours continue'; const t = musTrackRef(s); return t ? t[0] : 'Morceau introuvable'; }
+function musHomeEnter() {
+  const sel = MUS.homeSel || 'synth';
+  if (sel === 'off') return 'off';
+  musRT.homeSnap = musSnapshot();
+  if (sel === 'synth') { musPause(); return 'synth'; }
+  const t = musTrackRef(sel); if (!t || t === MUS_INTRO && !sel.startsWith('default')) { musRT.homeSnap = undefined; return 'off'; }
+  musRT.homeOn = true; musRT.intro = false; musStart(t, 1500); if (musRT.audio) musRT.audio.loop = true; return 'file';
+}
+function musHomeLeave() {
+  if (musRT.homeSnap === undefined) return; const s = musRT.homeSnap; musRT.homeSnap = undefined;
+  if (musRT.homeOn) { musRT.homeOn = false; if (s && s.playing) musRestore(s); else musPause(); }
+  else if (s && s.playing) musResume();
+}
+function musHomePicker() {
+  const opt = (ref, t, sub) => `<button type="button" class="mus-pickrow ${(MUS.homeSel || 'synth') === ref ? 'on' : ''}" data-a="mus-home-choose" data-ref="${esc(ref)}"><span class="mus-rt"><span class="truncate text-[13px]">${esc(t)}</span>${sub ? `<span class="truncate text-[11px] muted">${esc(sub)}</span>` : ''}</span>${(MUS.homeSel || 'synth') === ref ? icon('check', 'w-4 h-4') : ''}</button>`;
+  return `<div class="mus-picker">
+    ${opt('synth', 'Gymnopédie n° 1 (Satie)', 'Par défaut · jouée au piano dans la demeure')}
+    ${opt('off', 'Aucune', 'La musique en cours continue')}
+    ${MUS_MINE.length ? `<div class="label mt-3 mb-1">Mes musiques</div>${MUS_MINE.map((t, i) => opt(musRef('mine', i), t[0], t[1])).join('')}` : `<p class="text-[11px] muted mt-2">Pour entendre un morceau précis (une bande originale que vous possédez, par exemple), ajoutez son fichier dans « Mes musiques » ci-dessous, puis choisissez-le ici.</p>`}
+    ${MUSIC_STYLES.map(S => `<div class="label mt-3 mb-1">${esc(S.name)}</div>${S.tracks.map((t, i) => opt(musRef(S.id, i), t[0], t[1])).join('')}`).join('')}
+  </div>`;
+}
 function musIntroPicker() {
   const opt = (ref, t, sub) => `<button type="button" class="mus-pickrow ${MUS.introSel === ref ? 'on' : ''}" data-a="mus-intro-choose" data-ref="${esc(ref)}"><span class="mus-rt"><span class="truncate text-[13px]">${esc(t)}</span>${sub ? `<span class="truncate text-[11px] muted">${esc(sub)}</span>` : ''}</span>${MUS.introSel === ref ? icon('check', 'w-4 h-4') : ''}</button>`;
   return `<div class="mus-picker">
@@ -17955,6 +18061,15 @@ function musRenderSheet(msg) {
         <button type="button" class="btn sm" data-a="mus-intro-toggle">${musRT.pickIntro ? 'Fermer' : 'Changer'}</button>
       </div>
       ${musRT.pickIntro ? musIntroPicker() : ''}
+    </div>
+
+    <div class="mus-box mt-3">
+      <div class="label">${icon('castle', 'w-3.5 h-3.5')} Musique des demeures</div>
+      <div class="mus-head mt-1">
+        <div class="min-w-0"><div class="text-sm truncate">${esc(musHomeLabel())}</div><div class="text-[11px] muted">Jouée en boucle chaque fois que vous entrez dans une de vos demeures, dans le monde ouvert.</div></div>
+        <button type="button" class="btn sm" data-a="mus-home-toggle">${musRT.pickHome ? 'Fermer' : 'Changer'}</button>
+      </div>
+      ${musRT.pickHome ? musHomePicker() : ''}
     </div>
 
     <div class="mus-box mt-3">
@@ -18016,6 +18131,8 @@ Object.assign(handlers, {
   'mus-shuffle': () => { MUS.shuffle = !MUS.shuffle; musSave(); musRenderSheet(); },
   'mus-repeat': el => { MUS.repeat = el.dataset.r; musSave(); if (musRT.audio) musRT.audio.loop = MUS.repeat === 'one' && !musRT.intro; musRenderSheet(); },
   'mus-intro-toggle': () => { musRT.pickIntro = !musRT.pickIntro; musRenderSheet(); },
+  'mus-home-toggle': () => { musRT.pickHome = !musRT.pickHome; musRenderSheet(); },
+  'mus-home-choose': el => { MUS.homeSel = el.dataset.ref; musSave(); musRT.pickHome = false; musRefresh('Musique des demeures : ' + musHomeLabel() + '.'); },
   'mus-intro-choose': el => {
     MUS.introSel = el.dataset.ref; MUS.intro = MUS.introSel !== 'style'; MUS.on = true; musSave();
     musRT.pickIntro = false;
@@ -18749,7 +18866,7 @@ const TENUES = {
   ten_roi: { cut: 'coat', c: ["#0e0b16", "#050308", "#c9a8ff"], glow: true }
 };
 const ART_ACC = { acc_lunettes: 'lunettes', acc_bandeau: 'bandeau', acc_couteau: 'couteau', acc_echarpe: 'echarpe', acc_medaille: 'medaille', acc_petrin: 'gant', acc_corbeau: 'masque', acc_avion: 'avion', acc_montre: 'montre', acc_gant: 'gant', acc_partition: 'partition', acc_lanterne: 'lanterne', acc_verre: 'boucle', acc_plume: 'plume', acc_monocle: 'monocle', acc_couronne: 'couronne', acc_croc: 'croc', acc_clefantome: 'cle', acc_mesures: 'broche', acc_toujours: 'couronne', acc_kitsune: 'masque', acc_jade: 'broche', acc_lunettes_or: 'lunettes', acc_agrafe: 'broche', acc_phenix: 'plume', acc_gant_runes: 'gant', acc_cle_abysses: 'cle', acc_epines: 'couronne', acc_oeil: 'monocle', acc_croc_dragon: 'croc', acc_lanterne_ames: 'lanterne', acc_echarpe_vent: 'echarpe', acc_medaille_heros: 'medaille', acc_boucle_sang: 'boucle', acc_couronne_aube: 'couronne', acc_aureole: 'broche', acc_plume_aion: 'plume', acc_partition_eternelle: 'partition', acc_montre_temps: 'montre', acc_masque_roi: 'masque', acc_cle_monde: 'cle' };
-const ART_AURA = { aur_wb6: ['#e8c48a', 'dust'], aur_wb7: ['#ffd56a', 'spark'], aur_wb8: ['#e8f6ff', 'snow'], aur_wb9: ['#d9a85a', 'wave'], aur_wb10: ['#7ad06a', 'leaf'], aur_wb16: ['#fff1b8', 'ray'], aur_lampe: ['#ffd27a', 'spark'], aur_soupe: ['#d9e2e6', 'steam'], aur_farine: ['#f3ecd9', 'dust'], aur_braise: ['#ff7a3c', 'flame'], aur_bruine: ['#7fb8d8', 'drop'], aur_bougie: ['#ffc861', 'flame'], aur_givre: ['#bfeaff', 'snow'], aur_ether: ['#38bdf8', 'bolt'], aur_pluie: ['#8fa9bd', 'drop'], aur_ombre: ['#8b5cf6', 'smoke'], aur_corbeaux: ['#3a3340', 'bird'], aur_chene: ['#7fae4e', 'leaf'], aur_sang: ['#d32f4a', 'drop'], aur_boreale: ['#5dffb5', 'wave'], aur_notes: ['#ffd479', 'note'], aur_abysses: ['#1f6f8f', 'wave'], aur_flammes: ['#5b4a6b', 'flame'], aur_tempete: ['#7ad7ff', 'bolt'], aur_aube: ['#ffe9b0', 'ray'], aur_toujours: ['#9ffcff', 'ray'], aur_sakura: ['#ffb7d0', 'leaf'], aur_lucioles: ['#e8ff7a', 'spark'], aur_neige: ['#eaf6ff', 'snow'], aur_eclairs: ['#4fb8ff', 'bolt'], aur_encre: ['#4a4a5a', 'smoke'], aur_runes: ['#c8b6ff', 'note'], aur_sable: ['#e0b870', 'dust'], aur_phenix: ['#ff7a2a', 'flame'], aur_dragon: ['#ff4d2a', 'flame'], aur_galaxie: ['#8a7bff', 'spark'], aur_ombres_mon: ['#5a3a90', 'smoke'], aur_maree: ['#2a9dd8', 'wave'], aur_lune_sang: ['#c2183a', 'drop'], aur_chaines: ['#b9bcc6', 'bolt'], aur_soleil: ['#ffd56a', 'ray'], aur_celeste: ['#fff1b8', 'ray'], aur_etoiles: ['#fff6d8', 'spark'], aur_aurore: ['#7fffd0', 'wave'], aur_seraph: ['#ffffff', 'leaf'], aur_regne: ['#6a3cff', 'smoke'], aur_ether_aion: ['#7fe0ff', 'bolt'] };
+const ART_AURA = { aur_contre: ['#9a7cd8', 'dust'], aur_wb6: ['#e8c48a', 'dust'], aur_wb7: ['#ffd56a', 'spark'], aur_wb8: ['#e8f6ff', 'snow'], aur_wb9: ['#d9a85a', 'wave'], aur_wb10: ['#7ad06a', 'leaf'], aur_wb16: ['#fff1b8', 'ray'], aur_lampe: ['#ffd27a', 'spark'], aur_soupe: ['#d9e2e6', 'steam'], aur_farine: ['#f3ecd9', 'dust'], aur_braise: ['#ff7a3c', 'flame'], aur_bruine: ['#7fb8d8', 'drop'], aur_bougie: ['#ffc861', 'flame'], aur_givre: ['#bfeaff', 'snow'], aur_ether: ['#38bdf8', 'bolt'], aur_pluie: ['#8fa9bd', 'drop'], aur_ombre: ['#8b5cf6', 'smoke'], aur_corbeaux: ['#3a3340', 'bird'], aur_chene: ['#7fae4e', 'leaf'], aur_sang: ['#d32f4a', 'drop'], aur_boreale: ['#5dffb5', 'wave'], aur_notes: ['#ffd479', 'note'], aur_abysses: ['#1f6f8f', 'wave'], aur_flammes: ['#5b4a6b', 'flame'], aur_tempete: ['#7ad7ff', 'bolt'], aur_aube: ['#ffe9b0', 'ray'], aur_toujours: ['#9ffcff', 'ray'], aur_sakura: ['#ffb7d0', 'leaf'], aur_lucioles: ['#e8ff7a', 'spark'], aur_neige: ['#eaf6ff', 'snow'], aur_eclairs: ['#4fb8ff', 'bolt'], aur_encre: ['#4a4a5a', 'smoke'], aur_runes: ['#c8b6ff', 'note'], aur_sable: ['#e0b870', 'dust'], aur_phenix: ['#ff7a2a', 'flame'], aur_dragon: ['#ff4d2a', 'flame'], aur_galaxie: ['#8a7bff', 'spark'], aur_ombres_mon: ['#5a3a90', 'smoke'], aur_maree: ['#2a9dd8', 'wave'], aur_lune_sang: ['#c2183a', 'drop'], aur_chaines: ['#b9bcc6', 'bolt'], aur_soleil: ['#ffd56a', 'ray'], aur_celeste: ['#fff1b8', 'ray'], aur_etoiles: ['#fff6d8', 'spark'], aur_aurore: ['#7fffd0', 'wave'], aur_seraph: ['#ffffff', 'leaf'], aur_regne: ['#6a3cff', 'smoke'], aur_ether_aion: ['#7fe0ff', 'bolt'] };
 /* Skins d'armes : effet + [lame, lueur, effet 1, effet 2] — utilisés aussi par le moteur 3D */
 const SKIN_FX = {
   skn_toujours: { fx: 'prism', c: ['#f8feff', '#9ffcff', '#ffffff', '#ffd56a'] },
@@ -18990,7 +19107,8 @@ const ART_INSTR = {
   i3: c => `<path d="M32 60V54" stroke="#c9cdd6" stroke-width="1.4"/><rect x="30.3" y="2" width="3.4" height="24" fill="#1d130b"/><path d="M30 3q2-5 4 0" fill="none" stroke="#3a2414" stroke-width="2.6"/><path d="M32 20Q20 20 21 30Q26 34 22 39Q15 54 32 56Q49 54 42 39Q38 34 43 30Q44 20 32 20Z" fill="#6f2c15" stroke="#0008" stroke-width=".6"/><path d="M25.5 39q-2 5 0 10M38.5 39q2 5 0 10" fill="none" stroke="#1d0c05" stroke-width="1.1"/><rect x="28" y="41" width="8" height="1.8" fill="#e3c08a"/><path d="M31 4V52M33 4V52" stroke="#eee" stroke-width=".45"/><path d="M32 50l-2.4 5h4.8z" fill="#1d130b"/><path d="M24 26q3-4 8-4" stroke="#fff" stroke-width="1.6" opacity=".2" fill="none"/>`,
   i4: c => `<rect x="8" y="12" width="48" height="38" rx="2" fill="#2a1a10" stroke="#000" stroke-width=".6"/><rect x="11" y="15" width="42" height="15" rx="1" fill="#3b2617"/><rect x="26" y="18" width="12" height="9" fill="#efe6cc"/><path d="M28 21h8M28 24h6" stroke="#333" stroke-width=".6"/><rect x="6" y="32" width="52" height="9" rx="1" fill="#1c110a"/><rect x="8" y="33.5" width="48" height="6" fill="#f5f1e6"/>${Array.from({ length: 15 }, (_, i) => `<path d="M${11.2 + i * 3.2} 33.5v6" stroke="#999" stroke-width=".35"/>`).join('')}${[0, 1, 3, 4, 5, 7, 8, 10, 11, 12].map(i => `<rect x="${10.3 + i * 3.2}" y="33.5" width="1.8" height="3.6" fill="#0c0c10"/>`).join('')}<rect x="10" y="50" width="4" height="8" fill="#1c110a"/><rect x="50" y="50" width="4" height="8" fill="#1c110a"/><circle cx="16" cy="22" r="2" fill="#ffd27a" opacity=".8"/>`,
   i5: c => `<rect x="8" y="44" width="48" height="14" rx="1.5" fill="#2a1a10" stroke="#000" stroke-width=".5"/><rect x="14" y="47" width="36" height="3.4" fill="#f5f1e6"/><rect x="14" y="52" width="36" height="3" fill="#d9d2c0"/>${[10, 12, 14, 12, 10, 12, 14, 12, 10].map((h, i) => { const x = 9 + i * 5.2, top = 44 - 14 - h * 1.9 + Math.abs(4 - i) * 5; return `<rect x="${x}" y="${top}" width="4" height="${44 - top}" rx="1.2" fill="url(#ah${i % 2 ? 4 : 0})" stroke="#0008" stroke-width=".4"/><path d="M${x + .8} ${44 - 9}h2.4l-1.2 3z" fill="#0b0b10"/>`; }).join('')}<circle cx="32" cy="10" r="5" fill="${c}" opacity=".45" filter="url(#aglow)"/>`,
-  i6: c => `<circle cx="32" cy="30" r="24" fill="#fff3c4" opacity=".25" filter="url(#aglow)"/>` + ART_WEAPON.harpe(6, c)
+  i6: c => `<circle cx="32" cy="30" r="24" fill="#fff3c4" opacity=".25" filter="url(#aglow)"/>` + ART_WEAPON.harpe(6, c),
+  i7: c => `<rect x="12" y="22" width="40" height="28" rx="3" fill="#6a1424" stroke="#000" stroke-width=".6"/><rect x="12" y="20" width="40" height="4" fill="#e8c468"/><rect x="16" y="27" width="32" height="14" rx="2" fill="#3b0a14"/>${[19, 25, 31, 37, 43].map(x => `<rect x="${x}" y="29" width="3" height="10" fill="#e8c468"/>`).join('')}<path d="M52 34h6v-6" fill="none" stroke="#c9cdd6" stroke-width="2"/><circle cx="58" cy="27" r="2" fill="#c9cdd6"/><circle cx="20" cy="53" r="5" fill="#3a2414" stroke="#000" stroke-width=".5"/><circle cx="44" cy="53" r="5" fill="#3a2414" stroke="#000" stroke-width=".5"/>`
 };
 /* ---------- Demeures ---------- */
 const _win = (x, y, w, h, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c || '#ffd27a'}"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c || '#ffd27a'}" opacity=".6" filter="url(#aglow)"/>`;
@@ -19145,8 +19263,10 @@ const HERO_MOVES = { neutre: ['Course', 'Course normale, rapide'], ninja: ['Ninj
 const HERO = { view: null, cv: null, loading: null, failed: false, last: '', draft: null, zoom: 'body', armed: false };
 
 /* Titre porté + nom, au-dessus du personnage (fiche et monde ouvert) */
-function plateData() { const t = heroVis().titre ? cosmOf('titre') : null; return { name: (state.profile && state.profile.name) || '', title: t ? t.name : '', color: t ? t.color : '' }; }
-function heroPlate() { const P = plateData(); if (!P.title && !P.name) return ''; return `<div class="hero-plate">${P.title ? `<div class="hp-t" style="color:${P.color};text-shadow:0 0 10px ${P.color}">« ${esc(P.title)} »</div>` : ''}${P.name ? `<div class="hp-n">${esc(P.name)}</div>` : ''}</div>`; }
+function plateData() { const t = heroVis().titre ? cosmOf('titre') : null; return { name: (state.profile && state.profile.name) || '', title: t ? t.name : '', color: t ? t.color : '', r: t ? t.r : 0 }; }
+/* titre stylé selon sa rareté (même dessin que dans le monde ouvert : w3d/src/titles.js) */
+function titleHTML(name, r) { r = Math.max(0, Math.min(7, r | 0)); return `<span class="ttl ttl-r${r}"><i class="l"></i><b>« ${esc(name)} »</b><i class="r"></i></span>`; }
+function heroPlate() { const P = plateData(); if (!P.title && !P.name) return ''; return `<div class="hero-plate">${P.title ? `<div class="hp-t">${titleHTML(P.title, P.r)}</div>` : ''}${P.name ? `<div class="hp-n">${esc(P.name)}</div>` : ''}</div>`; }
 /* Ce qu'on affiche sur le personnage (les bonus restent actifs même masqués) */
 const HERO_VIS = { tenue: 'Tenue', casque: 'Casque', plastron: 'Plastron', jambieres: 'Jambières', bouclier: 'Bouclier', armes: 'Armes', skin: 'Skin d’arme', ailes: 'Ailes', aura: 'Aura', titre: 'Titre' };
 function heroVis() {
@@ -19306,8 +19426,45 @@ Object.assign(handlers, {
 if (typeof document !== 'undefined' && document.head) document.head.insertAdjacentHTML('beforeend', `<style>
 .hero-slot{position:relative;height:min(52vh,420px);margin-top:10px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#1d1d30 0%,#0c0c14 62%,#07070b 100%);overflow:hidden}
 .hero-cv{width:100%;height:100%;display:block;cursor:grab;touch-action:pan-y}
-.hero-plate{position:relative;z-index:2;text-align:center;pointer-events:none;line-height:1.25;padding:2px 0 6px}
-.hero-plate .hp-t{font:700 13px 'Oxanium','Barlow',sans-serif;letter-spacing:.04em}
+.hero-plate{position:relative;z-index:2;text-align:center;pointer-events:none;line-height:1.25;padding:4px 0 8px}
+.ttl{display:inline-flex;align-items:center;justify-content:center;gap:.4em;position:relative;isolation:isolate;font:700 13px/1.25 'Oxanium','Barlow',sans-serif;letter-spacing:.05em;white-space:nowrap;padding:2px 8px;vertical-align:middle}
+.ttl b{font-weight:700}
+.ttl i{font-style:normal;display:none;flex:none}
+.ttl-r0 b{color:#c3c7d0;text-shadow:0 1px 2px #000}
+.ttl-r1 b{color:#4ade80;text-shadow:0 0 6px rgba(74,222,128,.6),0 1px 2px #000}
+.ttl-r1::after{content:'';position:absolute;left:10%;right:10%;bottom:0;height:1px;background:linear-gradient(90deg,transparent,#4ade80,transparent)}
+.ttl-r2 b{color:#5cc8ff;text-shadow:0 0 8px rgba(56,189,248,.85),0 1px 2px #000}
+.ttl-r2 i{display:inline-block;width:.42em;height:.42em;background:#38bdf8;transform:rotate(45deg);box-shadow:0 0 6px #38bdf8}
+.ttl-r3 b,.ttl-r4 b,.ttl-r5 b,.ttl-r6 b,.ttl-r7 b{-webkit-background-clip:text;background-clip:text;color:transparent}
+.ttl-r3 b{background-image:linear-gradient(90deg,#9a5cff,#f3e8ff 50%,#9a5cff);background-size:200% 100%;filter:drop-shadow(0 0 5px rgba(176,124,255,.9));animation:ttlSweep 2.8s ease-in-out infinite alternate}
+.ttl-r3 i{display:inline-block;width:1em;height:.6em;background:linear-gradient(90deg,transparent,#c9a2ff);clip-path:polygon(0 15%,100% 0,78% 50%,100% 100%,0 85%,40% 50%);filter:drop-shadow(0 0 3px #b07cff)}
+.ttl-r3 i.r{transform:scaleX(-1)}
+.ttl-r4 b{background-image:linear-gradient(0deg,#ff3c00,#ffb020 45%,#fff6c8);filter:drop-shadow(0 0 4px #ff7a1a) drop-shadow(0 -2px 7px rgba(255,90,0,.65));animation:ttlFlick 1.7s ease-in-out infinite}
+.ttl-r4 i,.ttl-r5 i{display:inline-block;width:.62em;height:1.05em;border-radius:50% 50% 45% 45%/65% 65% 35% 35%;background:radial-gradient(ellipse at 50% 78%,#fff6c0 0,#ffb020 28%,#ff4a00 58%,transparent 70%);transform-origin:50% 100%;animation:ttlFlame .85s ease-in-out infinite alternate}
+.ttl-r4 i.r,.ttl-r5 i.r{animation-delay:-.42s}
+.ttl-r5 b{background-image:linear-gradient(0deg,#4a0016,#ff2a4a 45%,#ffd0da);filter:drop-shadow(0 0 5px #ff2a4a) drop-shadow(0 -3px 8px rgba(150,0,70,.75));animation:ttlFlick 1.2s ease-in-out infinite}
+.ttl-r5 i{background:radial-gradient(ellipse at 50% 78%,#ffe0ea 0,#ff2a4a 30%,#7a0aa8 60%,transparent 72%);width:.7em;height:1.2em}
+.ttl-r5::before{content:'';position:absolute;inset:-4px -8px;z-index:-1;background:radial-gradient(ellipse,rgba(255,42,74,.38),transparent 70%);animation:ttlPulse 1.8s ease-in-out infinite}
+.ttl-r6 b{background-image:linear-gradient(100deg,#c9a44a 15%,#fff8dc 40%,#ffffff 50%,#fff8dc 60%,#c9a44a 85%);background-size:250% 100%;filter:drop-shadow(0 0 6px rgba(255,241,184,.95));animation:ttlSweep 2.6s ease-in-out infinite alternate}
+.ttl-r6 i,.ttl-r7 i{display:inline-block;font-size:.95em;line-height:1}
+.ttl-r6 i::before{content:'✧';color:#fff1b8;text-shadow:0 0 8px #ffd56a}
+.ttl-r6 i{animation:ttlSpin 7s linear infinite}
+.ttl-r6::before{content:'';position:absolute;left:50%;top:50%;width:150%;height:260%;transform:translate(-50%,-50%);z-index:-1;background:radial-gradient(ellipse,rgba(255,236,170,.5),transparent 62%);animation:ttlPulse 3s ease-in-out infinite}
+.ttl-r7 b{background-image:linear-gradient(90deg,#9ffcff,#ffffff,#ffd56a,#ffb3f2,#9ffcff);background-size:300% 100%;filter:drop-shadow(0 0 6px #9ffcff) drop-shadow(0 0 14px rgba(159,252,255,.6));animation:ttlSweep 3.4s ease-in-out infinite alternate}
+.ttl-r7 i::before{content:'✦';color:#fff;text-shadow:0 0 6px #9ffcff,0 0 12px #9ffcff}
+.ttl-r7 i{animation:ttlTw 1.6s ease-in-out infinite}
+.ttl-r7 i.r{animation-delay:-.8s}
+.ttl-r7::before{content:'';position:absolute;left:50%;top:50%;width:120%;height:420%;transform:translate(-50%,-50%);z-index:-1;background:repeating-conic-gradient(rgba(159,252,255,.32) 0 5deg,transparent 5deg 16deg);-webkit-mask:radial-gradient(closest-side,#000 25%,transparent);mask:radial-gradient(closest-side,#000 25%,transparent);animation:ttlRot 16s linear infinite}
+@keyframes ttlSweep{from{background-position:0% 0}to{background-position:100% 0}}
+@keyframes ttlFlick{0%,100%{transform:none}35%{transform:translateY(-.6px)}70%{transform:translateY(.3px)}}
+@keyframes ttlFlame{from{transform:scale(.82,.78) skewX(-5deg)}to{transform:scale(1.06,1.16) skewX(6deg)}}
+@keyframes ttlPulse{50%{opacity:.45}}
+@keyframes ttlSpin{to{transform:rotate(360deg)}}
+@keyframes ttlTw{50%{opacity:.35;transform:scale(.65)}}
+@keyframes ttlRot{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.ttl *,.ttl::before{animation:none!important}}
+
+.hero-plate .hp-t{margin-bottom:3px}
 .hero-plate .hp-n{font:600 12px 'Barlow',sans-serif;color:#fff;text-shadow:0 1px 3px #000}
 .hero-load{position:absolute;inset:0;display:grid;place-items:center;font-size:12px;color:var(--muted);font-family:var(--font-mono);letter-spacing:.1em}
 .hero-tiles{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -19370,7 +19527,7 @@ function worldData(mode) {
     skills: classSkills().map(s => Object.assign({}, s, { locked: lvl < s.lvl })),
     mounts: SHOP.filter(i => i.cat === 'mount' && state.owned[i.id]).map(i => ({ id: i.id, name: i.name, r: i.r, speed: MOUNT_SPEED[i.r] * (i.spdK || 1) })), boots: bootSpeed(invItem((state.gear || {}).bottes)), wb: wbState(), power: combatPower().power, mount: state.equip.mount,
     houses: SHOP.filter(i => i.cat === 'house' && state.owned[i.id]).map(i => ({ id: i.id, name: i.name, r: i.r, cap: HOUSE_CAP[i.r] })),
-    instruments: SHOP.filter(i => i.cat === 'instrument' && state.owned[i.id]).map(i => i.id), npcs, explore: exWorldData()
+    instruments: SHOP.filter(i => i.cat === 'instrument' && state.owned[i.id]).map(i => i.id), npcs, explore: exWorldData(), compass: !!(state.merchant && state.merchant.compass)
   };
 }
 /* Récompense d'une vague d'arène : croît nettement avec la difficulté ; les vagues de champion paient triple,
@@ -19413,6 +19570,11 @@ function worldStart(mode) {
       wavePreview: n => arenaPreview(n),
       onPref: p => { state.world.prefs = p; save(); },
       onCollect: id => exCollect(id),
+      merchant: () => mxView(),
+      onMerchant: id => { const r = mxBuy(id); return r; },
+      onTreasure: (hid, r) => estateTreasure(hid, r),
+      onHome: on => { if (typeof musHomeEnter !== 'function') return 'synth'; return on ? musHomeEnter() : (musHomeLeave(), null); },
+      onInstr: on => { if (typeof musPause !== 'function') return; if (on) musPause(); else if (musRT.homeOn) musResume(); },
       onBoss: (i, lvl, name, o) => wbKill(i, lvl, name, o),
       onStyle: o => { state.profile.look = Object.assign(heroLook(), o); HERO.last = ''; save(); },
       onRift: pos => { done(pos); state.tab = 'realm'; state.realmTab = 'exp'; save(); render(); window.scrollTo({ top: 0 }); }
@@ -19809,6 +19971,12 @@ const GUIDE = [
     'Habitants : une centaine de personnes vivent à Vespérane (rues, parc, hameaux) ; des enfants jouent au ballon ou au chat. Approche-toi et appuie sur E : chacun parle de son métier, de sa vie et de ce qu’il pense de l’existence.',
     'Exploration : 130 archives à trouver (30 affiches sur les murs, 30 lettres, 30 livres, 20 photos, 20 vins rares), 40 clés et 60 coffres (10 de chaque : à 1, 5, 10, 20, 30 et 40 clés). Les clés ne s’usent pas : un coffre s’ouvre dès que tu en possèdes assez. Les coffres à 40 clés contiennent un objet De toute éternité, une rune Éternelle et 2 millions de kinahs. Un ✦ après le nom d’une maison signale qu’il y reste quelque chose. Tout ce que tu ramasses se relit dans Codex → Exploration.',
     'Carte : bouton « Carte » (touche K), ou touche la mini-carte. Trois vues : le monde entier, la ville, ou les environs. On y voit les régions, les quartiers, tes demeures, l’arène, les lieux à visiter, les bouches d’égout, les manèges et les quinze Éternels (gris et cochés une fois vaincus).',
+    'Demeures : leur taille suit la rareté. Commun : une maison d’habitant avec étage et cave. Raffiné : deux fois plus de pièces. Rare : le monastère en ruine, où la nature reprend ses droits, avec son jardin de fleurs de lune. Épique et au-delà : salons, bibliothèques, salle de bal, cabinet secret (tirer le livre rouge de la bibliothèque) et salle du trésor fermée par un mot de passe (l’indice est sur un bureau de la bibliothèque). Le trésor se remplit une fois par jour. La maison aux nombreuses demeures flotte au-dessus des nuages : on y monte en volant ou par téléportation.',
+    'Téléportation : Menu → les boutons marqués ✦ mènent directement à l’intérieur de chacune de vos demeures. Depuis la cave de chaque demeure, une grille descend dans les galeries souterraines, et une échelle des galeries remonte dans chacune de vos demeures.',
+    'Instruments : dans la salle de musique de vos demeures, approchez-vous d’un instrument que vous possédez et choisissez un morceau (quatre par instrument, œuvres du domaine public), joué en solo avec le son enregistré de l’instrument (échantillons Musyng Kite, licence CC BY-SA 3.0). La première fois, l’instrument met quelques secondes à se charger. La musique d’accueil des demeures se règle dans la Salle de musique (♪) : morceau intégré, aucune, ou l’un de vos fichiers.',
+    'Le marchand louche : quelque part dans les galeries souterraines, derrière un rideau rouge. Quatre objets par jour, introuvables ailleurs : runes De toute éternité contre des kinahs, une armure De toute éternité par semaine, l’orgue de Barbarie, une aura, un titre, une boussole qui montre les trésors sur la carte, un passe-partout.',
+    'Arène : une fois le défi lancé, l’arène est verrouillée : ni l’esquive ni le combat automatique ne peuvent vous en faire sortir. Pour partir : Menu → « Abandonner le défi de l’arène », ou une téléportation.',
+    'Commandes : sur PC, Menu → Touches du clavier pour changer chaque touche. Sur mobile, Menu → Disposition et taille des boutons : glissez un bouton pour le déplacer, réglez sa taille ou celle de tous les boutons.',
     'Allures : trois façons de se déplacer, Marche, Course et Sprint. Sur téléphone, le bouton d’allure passe de l’une à l’autre ; sur PC, Maj (maintenue) fait sprinter et Ctrl bascule entre marche et course. L’allure compte aussi à cheval (marche lente, course, sprint +20 %) et en vol. Montures : plus elles sont rares, plus elles vont vite (× la course : Commun 1,8, Peu commun 2,2, Rare 2,8, Épique 3,6, Légendaire 5, Mythique 7,5, Éternel 12, De toute éternité 20). Bottes (emplacement « Bottes ») : vitesse à pied de +4 % (Commun) à +210 % (De toute éternité), en vol de +10 % à +500 %, +10 % de ces valeurs par amélioration.',
     'Les Éternels : quinze gardiens dispersés dans les régions, de la puissance de la vague 200 (le Veilleur de Brune-Lande) à celle de la vague 10 000 (le Roi des Ruines), et l’Éternel du Sommet, tout en haut des Monts du Silence, puissance 100 000. Ils résistent aux dégâts en % des PV et à l’exécution, ne se laissent pas enchaîner par les contrôles, ne s’esquivent pas en combat automatique, lancent des ondes au sol (sors du cercle), appellent des ombres aux deux tiers et au tiers de leur vie, et entrent en fureur sous 35 %. En combat automatique, ton personnage esquive absolument tout (même l’Éternel du Sommet) et cible l’Éternel en priorité, mais la victoire ne compte pas « sans filet ». Vaincu sans jamais activer le combat automatique pendant l’affrontement, chaque Éternel donne en plus une archive inédite (Codex → Exploration → Éternels), un trophée, une rune et de la gloire supplémentaires, et une récompense unique : un titre (I à V), une aura (VI à X), des ailes (XI à XV), la monture Cerf aux mille bois (V), et pour l’Éternel du Sommet un titre, une aura, des ailes et la monture Le Silence du Sommet. Les seize sans filet : titre « Les Seize sans filet ». Si tu t’enfuis trop loin, ils se soignent. Première victoire : kinahs, gloire, objets Mythiques à De toute éternité et runes ; ensuite 10 % une fois par jour. Ils reviennent 5 minutes après leur chute.',
     'Puissance de combat (Statut, classement du Codex, barre de l’ennemi) : une seule échelle pour tout l’univers, la vague d’arène la plus haute que l’on tient. Elle ne mesure que ce qui décide d’un combat : les dégâts par seconde (attaques par seconde, part des PV de la cible retirée à chaque attaque, exécution), les coups critiques, la vitesse d’attaque et la résistance (PV, ténacité, esquive). La carte du Statut affiche aussi le DPS : les dégâts bruts par seconde (Attaque × critique moyen × attaques par seconde) et la part des PV d’une cible retirée chaque seconde. Aux vagues hautes, les PV ennemis sont si grands que seule cette part compte : la Force n’y change presque plus rien, l’Agilité plafonne vite (critique 50 %, esquive 30 %), et l’Endurance fait la ténacité (armure × (0,9 + 1,5 × Endurance / (Endurance + 20 × niveau + 200))). Pour monter sa puissance : optimiseur → « Puissance de combat ».',
