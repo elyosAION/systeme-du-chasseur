@@ -164,6 +164,7 @@
   .glow-umbra { color: #b79cff; text-shadow: 0 0 12px rgba(139, 92, 246, .7); }
   .red { color: var(--blood); }
 
+  .pw-grid > div { min-width: 0; overflow-wrap: anywhere; }
   .bar { height: 8px; background: #1b1b22; border: 1px solid #2a2a35; position: relative; overflow: hidden; }
   .bar > i { position: absolute; inset: 0 auto 0 0; display: block; width: 0;
     background: linear-gradient(90deg, var(--umbra), var(--neon));
@@ -11812,6 +11813,7 @@ const XP_UP = 1.25;         // hausse des récompenses de séance et de nutritio
 const XP_UP_FROM = '2026-11-16'; // les jours antérieurs gardent l'ancien barème (300 XP)
 const xpUp = k => k >= XP_UP_FROM ? XP_UP : 1;
 const FULL_XP = Math.round((WORKOUT_PART + WORKOUT_BONUS) * XP_UP);
+const fullXP = () => Math.round(FULL_XP * arenaScale(dk())); /* récompense d'une séance (ou d'une nutrition) complète aujourd'hui */
 const STAT_PART = 6;        // points de stat répartis (exercices ou objectifs)
 const STAT_BONUS = 2;       // bonus de complétion → 8 de chaque côté
 const PENALTY_XP = 150;
@@ -12278,7 +12280,7 @@ function syncToday() {
   } catch (e) {}
 }
 function save() {
-  _memo = null;
+  _memo = null; _arRef = null;
   syncToday();
   _memo = null;
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
@@ -12354,6 +12356,15 @@ function nutriResult(k) {
   const metCount = MACRO_KEYS.filter(x => met[x]).length;
   return { tg, eat, met, metCount, done: metCount === 4, logged: list.length > 0 };
 }
+/* XP indexée sur l'arène : la séance et la nutrition complètes rapportent chacune au moins
+   la meilleure journée d'arène atteinte jusque-là (record, il ne redescend pas les jours sans arène) */
+let _arRef = null;
+function arenaRef(k) {
+  if (!_arRef) { const by = {}; for (const b of state.bonus || []) if (b.arena && b.x) by[b.date] = (by[b.date] || 0) + b.x;
+    let m = 0; _arRef = Object.keys(by).sort().map(d => [d, m = Math.max(m, by[d])]); }
+  let r = 0; for (const [d, v] of _arRef) { if (d > k) break; r = v; } return r;
+}
+function arenaScale(k) { const full = Math.round((WORKOUT_PART + WORKOUT_BONUS) * xpUp(k)); return Math.max(1, arenaRef(k) / full); }
 function dayResult(k) {
   const d = state.days[k] || {};
   const plan = planOf(k);
@@ -12363,16 +12374,18 @@ function dayResult(k) {
   const workoutDone = !!plan.sid && n > 0 && exDone === n;
   const nu = nutriResult(k);
   const gains = { str: 0, agi: 0, end: 0, int: 0 };
-  let xp = 0;
+  let xp = 0, xpBase = 0; const ak = arenaScale(k);
   if (plan.sid && n > 0) {
-    xp += Math.round((WORKOUT_PART * exDone / n + (workoutDone ? WORKOUT_BONUS : 0)) * xpUp(k));
+    const w = (WORKOUT_PART * exDone / n + (workoutDone ? WORKOUT_BONUS : 0)) * xpUp(k);
+    xpBase += Math.round(w); xp += Math.round(w * ak);
     const st = ['str', 'agi', 'end'].includes(plan.stat) ? plan.stat : 'str';
     gains[st] += Math.round(STAT_PART * exDone / n) + (workoutDone ? STAT_BONUS : 0);
   }
-  xp += Math.round((NUTRI_PART * nu.metCount / 4 + (nu.done ? NUTRI_BONUS : 0)) * xpUp(k));
-  xp = Math.round(xp * ((state.days[k] && state.days[k].xm) || 1));
+  { const nx = (NUTRI_PART * nu.metCount / 4 + (nu.done ? NUTRI_BONUS : 0)) * xpUp(k); xpBase += Math.round(nx); xp += Math.round(nx * ak); }
+  const xmul = (state.days[k] && state.days[k].xm) || 1;
+  xp = Math.round(xp * xmul); xpBase = Math.round(xpBase * xmul);
   gains.int += Math.round(STAT_PART * nu.metCount / 4) + (nu.done ? STAT_BONUS : 0);
-  return { plan, n, exDone, workoutDone, nu, nutritionDone: nu.done, required: plan.required, xp, gains,
+  return { plan, n, exDone, workoutDone, nu, nutritionDone: nu.done, required: plan.required, xp, xpBase, arenaK: ak, gains,
            success: (!plan.required || workoutDone) && nu.done };
 }
 /* Totaux mémorisés (invalidés à chaque sauvegarde) : XP, statistiques, kinahs, jours réussis */
@@ -12392,7 +12405,7 @@ function totals() {
     /* Kinahs du jour : autant que l'XP, +100 si la quête est accomplie, primes eau et sommeil,
        puis tous les bonus en % (Maison, équipement, puces, Odile) s'appliquent sur le total, primes comprises */
     const dd = state.days[k];
-    let dk_ = r.xp + (r.success ? 100 : 0) + (waterOk(dd) ? WATER_K : 0) + (sleepOk(dd) ? SLEEP_K : 0);
+    let dk_ = r.xpBase + (r.success ? 100 : 0) /* kinahs : barème de base, l'indexation sur l'arène ne touche que l'XP */ + (waterOk(dd) ? WATER_K : 0) + (sleepOk(dd) ? SLEEP_K : 0);
     if (r.workoutDone) sessions++;
     if (r.nutritionDone) nutrition++;
     keys += (r.success ? 3 : 0) + (r.workoutDone ? 1 : 0) + (r.nutritionDone ? 1 : 0);
@@ -12450,11 +12463,14 @@ function availablePoints(level) { const spent = Object.values(state.alloc).reduc
 /* Pause : jours exclus des pénalités et de la série */
 function isPaused(k) { return (state.pauses || []).some(p => k >= p.from && (!p.to || k <= p.to)); }
 function pauseActive() { return isPaused(dk()); }
+/* Mode souple (au choix) : les jours sans séance exigée (le week-end, ou tous), les récompenses restent à gagner
+   si les macros sont tenues, mais un jour manqué ne coûte rien et ne casse pas la série */
+function isSoft(k) { const m = state.soft || 'off'; if (m === 'off') return false; const p = planOf(k); if (p.required && p.sid) return false; const dow = fromKey(k).getDay(); return m === 'rest' || (m === 'weekend' && (dow === 0 || dow === 6)); }
 function streak() {
   if (!state.profile) return 0;
   const today = dk();
   let n = dayResult(today).success ? 1 : 0;
-  for (let k = addDays(today, -1); k >= state.profile.created; k = addDays(k, -1)) { if (isPaused(k)) continue; if (!dayResult(k).success) break; n++; }
+  for (let k = addDays(today, -1); k >= state.profile.created; k = addDays(k, -1)) { if (isPaused(k)) continue; const ok = dayResult(k).success; if (!ok && isSoft(k)) continue; if (!ok) break; n++; }
   return n;
 }
 function evaluateQuests() {
@@ -12466,7 +12482,7 @@ function evaluateQuests() {
   if (start < state.profile.created) start = state.profile.created;
   const fails = [];
   for (let k = start; k < today; k = addDays(k, 1)) {
-    if (state.penalties.some(p => p.date === k) || isPaused(k)) continue;
+    if (state.penalties.some(p => p.date === k) || isPaused(k) || isSoft(k)) continue;
     const r = dayResult(k);
     const reasons = [];
     if (r.required && !r.workoutDone) reasons.push(`Séance ${r.plan.name || ''} incomplète (${r.exDone}/${r.n} exercices)`);
@@ -12776,7 +12792,7 @@ function viewStatus() {
 function viewQuest() {
   if (pauseActive()) { const p = state.pauses.find(x => isPaused(dk()) && dk() >= x.from && (!x.to || dk() <= x.to)); return `<div class="sys umbra"><div class="sys-title u mb-2">${icon('pause', 'w-4 h-4')}Jeu en pause</div><p class="f-display text-sm">Le Système vous accorde du repos${p && p.to ? ` jusqu’au ${esc(fromKey(p.to).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))}` : ''}. Aucune pénalité, votre série est préservée.</p><p class="text-xs muted mt-1">Ce que vous faites quand même (séances, repas, eau, sommeil) rapporte toujours XP et kinahs.</p><button type="button" class="btn sm mt-3" data-a="tab" data-tab="settings">Gérer la pause</button></div>`; }
   const r = dayResult(dk());
-  const reward = (r.plan.sid && r.n ? FULL_XP : 0) + FULL_XP;
+  const reward = (r.plan.sid && r.n ? fullXP() : 0) + fullXP();
   const line = (done, label, value, tab) => `
     <button type="button" data-a="tab" data-tab="${tab}" class="w-full flex items-center gap-3 py-2.5 text-left border-b border-[#24242c] last:border-0">
       <span class="check ${done ? 'on' : ''}">${done ? icon('check', 'w-3.5 h-3.5') : ''}</span>
@@ -12799,7 +12815,7 @@ function viewQuest() {
     <div class="mt-3 flex items-center justify-between gap-2 text-xs flex-wrap">
       <span class="muted">Récompense : <b class="glow f-mono">${xpK(reward)} XP</b>${xpK(reward) > reward ? ` <span class="text-[11px]">(dont bonus +${xpK(reward) - reward})</span>` : ''}</span>
       ${r.success ? `<span class="glow f-display tracking-widest uppercase">Accomplie</span>`
-                  : `<span class="f-display tracking-wide red">${icon('triangle-alert', 'w-3.5 h-3.5 inline -mt-0.5')} Échec : −${PR_PEN_PTS} prestige</span>`}
+                  : isSoft(dk()) ? `<span class="f-display tracking-wide" style="color:#9ffcff">${icon('feather', 'w-3.5 h-3.5 inline -mt-0.5')} Jour souple : aucune pénalité</span>` : `<span class="f-display tracking-wide red">${icon('triangle-alert', 'w-3.5 h-3.5 inline -mt-0.5')} Échec : −${PR_PEN_PTS} prestige</span>`}
     </div>
   </div>`;
 }
@@ -12840,6 +12856,7 @@ function viewTraining() {
         <div class="sys-title u mb-3">Repos</div>
         <p class="f-display">${DAY_NAMES[fromKey(today).getDay()]} : rien à soulever. Tes muscles récupèrent.</p>
         <p class="text-sm muted mt-2">La quête du jour ne demande que tes objectifs nutritionnels. Une séance lancée ci-dessus rapporte l’XP normale sans être exigée.</p>
+        ${isSoft(today) ? `<p class="text-sm mt-2" style="color:#9ffcff">${icon('feather', 'w-3.5 h-3.5 inline -mt-0.5')} Jour souple : mange plus librement. Macros tenues = récompenses gagnées ; sinon, rien de gagné mais aucune pénalité.</p>` : ''}
       </div>`;
   } else {
     const S = prog.sessions[plan.sid];
@@ -12861,8 +12878,8 @@ function viewTraining() {
       </div>
       ${S.ex.length ? S.ex.map((e, i) => viewExercise(e, i, d, today)).join('') : `<div class="card text-sm muted">Cette séance n’a aucun exercice. Ajoute-les dans Réglages → Programme.</div>`}
       ${r.workoutDone
-        ? `<div class="sys pop"><div class="sys-title mb-2"><span class="bang">!</span>Donjon nettoyé</div><p class="f-display">Séance complète. +${xpK(FULL_XP)} XP et ${STATS[S.stat] ? STATS[S.stat].name : 'Force'} +${STAT_PART + STAT_BONUS}. Le Système prend acte.</p></div>`
-        : (r.n ? `<p class="text-xs muted px-1">Un exercice est validé dès que son nombre minimum de vraies séries est coché. La séance complète rapporte ${xpK(FULL_XP)} XP, autant que des macros atteintes.</p>` : '')}`;
+        ? `<div class="sys pop"><div class="sys-title mb-2"><span class="bang">!</span>Donjon nettoyé</div><p class="f-display">Séance complète. +${xpK(fullXP())} XP et ${STATS[S.stat] ? STATS[S.stat].name : 'Force'} +${STAT_PART + STAT_BONUS}. Le Système prend acte.</p></div>`
+        : (r.n ? `<p class="text-xs muted px-1">Un exercice est validé dès que son nombre minimum de vraies séries est coché. La séance complète rapporte ${xpK(fullXP())} XP, autant que des macros atteintes.${arenaScale(dk()) > 1 ? ` Indexée sur votre record d’arène (${Math.round(arenaRef(dk())).toLocaleString('fr-FR')} XP en une journée) : l’effort réel rapporte toujours au moins autant que le jeu.` : ''}</p>` : '')}`;
   }
   return `
   <section class="flex flex-col gap-4">
@@ -12877,8 +12894,41 @@ function viewTraining() {
       ${scheduled && prog.sessions[scheduled] && plan.sid !== scheduled ? `<p class="text-xs muted mt-2">Prévu par le programme : ${esc(prog.sessions[scheduled].name)}.</p>` : ''}
     </div>
     ${body}
+    ${viewLoadTracker()}
     ${viewRules()}
   </section>`;
+}
+/* ---------- Suivi des charges par exercice ---------- */
+function loadHistory() {
+  const names = {}, sess = {}, prog = state.program;
+  for (const id of prog.order) { const S = prog.sessions[id]; if (S) for (const e of S.ex) { names[e.id] = e.name; sess[e.id] = S.name; } }
+  const H = {};
+  for (const k of Object.keys(state.days).sort()) { const d = state.days[k]; if (!d || !d.w) continue;
+    if (d.plan && d.plan.ex) for (const e of d.plan.ex) if (!names[e.id] && e.name) names[e.id] = e.name;
+    for (const id in d.w) { const kg = parseFloat(String(d.w[id]).replace(',', '.')); if (!(kg > 0)) continue; (H[id] = H[id] || []).push({ k, kg, sets: effCount(d.ex && d.ex[id]) }); } }
+  return { H, names, sess };
+}
+function sparkSVG(v, w = 92, h = 26) {
+  if (v.length < 2) return '';
+  const mn = Math.min(...v), mx = Math.max(...v), rg = mx - mn || 1, pts = v.map((x, i) => `${(i / (v.length - 1) * (w - 4) + 2).toFixed(1)},${(h - 3 - (x - mn) / rg * (h - 6)).toFixed(1)}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="#00f0ff" stroke-width="1.6" stroke-linejoin="round"/><circle cx="${pts.split(' ').pop().split(',')[0]}" cy="${pts.split(' ').pop().split(',')[1]}" r="2.2" fill="#00f0ff"/></svg>`;
+}
+function viewLoadTracker() {
+  const { H, names, sess } = loadHistory(), ids = Object.keys(H).sort((a, b) => (sess[a] || '~').localeCompare(sess[b] || '~') || (names[a] || a).localeCompare(names[b] || b));
+  const fd = k => fromKey(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), f1 = x => (Math.round(x * 10) / 10).toLocaleString('fr-FR');
+  let lastS = null;
+  const rows = ids.map(id => { const L = H[id], first = L[0], last = L[L.length - 1], best = Math.max(...L.map(x => x.kg)), dk_ = last.kg - first.kg, pc = first.kg ? dk_ / first.kg * 100 : 0;
+    const head = sess[id] !== lastS ? `<div class="label mt-3 mb-1">${esc(sess[id] || 'Anciens exercices')}</div>` : ''; lastS = sess[id];
+    return head + `<details class="card" style="padding:8px 10px"><summary class="flex items-center gap-2" style="list-style:none;cursor:pointer">
+      <span class="flex-1 min-w-0"><span class="block text-sm f-display truncate">${esc(names[id] || id)}</span><span class="block text-[11px] muted f-mono">${f1(last.kg)} kg · record ${f1(best)} kg${L.length > 1 ? ` · <span style="color:${dk_ > 0 ? '#4ade80' : dk_ < 0 ? '#ff4d6d' : '#a9adb8'}">${dk_ > 0 ? '+' : ''}${f1(dk_)} kg (${dk_ > 0 ? '+' : ''}${Math.round(pc)} %)</span>` : ''}</span></span>
+      ${sparkSVG(L.slice(-12).map(x => x.kg))}</summary>
+      <table class="w-full text-[11px] f-mono mt-2"><thead><tr class="muted"><th class="text-left font-normal">Date</th><th class="text-right font-normal">Charge</th><th class="text-right font-normal">Séries</th><th class="text-right font-normal">Écart</th></tr></thead><tbody>
+      ${L.slice(-10).reverse().map((x, i, a) => { const prev = a[i + 1], dd = prev ? x.kg - prev.kg : 0; return `<tr><td>${fd(x.k)}</td><td class="text-right">${f1(x.kg)} kg${x.kg === best ? ' ★' : ''}</td><td class="text-right">${x.sets || '—'}</td><td class="text-right" style="color:${dd > 0 ? '#4ade80' : dd < 0 ? '#ff4d6d' : '#7c8190'}">${prev ? (dd > 0 ? '+' : '') + f1(dd) : ''}</td></tr>`; }).join('')}
+      </tbody></table>${L.length > 10 ? `<div class="text-[10px] muted mt-1">${L.length} séances enregistrées, les 10 dernières affichées.</div>` : ''}</details>`; }).join('');
+  return `<details class="sys" data-det="loads">
+    <summary class="flex items-center justify-between gap-2"><span class="sys-title">${icon('trending-up', 'w-4 h-4')}Suivi des charges</span><span class="chev muted">${icon('chevron-down')}</span></summary>
+    <div class="mt-3">${ids.length ? `<p class="text-[11px] muted mb-1">Charge notée à chaque séance, par exercice. ★ : record. Touchez un exercice pour son historique.</p>${rows}` : '<p class="text-sm muted">Aucune charge enregistrée pour l’instant : notez le poids utilisé dans la case « Charge (kg) » de chaque exercice.</p>'}</div>
+  </details>`;
 }
 function viewExercise(e, i, d, today) {
   const st = (d.ex && d.ex[e.id]) || { w: [], s: [] };
@@ -13121,7 +13171,7 @@ function viewNutrition() {
         <div class="min-w-0">
           <div class="label">Phase : ${esc(ph)}</div>
           <h2 class="f-display text-2xl font-bold glow-umbra">Ravitaillement</h2>
-          <div class="text-sm muted">4 objectifs atteints = ${xpK(FULL_XP)} XP, autant qu’une séance complète.</div>
+          <div class="text-sm muted">4 objectifs atteints = ${xpK(fullXP())} XP, autant qu’une séance complète.</div>
         </div>
         <div class="text-right shrink-0">
           <div class="f-mono text-2xl font-bold">${nu.metCount}<span class="muted text-base">/4</span></div>
@@ -13170,9 +13220,49 @@ function viewNutrition() {
         </div>`;
       }).join('') : `<p class="text-sm muted">Rien d’enregistré aujourd’hui. Ajoute un aliment, un repas type ou une saisie libre.</p>`}
     </div>
+    ${viewFoodWeek()}
   </section>`;
 }
 
+/* ---------- Semaine alimentaire : ce qu'on a mangé, reprise des aliments, bilan des macros ---------- */
+function weekMonday(off = 0) { const t = dk(), dow = fromKey(t).getDay(); return addDays(t, -((dow + 6) % 7) + 7 * off); }
+function foodWeek(off = 0) {
+  const mon = weekMonday(off), days = [];
+  for (let i = 0; i < 7; i++) { const k = addDays(mon, i), d = state.days[k] || {}, list = d.food || [], nu = nutriResult(k), tg = (k < dk() && d.tg) ? d.tg : snapTargets();
+    const eat = { kcal: 0, p: 0, c: 0, f: 0 }; for (const e of list) { const m = entryMacros(e); for (const x in eat) eat[x] += m[x]; }
+    days.push({ k, list, eat, nu, tg, logged: list.length > 0 }); }
+  const full = days.every(d => d.logged), sum = { kcal: 0, p: 0, c: 0, f: 0 }, lo = { kcal: 0, p: 0, c: 0, f: 0 }, hi = { kcal: 0, p: 0, c: 0, f: 0 }, tgt = { kcal: 0, p: 0, c: 0, f: 0 };
+  for (const d of days) for (const x of MACRO_KEYS) { sum[x] += d.eat[x]; const b = bounds(d.tg, x); tgt[x] += b.t; lo[x] += b.lo === null ? 0 : b.lo; hi[x] += b.hi; }
+  return { mon, days, full, sum, lo, hi, tgt, n: days.filter(d => d.logged).length };
+}
+function viewFoodWeek() {
+  const off = ui.fwOff || 0, W = foodWeek(off), today = dk(), r0_ = x => Math.round(x).toLocaleString('fr-FR');
+  const lab = { kcal: 'kcal', p: 'Prot.', c: 'Glu.', f: 'Lip.' }, unit = x => x === 'kcal' ? '' : ' g';
+  const rows = W.days.map(D => { const fut = D.k > today, name = fromKey(D.k).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+    const col = !D.logged ? '#5c606c' : D.nu.done ? '#4ade80' : D.nu.metCount >= 2 ? '#f59e0b' : '#ff4d6d';
+    return `<details class="card" style="padding:7px 10px;${D.k === today ? 'border-color:rgba(0,240,255,.45)' : ''}"><summary class="flex items-center gap-2" style="list-style:none;cursor:pointer">
+      <span class="w-14 shrink-0 f-display text-sm capitalize">${esc(name)}</span>
+      <span class="flex-1 min-w-0 text-[11px] f-mono muted truncate">${D.logged ? `${r0_(D.eat.kcal)} kcal · P ${r0_(D.eat.p)} · G ${r0_(D.eat.c)} · L ${r0_(D.eat.f)}` : fut ? 'à venir' : 'rien noté'}</span>
+      <span class="f-mono text-xs shrink-0" style="color:${col}">${D.logged ? D.nu.metCount + '/4' : '—'}</span></summary>
+      ${D.logged ? `<div class="mt-2 flex flex-col gap-1">${D.list.map(e => { const m = entryMacros(e); return `<div class="flex items-center gap-2 text-xs"><span class="flex-1 min-w-0 truncate">${esc(e.name)}${e.per ? ` · ${esc(e.g)} g` : ''}<span class="block text-[10px] muted f-mono">${macroLine(m)}</span></span>${D.k !== today ? `<button type="button" class="btn sm ghost" data-a="fw-copy" data-k="${D.k}" data-e="${e.id}" aria-label="Reprendre ${esc(e.name)} aujourd’hui">${icon('plus', 'w-3 h-3')}Reprendre</button>` : ''}</div>`; }).join('')}
+        ${D.k !== today ? `<button type="button" class="btn sm mt-1" data-a="fw-copy-day" data-k="${D.k}">${icon('copy', 'w-3.5 h-3.5')}Reprendre toute cette journée aujourd’hui</button>` : ''}</div>` : ''}
+    </details>`; }).join('');
+  /* aliments de la semaine, sans doublons, pour les remettre en un geste */
+  const seen = new Map(); for (let i = 1; i <= 7; i++) { const k = addDays(today, -i), d = state.days[k]; for (const e of (d && d.food) || []) { const key = norm(e.name) + '|' + (e.per ? e.g : JSON.stringify(e.m || {})); if (!seen.has(key)) seen.set(key, { k, e, n: 0 }); seen.get(key).n++; } }
+  const fav = [...seen.values()].sort((a, b) => b.n - a.n).slice(0, 14);
+  const bil = W.full ? MACRO_KEYS.map(x => { const v = W.sum[x], ok = v >= W.lo[x] && v <= W.hi[x], pc = W.tgt[x] ? Math.round(v / W.tgt[x] * 100) : 0;
+      return `<div class="border border-[#26262f] p-2"><div class="text-[10px] label">${lab[x]}</div><div class="f-mono text-sm" style="color:${ok ? '#4ade80' : '#ff4d6d'}">${r0_(v)}${unit(x)}</div><div class="text-[10px] muted f-mono">objectif ${r0_(W.tgt[x])}${unit(x)} · ${pc} %</div><div class="text-[10px]" style="color:${ok ? '#4ade80' : '#ff4d6d'}">${ok ? 'dans la zone' : v < W.lo[x] ? 'en dessous' : 'au-dessus'}</div></div>`; }).join('')
+    : '';
+  return `<div class="sys">
+    <div class="flex items-center justify-between gap-2 mb-2"><div class="sys-title">${icon('calendar-days', 'w-4 h-4')}Semaine alimentaire</div>
+      <div class="flex items-center gap-1"><button type="button" class="ibtn" data-a="fw-off" data-d="-1" aria-label="Semaine précédente">${icon('chevron-left', 'w-4 h-4')}</button><span class="text-[11px] muted f-mono">${off ? esc(fromKey(W.mon).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })) : 'cette semaine'}</span><button type="button" class="ibtn" data-a="fw-off" data-d="1" ${off >= 0 ? 'disabled' : ''} aria-label="Semaine suivante">${icon('chevron-right', 'w-4 h-4')}</button></div></div>
+    <div class="flex flex-col gap-1.5">${rows}</div>
+    <div class="label mt-4 mb-1">Bilan de la semaine</div>
+    ${W.full ? `<div class="grid grid-cols-4 gap-1.5 text-center">${bil}</div><p class="text-[10px] muted mt-1">Totaux des 7 jours comparés à 7 fois l’objectif du jour (zones de tolérance comprises).</p>`
+      : `<p class="text-xs muted">Le bilan des macros s’affiche quand les 7 jours de la semaine sont renseignés (${W.n}/7 pour l’instant) : sur une semaine incomplète, il ne voudrait rien dire.</p>`}
+    ${fav.length && !off ? `<div class="label mt-4 mb-1">Aliments des 7 derniers jours</div><div class="flex flex-wrap gap-1.5">${fav.map(F => `<button type="button" class="chip" data-a="fw-copy" data-k="${F.k}" data-e="${F.e.id}" title="Ajouter à aujourd’hui">${icon('plus', 'w-3 h-3')}${esc(F.e.name)}${F.e.per ? ` · ${esc(F.e.g)} g` : ''}${F.n > 1 ? ` <span class="muted">×${F.n}</span>` : ''}</button>`).join('')}</div>` : ''}
+  </div>`;
+}
 /* ---------- Journal ---------- */
 function viewLog() {
   const today = dk(), created = state.profile.created, start = addDays(today, -27);
@@ -13229,6 +13319,7 @@ function viewSettings() {
     ${viewNutritionSettings(N, macroKcal, diff)}
     ${viewProgramEditor()}
     ${viewPauseSettings()}
+    ${viewSoftSettings()}
     ${viewInstall()}
     ${viewChatSettings()}
     ${viewProfileSettings()}
@@ -13626,6 +13717,9 @@ const handlers = {
     if (ui.selFood === el.dataset.f && !getFood(el.dataset.f)) ui.selFood = null;
     ui.editFoodId = null; ui.foodMode = 'search'; save(); render();
   },
+  'fw-off': el => { ui.fwOff = Math.min(0, (ui.fwOff || 0) + Number(el.dataset.d)); render(); },
+  'fw-copy': el => { const d0 = state.days[el.dataset.k], e = d0 && (d0.food || []).find(x => x.id === el.dataset.e); if (!e) return; act(() => { dayEntry(dk()).food.push({ ...JSON.parse(JSON.stringify(e)), id: gid('e') }); }); toast(`${icon('plus', 'w-4 h-4')}<span>${esc(e.name)} ajouté à aujourd’hui</span>`); },
+  'fw-copy-day': el => { const d0 = state.days[el.dataset.k], L = (d0 && d0.food) || []; if (!L.length) return; act(() => { const t = dayEntry(dk()); for (const e of L) t.food.push({ ...JSON.parse(JSON.stringify(e)), id: gid('e') }); }); toast(`${icon('copy', 'w-4 h-4')}<span>${L.length} aliment${L.length > 1 ? 's' : ''} repris</span>`); },
   'del-entry': el => { act(() => { const d = dayEntry(dk()); d.food = d.food.filter(e => e.id !== el.dataset.e); }); },
 
   /* Réglages nutrition */
@@ -14433,7 +14527,7 @@ function boosts() {
   b.ctx = ctx;
   return b;
 }
-function keysLeft() { const t = totals(); return t.keysEarned + boosts().keys * t.success.length - (state.keysSpent || 0); }
+function keysLeft() { const t = totals(); return t.keysEarned + boosts().keys * t.success.length + (state.prKeys || 0) - (state.keysSpent || 0); }
 
 /* ---------- Apparence (Statut) ---------- */
 function cosmOf(cat) { const id = state.cosmEq[cat]; return id && cosmOwned(id) ? COSMETICS.find(c => c.id === id) : null; }
@@ -15148,9 +15242,9 @@ function viewPowerCard(c) {
   /* DPS : dégâts bruts (Attaque × critique moyen × attaques/s), plus la part en % des PV qui domine aux vagues hautes */
   const dpsRaw = Math.round(o.atk * (1 + o.crit * (o.cdm - 1)) * o.aps), pctSec = 1 - Math.pow(1 - fpct, o.aps), Nk = cpHits(cp.power, o), kps = isFinite(Nk) ? String(Math.round(o.aps / Nk * (o.rico ? 2.5 : 1) * 10) / 10).replace('.', ',') : '';
   const WBL = typeof WB_MANUAL !== 'undefined' ? WB_MANUAL.map((R, i) => ({ ...R, i })) : [], below = WBL.filter(R => R.lvl <= cp.power).length, next = WBL.find(R => R.lvl > cp.power);
-  return `<div class="card mt-3" style="border-color:rgba(0,240,255,.45)"><div class="flex items-center justify-between gap-2"><div><div class="label">Puissance de combat</div><div class="f-mono text-3xl glow">${cp.power.toLocaleString('fr-FR')}</div></div><div class="text-right text-[11px] muted">même échelle que les vagues d’arène<br>et les Éternels (puissance 200 à 100 000)</div></div>
-    <div class="grid grid-cols-2 gap-2 mt-2 text-[12px]">
-      <div><div class="label">Dégâts par seconde</div><b class="f-mono glow" style="font-size:15px">${dpsRaw.toLocaleString('fr-FR')}</b> dégâts/s<br>+ ${pc(pctSec)} % des PV de la cible par seconde (${pc(fpct)} % par attaque)${o.exec ? ` · exécution sous ${pc(o.exec)} %` : ''}${o.rico ? ' · ricochet' : ''}${kps ? `<br>à votre puissance : ${kps} ennemi${kps === '1' ? '' : 's'} abattu${kps === '1' ? '' : 's'} par seconde` : ''}</div>
+  return `<div class="card mt-3" style="border-color:rgba(0,240,255,.45)"><div class="flex items-center justify-between gap-2"><div><div class="label">Puissance de combat</div><div class="f-mono text-3xl glow" style="overflow-wrap:anywhere">${cp.power.toLocaleString('fr-FR')}</div></div><div class="text-right text-[11px] muted">même échelle que les vagues d’arène<br>et les Éternels (puissance 200 à 100 000)</div></div>
+    <div class="grid grid-cols-2 gap-2 mt-2 text-[12px] pw-grid">
+      <div><div class="label">Dégâts par seconde</div><b class="f-mono glow" style="font-size:15px" title="${dpsRaw.toLocaleString('fr-FR')} dégâts/s">${dpsRaw >= 1e7 ? fmtShort(dpsRaw) : dpsRaw.toLocaleString('fr-FR')}</b> dégâts/s<br>+ ${pc(pctSec)} % des PV de la cible par seconde (${pc(fpct)} % par attaque)${o.exec ? ` · exécution sous ${pc(o.exec)} %` : ''}${o.rico ? ' · ricochet' : ''}${kps ? `<br>à votre puissance : ${kps} ennemi${kps === '1' ? '' : 's'} abattu${kps === '1' ? '' : 's'} par seconde` : ''}</div>
       <div><div class="label">Coups critiques</div>${pc(o.crit)} % de chance · dégâts ×${String(o.cdm).replace('.', ',')}${o.fr ? ` · Fracture +${o.fr} %` : ''}</div>
       <div><div class="label">Vitesse d’attaque</div>${String(o.aps).replace('.', ',')} parts de dégâts par seconde (classe et ceinture : l’arme ne change pas ce chiffre)</div>
       <div><div class="label">Résistance</div>ténacité ×${String(o.tough).replace('.', ',')} · ${c.hp.toLocaleString('fr-FR')} PV · esquive ${pc(o.dodge)} %</div>
@@ -15975,6 +16069,20 @@ function viewPauseSettings() {
   </details>`;
 }
 
+/* ---------- Mode souple ---------- */
+function viewSoftSettings() {
+  const m = state.soft || 'off', O = [['off', 'Désactivé', 'Chaque jour compte comme d’habitude.'], ['weekend', 'Week-end sans séance', 'Samedi et dimanche, quand aucune séance n’est exigée.'], ['rest', 'Tous les jours sans séance', 'Chaque jour de repos du programme.']];
+  return `
+  <details class="sys" data-det="soft" ${m !== 'off' ? 'open' : ''}>
+    <summary class="flex items-center justify-between gap-2"><span class="sys-title">${icon('feather', 'w-4 h-4')}Mode souple${m !== 'off' ? ' · actif' : ''}</span><span class="chev muted">${icon('chevron-down')}</span></summary>
+    <div class="mt-4 flex flex-col gap-3 text-sm">
+      <p class="muted">Une alternative à la pause, facultative. Les jours concernés, vous mangez plus librement : si vous notez vos repas et tenez vos macros, vous gagnez les récompenses habituelles (XP, kinahs, prestige, série). Sinon, vous ne gagnez rien, mais vous ne perdez rien non plus : pas de pénalité, et la série n’est pas cassée.</p>
+      <div class="flex flex-col gap-2">${O.map(([id, t, d]) => `<button type="button" class="res ${m === id ? 'on' : ''}" data-a="soft-set" data-m="${id}" aria-pressed="${m === id}" style="${m === id ? 'border-color:rgba(0,240,255,.6)' : ''}"><span class="flex-1 min-w-0 text-left"><span class="block f-display text-sm">${t}</span><span class="block text-[11px] muted">${d}</span></span>${m === id ? icon('check', 'w-4 h-4') : ''}</button>`).join('')}</div>
+      <p class="text-[11px] muted">Un jour où le programme exige une séance n’est jamais souple.</p>
+    </div>
+  </details>`;
+}
+
 /* ---------- Bibliothèque d'exercices : 7 par groupe musculaire ---------- */
 function LX(name, sets, reps, rest, note, stat) { return { name, sets, reps, rest, note }; }
 const EXERCISE_LIBRARY = {
@@ -16067,6 +16175,7 @@ Object.assign(handlers, {
     if (!f || (t && t < f)) { toast(`${icon('info', 'w-4 h-4')}<span>Dates invalides.</span>`, 'redt'); return; }
     handlers['pause-add']({ dataset: { from: f, to: t || '' } });
   },
+  'soft-set': el => { state.soft = el.dataset.m; save(); render(); },
   'pause-stop': () => {
     const today = dk();
     state.pauses = (state.pauses || []).map(p => (today >= p.from && (!p.to || today <= p.to)) ? { from: p.from, to: addDays(today, -1) } : p).filter(p => !p.to || p.to >= p.from);
@@ -16085,7 +16194,7 @@ Object.assign(handlers, {
 
 /* ============================================================
    Optimisation automatique : points de statistiques, équipement et puces selon un objectif.
-   - dps    : dégâts maximum
+   - dps    : dégâts maximum, tels qu'en combat réel : la recharge (bijou) multiplie la fréquence des techniques et des ultimes
    - combat : le meilleur compromis PV / dégâts (produit dégâts × résistance)
    - poly   : polyvalent (dégâts × résistance × gains d'XP et de kinahs)
    - prog   : montée en puissance la plus rapide (dégâts × gains, sans résistance : combat automatique)
@@ -16093,7 +16202,7 @@ Object.assign(handlers, {
    le plan « idéal » ajoute les objets Éternels de la boutique, proposés à l'achat.
    ============================================================ */
 const OPT_GOALS = {
-  dps:    { name: 'Dégâts maximum',     icon: 'swords',  desc: 'Le plus d’ennemis abattus par seconde à votre niveau, sans penser à la résistance.' },
+  dps:    { name: 'Dégâts maximum',     icon: 'swords',  desc: 'Le DPS réel en combat : attaques, techniques et ultimes, recharge du bijou et vitesse de la ceinture comprises.' },
   combat: { name: 'Puissance de combat', icon: 'scale',  desc: 'La plus haute puissance de combat : dégâts par seconde et résistance ensemble.' },
   poly:   { name: 'Polyvalent',         icon: 'compass', desc: 'Dégâts, résistance, XP et kinahs à parts égales.' },
   prog:   { name: 'Progression rapide', icon: 'rocket',  desc: 'XP, kinahs et dégâts, sans résistance (pour le combat automatique).' }
@@ -16138,7 +16247,11 @@ function optMetrics(B, x, chips) {
   const I = B.int0 + B.ck * (x.int || 0);
   const atk = (10 + F * 1.1) * B.yan;
   const crit = Math.min(STAT_CAPS.crit, 0.05 + B.W.crit + A * 0.0018 + (b.crit || 0) / 100), cdm = B.W.cdm + A * 0.004;
-  const dps = atk * (1 + crit * (cdm - 1)) * B.power * (1 + 0.5 * B.spd) * (1 + 0.5 * B.cdr) * (1 + B.hpPct / 50);
+  /* rotation du combat réel (combat.js du monde ouvert) : chaque technique de dégâts vaut 0,622 × recharge / nb de techniques
+     secondes d'attaques de base, l'ultime 7 s sur une recharge de 30 s, et la valeur par seconde est divisée par (1 − recharge réduite),
+     plafonnée à 90 % comme en combat. Somme pour toutes les classes : 0,622 + 7/30 = 0,855 seconde d'attaques de base par seconde. */
+  const rot = 1 + 0.855 / (1 - Math.min(0.9, B.cdr || 0));
+  const dps = atk * (1 + crit * (cdm - 1)) * B.power * (1 + 0.5 * B.spd) * rot * (1 + B.hpPct / 50);
   const hp = 120 + E * 10, def = E * 1.0, dodge = Math.min(STAT_CAPS.dodge, A * 0.0012), share = E / (E + 20 * B.L + 200);
   /* la ténacité (part de l'Endurance) compte double : aux vagues hautes, c'est elle qui fixe le nombre de coups encaissés */
   const tank = hp * (1 + def / 100) / (1 - dodge) * Math.pow(0.9 + 1.5 * share, 2) * (1 + (b.regen || 0) / 100) * (1 + (b.soin || 0) / 100);
@@ -16147,12 +16260,12 @@ function optMetrics(B, x, chips) {
   /* puissance de combat (même calcul que le Statut) et ennemis abattus par seconde à votre niveau */
   const pro = { atk, aps: B.aps, crit, cdm, hpp: B.hpPct / 100, fr: B.fr, exec: B.exec, tough: toughness(F, A, E, B.L, true), dodge, rico: B.rico };
   const power = cpWaveR(pro), N = cpHits(B.nRef, pro), kps = isFinite(N) ? B.aps / (4 * N) * (B.rico ? 2.5 : 1) : 1e-9 * dps;
-  return { dps, tank, gain, power, kps, hp: Math.round(hp), xp: Math.round(xp), kin: Math.round(kin), crit };
+  return { dps, tank, gain, power, kps, kpsR: kps * rot, rot, hp: Math.round(hp), xp: Math.round(xp), kin: Math.round(kin), crit };
 }
 function optScore(goal, m) {
   /* les critères hors objectif comptent très peu : ils départagent seulement les emplacements de puces restés libres */
   /* dégâts = ennemis abattus par seconde à votre niveau ; combat = puissance de combat ; les dégâts bruts départagent (vagues basses) */
-  const l = Math.log, e = 0.002, K = l(m.kps) + e * l(m.dps), P = l(m.power) + e * l(m.dps), T = l(m.tank), G = l(m.gain);
+  const l = Math.log, e = 0.002, K = l(m.kpsR || m.kps) + e * l(m.dps), P = l(m.power) + e * l(m.dps), T = l(m.tank), G = l(m.gain);
   return goal === 'dps' ? K + 0.1 * P + e * G : goal === 'combat' ? P + e * (K + G) : goal === 'poly' ? P + K + G : K + G + e * P;
 }
 /* Répartition des n points : ajout pas à pas de la statistique la plus rentable, puis transferts entre statistiques */
@@ -16341,6 +16454,8 @@ function optSlotOk(s, it) {
   if (s === 'off') { const m = invItem(state.gear.main); return !!m && m.uid !== it.uid && (!!WEAPON_TYPES[it.type] || it.type === 'bouclier') && classOffs().includes(it.type) && canOff(it.type, m.type); }
   return it.type === s;
 }
+/* score d'un objectif pour ce qui est porté maintenant (points et puces actuels) */
+function optCurScore(goal) { const B = optBase(); return optScore(goal, optMetrics(B, state.alloc, state.chipEq || [])); }
 /* recherche locale sur la vraie puissance de combat : chaque emplacement essaie les meilleurs objets possédés et garde ce qui fait monter le chiffre */
 function optRefineGear(score) {
   const slots = ['main', 'off', ...OPT_ARMOR]; let best = score();
@@ -16355,7 +16470,7 @@ function optRefineGear(score) {
 /* Applique le plan « maintenant » : points, équipement, puces, cosmétiques, monture, puis runes.
    Garantie : avec l'objectif « Puissance de combat », la puissance ne baisse jamais (sinon on garde la meilleure des configurations essayées). */
 function optApply(goal) {
-  const before = playerCombat(), pBefore = combatPower().power;
+  const before = playerCombat(), pBefore = combatPower().power, dBefore = optMetrics(optBase(), state.alloc, state.chipEq || []).dps;
   const snap = { alloc: { ...state.alloc }, gear: { ...state.gear }, chipEq: (state.chipEq || []).slice() };
   optUseCfg();
   const now = optPlan(goal, false), ideal = optPlan(goal, true);
@@ -16371,6 +16486,13 @@ function optApply(goal) {
   /* 2. affinage pièce par pièce sur la vraie puissance, puis points et puces recalculés pour ces pièces */
   /* l'Égide (survie) et la Céleste (combat en vol) ne changent pas le chiffre de puissance : on leur donne un petit poids pour ne pas les jeter */
   const worth = () => { const R = runePerks(); return power() * (1 + 0.10 * Math.min(1, R.egide / 60) + 0.05 * (R.celeste > 0 ? 1 : 0)); };
+  /* dégâts, polyvalence, progression : chaque emplacement essaie toutes les pièces possédées (rareté, amélioration, runes, recharge, vitesse)
+     sur le score de l'objectif, puis points et puces sont recalculés pour la configuration retenue */
+  if (goal !== 'combat') { const sc = () => optCurScore(goal); optRefineGear(sc);
+    const g = {}; for (const s in state.gear) g[s] = invItem(state.gear[s]); const n = pointsEarned(powerLvl()), r2 = optEval(goal, g, false, n);
+    const keepA = { ...state.alloc }, keepC = state.chipEq.slice(), v1 = sc();
+    state.alloc = { str: r2.x.str, agi: r2.x.agi, end: r2.x.end, int: r2.x.int }; state.chipEq = r2.chips.slice(); _bm = null;
+    if (sc() < v1) { state.alloc = keepA; state.chipEq = keepC; _bm = null; } else optRefineGear(sc); }
   if (goal === 'combat') { optRefineGear(worth);
     const g = {}; for (const s in state.gear) g[s] = invItem(state.gear[s]); const n = pointsEarned(powerLvl()), r2 = optEval(goal, g, false, n);
     const keepA = { ...state.alloc }, keepC = state.chipEq.slice(), p1 = power();
@@ -16384,7 +16506,8 @@ function optApply(goal) {
   let socketed = 0; for (const x of R.sockets) { const it = invItem(x.uid); if (!it || !(state.runes[x.k] > 0) || (it.runes || []).length >= runeSlots(it)) continue; state.runes[x.k]--; it.runes = (it.runes || []).concat([x.k]); socketed++; }
   _bm = null; save();
   const after = playerCombat();
-  ui.optPlan = { goal, socketed, cosmN, kept, powBefore: pBefore, powAfter: combatPower().power, missing: optMissing(ideal), now: now.m, ideal: ideal.m, loadout: ideal.loadout, gainDps: dpsScore(after) / Math.max(1, dpsScore(before)), hp: [before.hp, after.hp] };
+  const mA = optMetrics(optBase(), state.alloc, state.chipEq || []);
+  ui.optPlan = { goal, socketed, cosmN, kept, powBefore: pBefore, powAfter: combatPower().power, dpsK: mA.dps / Math.max(1e-9, dBefore), cdr: playerCombat().cdr || 0, missing: optMissing(ideal), now: now.m, ideal: ideal.m, loadout: ideal.loadout, gainDps: dpsScore(after) / Math.max(1, dpsScore(before)), hp: [before.hp, after.hp] };
   return ui.optPlan;
 }
 function optItemLabel(m) {
@@ -16442,7 +16565,7 @@ function viewOptimizer() {
     <div style="${row};flex-wrap:wrap;gap:4px;margin-bottom:4px">${RARITIES.slice(0, OPT_SHOP_R + 1).map((R, r) => chip(cfg.r === r, 'opt-rar', `data-r="${r}"`, esc(R.name), `color:${R.color};font-size:10px`)).join('')}</div>
     <p class="text-[10px] muted" style="margin-bottom:8px">Rareté visée : armes et armures (améliorées à +4), puces, runes, cosmétiques et monture ne dépassent pas ${esc(RARITIES[cfg.r].name)}.${cfg.cur === 'glory' ? ' La gloire paie les runes et le skin d’arme De toute éternité.' : ''} Vous avez ${fmt(kinahs())} ₭ et ${fmt(optGlory())} gloire.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${Object.entries(OPT_GOALS).map(([id, g]) => `<button type="button" class="btn sm ${P && P.goal === id ? 'u' : ''}" style="display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;text-align:left;height:auto;padding:7px 8px;gap:3px" data-a="opt-goal" data-g="${id}"><span style="${row};gap:4px">${icon(g.icon, 'w-3.5 h-3.5')}${esc(g.name)}</span><span style="font-size:10px;opacity:.7;text-transform:none;letter-spacing:0;white-space:normal;line-height:1.25">${esc(g.desc)}</span></button>`).join('')}</div>
-    ${P ? `<div class="text-[11px]" style="margin-top:8px"><b class="glow-umbra">${esc(OPT_GOALS[P.goal].name)}</b> appliqué · puissance de combat ${fmt(P.powBefore)} → <b>${fmt(P.powAfter)}</b>${P.kept ? ' (votre configuration était déjà la meilleure : pièces et points gardés)' : ''}${P.socketed ? ` · ${P.socketed} rune${P.socketed > 1 ? 's' : ''} sertie${P.socketed > 1 ? 's' : ''}` : ''}${P.cosmN ? ` · ${P.cosmN} cosmétique${P.cosmN > 1 ? 's' : ''} ou monture changé${P.cosmN > 1 ? 's' : ''}` : ''} · dégâts ×${P.gainDps.toFixed(2)} · PV ${fmt(P.hp[0])} → ${fmt(P.hp[1])} · gains d’XP et de kinahs +${fmt(P.now.xp)} %</div>
+    ${P ? `<div class="text-[11px]" style="margin-top:8px"><b class="glow-umbra">${esc(OPT_GOALS[P.goal].name)}</b> appliqué · puissance de combat ${fmt(P.powBefore)} → <b>${fmt(P.powAfter)}</b>${P.dpsK ? ` · DPS réel en combat ×${P.dpsK.toFixed(2).replace('.', ',')} (recharge réduite ${Math.round(P.cdr * 100)} %)` : ''}${P.kept ? ' (votre configuration était déjà la meilleure : pièces et points gardés)' : ''}${P.socketed ? ` · ${P.socketed} rune${P.socketed > 1 ? 's' : ''} sertie${P.socketed > 1 ? 's' : ''}` : ''}${P.cosmN ? ` · ${P.cosmN} cosmétique${P.cosmN > 1 ? 's' : ''} ou monture changé${P.cosmN > 1 ? 's' : ''}` : ''} · dégâts ×${P.gainDps.toFixed(2)} · PV ${fmt(P.hp[0])} → ${fmt(P.hp[1])} · gains d’XP et de kinahs +${fmt(P.now.xp)} %</div>
       ${P.missing.length ? `<div class="text-[11px]" style="margin-top:8px"><div class="label" style="margin-bottom:4px">Objectif ${esc(RARITIES[P.r != null ? P.r : cfg.r].name)} (${P.loadout.filter(Boolean).map(t => (WEAPON_TYPES[t] || ARMOR_TYPES[t]).name.toLowerCase()).join(' + ')}) : dégâts ×${(P.ideal.dps / Math.max(1, P.now.dps)).toFixed(2)} par rapport à maintenant, PV ${fmt(P.ideal.hp)}</div>
         ${optBuyRows(P.missing, 'opt-buy')}
         ${ui.optConfirm ? `<div class="card" style="padding:8px;margin-top:8px;border-color:rgba(255,209,102,.6)"><div class="text-[11px]" style="margin-bottom:6px">Dépenser <b>${optPrice(tot)}</b> pour acheter ces ${P.missing.length} objets, les améliorer à +${UPGRADE_MAX}, sertir les runes et tout équiper ?</div><div style="${row}"><button type="button" class="btn sm u" data-a="opt-buy-ok">${icon('check', 'w-3 h-3')}Confirmer</button><button type="button" class="btn sm" data-a="opt-buy-no">Annuler</button></div></div>`
@@ -17482,12 +17605,14 @@ function fmtShort(n) {
   const a = Math.abs(n), s = n < 0 ? '−' : '';
   const f = (v, u) => s + (v >= 100 ? Math.round(v) : v >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100).toLocaleString('fr-FR') + ' ' + u;
   if (a < 10000) return s + Math.round(a).toLocaleString('fr-FR');
-  if (a < 1e6) return f(a / 1e3, 'k'); if (a < 1e9) return f(a / 1e6, 'M'); if (a < 1e12) return f(a / 1e9, 'Md'); return f(a / 1e12, 'T');
+  if (a < 1e6) return f(a / 1e3, 'k'); if (a < 1e9) return f(a / 1e6, 'M'); if (a < 1e12) return f(a / 1e9, 'Md'); if (a < 1e15) return f(a / 1e12, 'T'); if (!isFinite(a)) return s + '∞'; return s + (a / Math.pow(10, Math.floor(Math.log10(a)))).toFixed(2).replace('.', ',') + 'e' + Math.floor(Math.log10(a));
 }
 
 /* ---------- Boutique du prestige ---------- */
 const PR_SHOP = [
   { id: 'pr_seal', name: 'Sceau d’Ysolde', kind: 'seal', price: 250, r: 4, rep: true, desc: 'Se brise à la place de la prochaine pénalité : ni points ni XP de prestige perdus. Se cumule.' },
+  { id: 'pr_key1', name: 'Clé de coffre', kind: 'key', n: 1, price: 1000, r: 3, rep: true, desc: 'Une clé pour ouvrir un coffre du monde ouvert.' },
+  { id: 'pr_key5', name: 'Trousseau de cinq clés', kind: 'key', n: 5, price: 4500, r: 4, rep: true, desc: 'Cinq clés de coffre, un peu moins cher qu’à l’unité.' },
   { id: 'tit_pr1', name: 'Titre « Le Discipliné »', kind: 'cosm', price: 300, r: 4, desc: 'Le premier titre qu’on ne peut pas acheter avec des kinahs.' },
   { id: 'pr_letter1', name: 'Lettre de Rose, I', kind: 'lore', price: 150, r: 3, desc: 'Une lettre de la grand-mère, jamais envoyée. Inédite.' },
   { id: 'pr_letter2', name: 'Lettre de Rose, II', kind: 'lore', price: 300, r: 4, lvl: 5, desc: 'La deuxième lettre. Inédite.' },
@@ -17497,8 +17622,17 @@ const PR_SHOP = [
   { id: 'ail_pr', name: 'Ailes « L’Aube tenue »', kind: 'cosm', price: 3500, r: 6, lvl: 15, desc: 'Des ailes de plumes dorées, gagnées jour après jour.' },
   { id: 'pr_ws', name: 'Forge de la discipline : skin d’arme De toute éternité', kind: 'ws', price: 3000, r: 7, lvl: 12, rep: true, desc: 'Pour l’arme que vous tenez en main. D’ordinaire payé en gloire.' },
   { id: 'pr_gear', name: 'Forge de la discipline : armure De toute éternité au choix', kind: 'gear', price: 6000, r: 7, lvl: 20, rep: true, desc: 'Une pièce que la boutique ne vend jamais, du type que vous choisissez (choisi ci-dessous).' },
+  { id: 'pr_weap', name: 'Forge de la discipline : arme De toute éternité au choix', kind: 'weap', price: 7000, r: 7, lvl: 20, rep: true, desc: 'Une arme que la boutique ne vend jamais, du type que vous choisissez (choisi ci-dessous).' },
+  { id: 'pr_ten7', name: 'Tenue De toute éternité au choix', kind: 'pick', cat: 'tenue', price: 5000, r: 7, lvl: 15, rep: true, desc: 'Une tenue de la plus haute rareté, sans attendre la fin du récit.' },
+  { id: 'pr_ail7', name: 'Ailes De toute éternité au choix', kind: 'pick', cat: 'ailes', price: 7000, r: 7, lvl: 22, rep: true, desc: 'Des ailes de la plus haute rareté, sans vaincre le gardien qui les porte.' },
+  { id: 'pr_mnt7', name: 'Monture De toute éternité au choix', kind: 'pick', cat: 'mount', price: 8000, r: 7, lvl: 25, rep: true, desc: 'Une monture de la plus haute rareté.' },
   { id: 'tit_pr3', name: 'Titre « La Parole tenue »', kind: 'cosm', price: 10000, r: 7, lvl: 30, desc: 'Le titre le plus rare de la boutique.' }
 ];
+/* pièces « De toute éternité » encore à obtenir, pour les achats au choix */
+function prPickList(cat) {
+  if (cat === 'mount') return SHOP.filter(x => x.cat === 'mount' && x.r === 7 && !state.owned[x.id]).map(x => [x.id, x.name]);
+  return COSMETICS.filter(c => c.cat === cat && c.r === 7 && !cosmOwned(c.id)).map(c => [c.id, c.name]);
+}
 const PR_LETTERS = {
   pr_letter1: ['Lettre de Rose, I', 'Mon petit. Ton grand-père disait que la force, c’est de la patience qui a pris des muscles. Il se trompait sur beaucoup de choses, mais pas sur celle-là. Tu vas avoir envie de tout faire en un jour. Fais-en un peu, tous les jours. Le reste vient seul, comme le pain qui lève pendant qu’on dort.'],
   pr_letter2: ['Lettre de Rose, II', 'Il y aura des matins où tu n’auras pas envie. Ce ne sont pas les pires. Les pires, ce sont ceux où tu te diras que ça ne sert à rien. Ces matins-là, fais la moitié. Une moitié, c’est déjà une promesse tenue, et une promesse tenue en appelle une autre. Je t’ai vu tenir une cuillère avant de savoir marcher : tu sais recommencer.'],
@@ -17516,10 +17650,14 @@ function viewPrestigeShop() {
     <div class="flex items-center justify-between gap-2 mb-1"><div class="sys-title" style="color:#ffd56a">${icon('award', 'w-4 h-4')} Boutique du prestige</div><div class="f-mono text-sm" style="color:${P.pts < 0 ? '#ff4d6d' : '#ffd56a'}">${icon('award', 'w-3.5 h-3.5 inline -mt-0.5')} ${fmt(P.pts)}</div></div>
     <p class="text-[11px] muted mb-3">Les points de prestige se gagnent seulement au Donjon et en Nutrition, jamais dans le monde ouvert : ce qui se vend ici ne s’obtient nulle part ailleurs.${seals ? ` · ${seals} sceau${seals > 1 ? 'x' : ''} d’Ysolde en réserve` : ''}</p>
     <div class="flex flex-col gap-2">${PR_SHOP.map(it => {
-      const own = !it.rep && prOwned(it), lock = it.lvl && P.level < it.lvl, need = it.kind === 'ws' && (!prWeap() || cosmOwned('ws_' + prWeap() + '_7')), can = !own && !lock && !need && P.pts >= it.price;
-      const extra = it.kind === 'gear' ? `<select class="pr-sel" id="pr-gear-type" aria-label="Type de pièce">${Object.entries(ARMOR_TYPES).map(([k, a]) => `<option value="${k}" ${ui.prGear === k ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>` : '';
+      const picks = it.kind === 'pick' ? prPickList(it.cat) : null, done = picks && !picks.length;
+      const own = (!it.rep && prOwned(it)) || done, lock = it.lvl && P.level < it.lvl, need = it.kind === 'ws' && (!prWeap() || cosmOwned('ws_' + prWeap() + '_7')), can = !own && !lock && !need && P.pts >= it.price;
+      const extra = picks && picks.length ? `<select class="pr-sel" id="pr-pick-${it.cat}" aria-label="Choix">${picks.map(([id, n]) => `<option value="${id}" ${(ui.prPick || {})[it.cat] === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`
+        : it.kind === 'weap' ? `<select class="pr-sel" id="pr-weap-type" aria-label="Type d’arme">${Object.entries(WEAPON_TYPES).map(([k, a]) => `<option value="${k}" ${ui.prWeapT === k ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>`
+        : it.kind === 'key' ? `<span class="block text-[11px] muted">Clés disponibles : ${keysLeft()}</span>`
+        : it.kind === 'gear' ? `<select class="pr-sel" id="pr-gear-type" aria-label="Type de pièce">${Object.entries(ARMOR_TYPES).map(([k, a]) => `<option value="${k}" ${ui.prGear === k ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>` : '';
       return `<div class="res" style="cursor:default;align-items:flex-start"><span class="flex-1 min-w-0"><span class="block f-display text-sm" style="color:${RARITIES[it.r].color}">${esc(it.name)}</span><span class="block text-[11px] muted">${esc(it.desc)}${lock ? ` · niveau de prestige ${it.lvl}` : ''}${need && it.kind === 'ws' ? ' · prenez une arme dont vous n’avez pas encore le skin' : ''}</span>${extra}</span>
-        ${own ? `<span class="text-xs muted">${it.kind === 'lore' ? `<button type="button" class="btn sm ghost" data-a="pr-read" data-id="${it.id}">Relire</button>` : 'Possédé'}</span>` : `<button type="button" class="btn sm" data-a="pr-buy" data-id="${it.id}" ${can ? '' : 'disabled'}>${fmt(it.price)}</button>`}</div>`; }).join('')}</div>
+        ${own ? `<span class="text-xs muted">${done ? 'Toutes possédées' : it.kind === 'lore' ? `<button type="button" class="btn sm ghost" data-a="pr-read" data-id="${it.id}">Relire</button>` : 'Possédé'}</span>` : `<button type="button" class="btn sm" data-a="pr-buy" data-id="${it.id}" ${can ? '' : 'disabled'}>${fmt(it.price)}</button>`}</div>`; }).join('')}</div>
   </div>`;
 }
 function prReadLetter(id) { const L = PR_LETTERS[id]; if (!L) return; showOverlay(`<div class="sys pop w-full max-w-sm" style="padding:24px 20px;border-color:rgba(255,213,106,.5)"><div class="sys-title mb-3" style="color:#ffd56a">${esc(L[0])}</div><p class="text-sm leading-relaxed" style="font-family:Georgia,serif">${esc(L[1])}</p><button type="button" class="btn solid w-full mt-5" data-a="close-overlay">Plier la lettre</button></div>`); }
@@ -17532,6 +17670,10 @@ Object.assign(handlers, {
     else if (it.kind === 'lore') { state.prLore = state.prLore || {}; state.prLore[it.id] = dk(); }
     else if (it.kind === 'seal') state.prSeals = (state.prSeals || 0) + 1;
     else if (it.kind === 'ws') { const t = prWeap(); if (!t || cosmOwned('ws_' + t + '_7')) return; state.cosm['ws_' + t + '_7'] = dk(); }
+    else if (it.kind === 'key') { state.prKeys = (state.prKeys || 0) + (it.n || 1); got = `${it.n} clé${it.n > 1 ? 's' : ''} de coffre`; }
+    else if (it.kind === 'weap') { const sel = document.getElementById('pr-weap-type'), t = sel && WEAPON_TYPES[sel.value] ? sel.value : (prWeap() || 'epee'); const g = makeItem(7, t); state.inv.push(g); got = itemName(g); }
+    else if (it.kind === 'pick') { const L = prPickList(it.cat), sel = document.getElementById('pr-pick-' + it.cat), id = sel && L.some(x => x[0] === sel.value) ? sel.value : (L[0] || [])[0]; if (!id) return;
+      if (it.cat === 'mount') state.owned[id] = dk(); else state.cosm[id] = dk(); got = (L.find(x => x[0] === id) || [id, id])[1]; }
     else if (it.kind === 'gear') { const sel = document.getElementById('pr-gear-type'), t = sel && ARMOR_TYPES[sel.value] ? sel.value : 'plastron'; const g = makeItem(7, t); state.inv.push(g); got = itemName(g); }
     (state.prBuys = state.prBuys || []).push({ id: it.id, price: it.price, date: dk() }); _prMemo = null;
     save(); render(); toast(`${icon('award', 'w-4 h-4')}<span>Prestige : ${esc(got)}</span>`);
@@ -17540,7 +17682,7 @@ Object.assign(handlers, {
   'pr-read': el => prReadLetter(el.dataset.id),
   'go-prestige': () => { state.tab = 'realm'; state.realmTab = 'shop'; ui.shopCat = 'prestige'; save(); render(); window.scrollTo({ top: 0 }); }
 });
-document.addEventListener('change', e => { if (e.target && e.target.id === 'pr-gear-type') ui.prGear = e.target.value; });
+document.addEventListener('change', e => { const t = e.target; if (!t || !t.id) return; if (t.id === 'pr-gear-type') ui.prGear = t.value; if (t.id === 'pr-weap-type') ui.prWeapT = t.value; if (t.id.startsWith('pr-pick-')) { ui.prPick = ui.prPick || {}; ui.prPick[t.id.slice(8)] = t.value; } });
 
 /* ==========================================================================
    LECTEUR — relecture du chemin parcouru, polices, tailles, papiers, progression
@@ -19484,7 +19626,7 @@ function viewHeroCard() {
   return `<div class="sys umbra hero-card">
     <div class="flex items-center justify-between gap-2 flex-wrap">
       <div class="sys-title u">Personnage</div>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-wrap justify-end min-w-0" style="max-width:100%">
         ${state.gear && state.gear.main ? `<button type="button" class="btn sm ghost" data-a="hero-draw" aria-pressed="${!!HERO.armed}">${icon('sword', 'w-3.5 h-3.5')}${HERO.armed ? 'Rengainer' : 'Dégainer'}</button>` : ''}
         <button type="button" class="btn sm ghost" data-a="hero-show" aria-pressed="${!!HERO.showPanel}">${icon('eye', 'w-3.5 h-3.5')}Affichage</button>
         <button type="button" class="btn sm u" data-a="hero-create">${icon('user-pen', 'w-3.5 h-3.5')}${isNew ? 'Créer' : 'Modifier'}</button>
@@ -20042,6 +20184,7 @@ const GUIDE = [
     'Si tu as une douleur dans une articulation (pas une simple fatigue musculaire), arrête l’exercice. Si elle revient, parles-en à un médecin ou un kiné.'
   ] },
   { id: 'donjon', icon: 'swords', t: 'Utiliser le Donjon (tes séances)', p: [
+    'En bas du Donjon, « Suivi des charges » garde la charge notée à chaque séance, exercice par exercice : dernière charge, record (★), progression depuis le début et historique des 10 dernières séances.',
     'Le Donjon montre la séance du jour. Chaque exercice a ses séries, ses répétitions et son temps de repos. Écris le poids utilisé : la prochaine fois, l’appli te le rappellera.',
     'Pour changer ton programme : va dans « Réglages → Programme ». Tu peux choisir un programme d’exemple : le programme d’origine (PPL 5 jours), un programme Jambes (3 séances par semaine) ou un programme Fessiers (5 séances par semaine).',
     'Tu peux aussi tout faire toi-même : créer des séances, choisir quelle séance tombe quel jour de la semaine, régler les séries et les répétitions de chaque exercice.',
@@ -20049,6 +20192,7 @@ const GUIDE = [
     'Un jour sans séance prévue est un jour de repos : ta quête ce jour-là, c’est seulement la nourriture.'
   ] },
   { id: 'nutri', icon: 'apple', t: 'La nutrition expliquée simplement', p: [
+    'En bas de la Nutrition, « Semaine alimentaire » montre ce que tu as mangé chaque jour de la semaine. Tu peux reprendre un aliment ou toute une journée en un geste. Le bilan des macros de la semaine (kcal, protéines, glucides, lipides comparés à 7 fois l’objectif) s’affiche seulement quand les 7 jours sont renseignés.',
     'Les calories (kcal), c’est l’énergie que tu manges. Pour prendre du muscle, on mange un peu plus que ce qu’on dépense. Pour perdre du gras, un peu moins.',
     'Les protéines construisent et réparent les muscles. On en trouve dans la viande, le poisson, les œufs, le fromage blanc, le yaourt grec, les lentilles, le tofu.',
     'Les glucides donnent de l’énergie pour l’entraînement : riz, pâtes, pain, pommes de terre, flocons d’avoine, fruits.',
@@ -20102,7 +20246,12 @@ const GUIDE = [
   ] },
   { id: 'pause', icon: 'pause', t: 'Pause, repos et pénalités', p: [
     'Le repos fait partie de l’entraînement. Dans « Réglages → Pause », tu peux mettre le jeu en pause pour aujourd’hui, pour le week-end, pour 7 ou 14 jours, ou pour les dates que tu veux.',
-    'Pendant une pause, pas de pénalité et ta série de jours n’est pas cassée. Si tu fais quand même du sport ou si tu notes tes repas, tu gagnes quand même ton XP et tes kinahs.'
+    'Pendant une pause, pas de pénalité et ta série de jours n’est pas cassée. Si tu fais quand même du sport ou si tu notes tes repas, tu gagnes quand même ton XP et tes kinahs.',
+    'Le mode souple (« Réglages → Mode souple », facultatif) évite de tout mettre en pause chaque week-end. Les jours sans séance exigée (seulement le week-end, ou tous les jours de repos, au choix), tu manges plus librement : si tu notes tes repas et tiens tes macros, tu gagnes les récompenses habituelles ; sinon tu ne gagnes rien, mais tu ne perds rien et ta série tient.'
+  ] },
+  { id: 'xparene', icon: 'scale', t: 'XP de la séance et de l’arène', p: [
+    'La séance complète et la nutrition complète rapportent chacune au moins autant d’XP que ta meilleure journée d’arène. Exemple : si ton record est de 4 000 XP en une journée d’arène, la séance rapporte 4 000 XP et la nutrition 4 000 XP, soit 8 000 XP pour les deux. Une séance ou une nutrition partielle rapporte la même proportion.',
+    'Ce record ne redescend pas les jours où tu ne vas pas à l’arène. Il ne s’applique qu’à partir du jour où tu l’as atteint. Les kinahs de la séance et de la nutrition gardent leur barème habituel.'
   ] },
   { id: 'save', icon: 'hard-drive', t: 'Sauvegarde et installation', p: [
     'Tout est enregistré dans ton navigateur, sur ton appareil. Pense à exporter une sauvegarde de temps en temps dans « Réglages → Sauvegarde » (bouton « Fichier .json »), surtout avant de changer de téléphone.',
@@ -20120,7 +20269,7 @@ const GUIDE = [
     'Exploration : 130 archives à trouver (30 affiches sur les murs, 30 lettres, 30 livres, 20 photos, 20 vins rares), 40 clés et 60 coffres (10 de chaque : à 1, 5, 10, 20, 30 et 40 clés). Les clés ne s’usent pas : un coffre s’ouvre dès que tu en possèdes assez. Les coffres à 40 clés contiennent un objet De toute éternité, une rune Éternelle et 2 millions de kinahs. Un ✦ après le nom d’une maison signale qu’il y reste quelque chose. Tout ce que tu ramasses se relit dans Codex → Exploration.',
     'Carte : bouton « Carte » (touche K), ou touche la mini-carte. Trois vues : le monde entier, la ville, ou les environs. On y voit les régions, les quartiers, tes demeures, l’arène, les lieux à visiter, les bouches d’égout, les manèges et les quinze Éternels (gris et cochés une fois vaincus).',
     'Demeures : de vraies maisons, sur le plan des grandes demeures françaises. Un vestibule à l’entrée, un long couloir sur toute la largeur, les pièces de part et d’autre, un immense salon côté jardin avec le piano à queue et vos instruments, une bibliothèque, une salle à manger ; à l’étage, les chambres le long du couloir ; en bas, les caves. Les escaliers se montent et se descendent en marchant, sans bouton. Le jardin s’ouvre derrière le grand salon. Plus la demeure est rare, plus tout est grand : Raffiné (maison de maître), Rare (abbaye en ruine et cloître des fleurs de lune), Épique (hôtel particulier et jardin à la française, façon Vaux-le-Vicomte), Légendaire (château, trois niveaux), Mythique (forteresse), Éternel (palais, façon Versailles, au-dessus des nuages).',
-    'Le refuge : chaque demeure cache une pièce secrète, derrière la bibliothèque (tirer le livre rouge) ou au fond de l’armoire de la chambre du maître pour la plus petite. Un feu, des fauteuils, un ciel d’étoiles au plafond, une fontaine. « Se ressourcer » : votre personnage s’assoit près du feu, une harpe joue, et un guide de respiration en cohérence cardiaque (5 secondes pour inspirer, 5 pour expirer) s’affiche. Bougez pour revenir.',
+    'Le refuge : chaque demeure cache une pièce secrète, derrière la bibliothèque du rez-de-chaussée : contre son mur ouest, un livre rouge dépasse des autres, approchez-vous et « Tirez le livre rouge ». Dans la plus petite demeure, c’est l’armoire contre le mur ouest de la chambre du maître, à l’étage. Le registre posé dans le vestibule le rappelle. On en ressort par « Remonter par le passage secret », près de la cheminée. Un feu, des fauteuils, un ciel d’étoiles au plafond, une fontaine. « Se ressourcer » : votre personnage s’assoit près du feu, une harpe joue, et un guide de respiration en cohérence cardiaque (5 secondes pour inspirer, 5 pour expirer) s’affiche. Bougez pour revenir.',
     'Téléportation : Menu → les boutons marqués ✦ mènent directement à l’intérieur de chacune de vos demeures. Depuis la cave de chaque demeure, une grille descend dans les galeries souterraines, et une échelle des galeries remonte dans chacune de vos demeures.',
     'Instruments : dans la salle de musique de vos demeures, approchez-vous d’un instrument que vous possédez et choisissez un morceau (quatre par instrument, œuvres du domaine public), joué en solo avec le son enregistré de l’instrument (échantillons Musyng Kite, licence CC BY-SA 3.0). La première fois, l’instrument met quelques secondes à se charger. La musique d’accueil des demeures se règle dans la Salle de musique (♪) : morceau intégré, aucune, ou l’un de vos fichiers.',
     'Le marchand louche : quelque part dans les galeries souterraines, derrière un rideau rouge. Quatre objets par jour, introuvables ailleurs : runes De toute éternité contre des kinahs, une armure De toute éternité par semaine, l’orgue de Barbarie, une aura, un titre, une boussole qui montre les trésors sur la carte, un passe-partout.',
