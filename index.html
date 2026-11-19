@@ -12761,6 +12761,7 @@ function viewStatus() {
       </div>
     </div>
     ${typeof viewHeroCard === 'function' ? viewHeroCard() : ''}
+    ${typeof viewSocialCard === 'function' ? viewSocialCard() : ''}
     ${typeof viewPowerCard === 'function' ? `<div class="sys" style="padding-top:4px">${viewPowerCard()}</div>` : ''}
     ${viewQuest()}
     <div class="sys umbra">
@@ -16214,6 +16215,8 @@ function optBuyCfg() { const c = state.optBuy = state.optBuy || {}; if (!(c.r >=
 function optUseCfg() { const c = optBuyCfg(); _optShopR = c.r; _optCur = c.cur; return c; }
 function optGlory() { return typeof arenaState === 'function' ? (arenaState().glory || 0) : 0; }
 const OPT_STATS = ['str', 'agi', 'end', 'int'];
+/* garde-fou de durée : passé ce délai, l'optimisation garde le meilleur résultat trouvé au lieu de bloquer l'appli */
+let _optDL = Infinity; const optLate = () => performance.now() > _optDL;
 
 /* Base d'une configuration d'équipement : tout ce qui ne dépend ni des points ni des puces */
 function optBase() {
@@ -16280,7 +16283,7 @@ function optStats(goal, B, chips, n) {
   }
   for (let st = step; st >= 1; st = st > 1 ? Math.max(1, Math.floor(st / 3)) : 0) {
     let moved = true, guard = 0;
-    while (moved && guard++ < 400) {
+    while (moved && guard++ < 400 && !optLate()) {
       moved = false; const cur = S();
       for (const a of OPT_STATS) for (const c of OPT_STATS) {
         if (a === c || x[a] < st) continue;
@@ -16459,8 +16462,8 @@ function optCurScore(goal) { const B = optBase(); return optScore(goal, optMetri
 /* recherche locale sur la vraie puissance de combat : chaque emplacement essaie les meilleurs objets possédés et garde ce qui fait monter le chiffre */
 function optRefineGear(score) {
   const slots = ['main', 'off', ...OPT_ARMOR]; let best = score();
-  for (let pass = 0; pass < 2; pass++) for (const s of slots) {
-    const cands = state.inv.filter(it => optSlotOk(s, it)).sort((a, c) => c.r - a.r || (c.up || 0) - (a.up || 0) || (c.runes || []).length - (a.runes || []).length).slice(0, 12);
+  for (let pass = 0; pass < 2; pass++) for (const s of slots) { if (optLate()) break;
+    const cands = state.inv.filter(it => optSlotOk(s, it)).sort((a, c) => c.r - a.r || (c.up || 0) - (a.up || 0) || (c.runes || []).length - (a.runes || []).length).slice(0, 8);
     for (const it of cands) { if (state.gear[s] === it.uid) continue; const keep = { ...state.gear }, prev = equippedSlot(it.uid);
       if (prev) state.gear[prev] = null; state.gear[s] = it.uid; validateGear(); _bm = null;
       const v = score(); if (v > best + 1e-9) best = v; else { state.gear = keep; _bm = null; } }
@@ -16470,6 +16473,10 @@ function optRefineGear(score) {
 /* Applique le plan « maintenant » : points, équipement, puces, cosmétiques, monture, puis runes.
    Garantie : avec l'objectif « Puissance de combat », la puissance ne baisse jamais (sinon on garde la meilleure des configurations essayées). */
 function optApply(goal) {
+  const ownDL = _optDL === Infinity; if (ownDL) _optDL = performance.now() + 6000;
+  try { return optApply0(goal); } finally { if (ownDL) _optDL = Infinity; }
+}
+function optApply0(goal) {
   const before = playerCombat(), pBefore = combatPower().power, dBefore = optMetrics(optBase(), state.alloc, state.chipEq || []).dps;
   const snap = { alloc: { ...state.alloc }, gear: { ...state.gear }, chipEq: (state.chipEq || []).slice() };
   optUseCfg();
@@ -16588,9 +16595,17 @@ function optBuyList(list) {
 function optBuyToast(n, c) { toast(`${icon('package-check', 'w-4 h-4')}<span>${n} achat${n > 1 ? 's' : ''} · ${optPrice(c)} · amélioré, serti et équipé automatiquement</span>`); }
 Object.assign(handlers, {
   'opt-goal': el => {
-    const g = el.dataset.g; if (!OPT_GOALS[g]) return;
-    ui.optConfirm = false; const P = optApply(g); P.r = _optShopR; bumpStats = OPT_STATS; render();
+    const g = el.dataset.g; if (!OPT_GOALS[g] || ui.optBusy) return;
+    ui.optConfirm = false; ui.optBusy = true; toast(`${icon('loader', 'w-4 h-4')}<span>Optimisation en cours…</span>`, 'umbra');
+    const snap = { alloc: { ...state.alloc }, gear: { ...state.gear }, chipEq: (state.chipEq || []).slice(), cosmEq: { ...(state.cosmEq || {}) }, mount: state.equip.mount };
+    setTimeout(() => { let P;
+      try { _optDL = performance.now() + 6000; P = optApply(g); }
+      catch (err) { Object.assign(state, { alloc: snap.alloc, gear: snap.gear, chipEq: snap.chipEq, cosmEq: snap.cosmEq }); state.equip.mount = snap.mount; _bm = null; save(); state.optErr = { date: dk(), goal: g, msg: String(err && err.message || err).slice(0, 200) };
+        ui.optBusy = false; render(); toast(`${icon('triangle-alert', 'w-4 h-4')}<span>L’optimisation a échoué (${esc(state.optErr.msg)}). Votre équipement n’a pas été modifié.</span>`); return; }
+      finally { _optDL = Infinity; ui.optBusy = false; }
+      P.r = _optShopR; bumpStats = OPT_STATS; render();
     toast(`${icon('wand-2', 'w-4 h-4')}<span>${esc(OPT_GOALS[g].name)} : Force ${state.alloc.str}, Agilité ${state.alloc.agi}, Endurance ${state.alloc.end}, Intelligence ${state.alloc.int}${P.missing.length ? ` · ${P.missing.length} objet${P.missing.length > 1 ? 's' : ''} à acheter pour l’objectif` : ''}</span>`, 'umbra');
+    }, 40);
   },
   'opt-cur': el => { optBuyCfg().cur = el.dataset.v === 'glory' ? 'glory' : 'kin'; ui.optConfirm = false; optRefreshIdeal(); save(); render(); },
   'opt-rar': el => { const r = Number(el.dataset.r); if (!(r >= 0 && r <= OPT_SHOP_R)) return; optBuyCfg().r = r; ui.optConfirm = false; optRefreshIdeal(); save(); render(); },
@@ -19817,7 +19832,8 @@ function worldData(mode) {
     skills: classSkills().map(s => Object.assign({}, s, { locked: lvl < s.lvl })),
     mounts: SHOP.filter(i => i.cat === 'mount' && state.owned[i.id]).map(i => ({ id: i.id, name: i.name, r: i.r, speed: MOUNT_SPEED[i.r] * (i.spdK || 1) })), boots: bootSpeed(invItem((state.gear || {}).bottes)), wb: wbState(), power: combatPower().power, mount: state.equip.mount,
     houses: SHOP.filter(i => i.cat === 'house' && state.owned[i.id]).map(i => ({ id: i.id, name: i.name, r: i.r, cap: HOUSE_CAP[i.r] })),
-    instruments: SHOP.filter(i => i.cat === 'instrument' && state.owned[i.id]).map(i => i.id), npcs, explore: exWorldData(), compass: !!(state.merchant && state.merchant.compass)
+    instruments: SHOP.filter(i => i.cat === 'instrument' && state.owned[i.id]).map(i => i.id), npcs, explore: exWorldData(), compass: !!(state.merchant && state.merchant.compass),
+    social: state.social || (state.social = {}), today: dk(), gender: heroLook().gender || 'm'
   };
 }
 /* Récompense d'une vague d'arène : croît nettement avec la difficulté ; les vagues de champion paient triple,
@@ -19867,6 +19883,9 @@ function worldStart(mode) {
       onInstr: on => { if (typeof musPause !== 'function') return; if (on) musPause(); else if (musRT.homeOn) musResume(); },
       onBoss: (i, lvl, name, o) => wbKill(i, lvl, name, o),
       onStyle: o => { state.profile.look = Object.assign(heroLook(), o); HERO.last = ''; save(); },
+      onSocial: () => save(),
+      onSpend: (price, what) => { _memo = null; if (kinahs() < price) return false; state.buys.push({ id: 'gift:' + what, price, date: dk() }); _memo = null; save(); return true; },
+      kinahs: () => kinahs(), today: () => dk(), gender: () => heroLook().gender || 'm',
       onRift: pos => { done(pos); state.tab = 'realm'; state.realmTab = 'exp'; save(); render(); window.scrollTo({ top: 0 }); }
     });
   }).catch(() => { const w = document.getElementById('wm'); if (w) w.innerHTML = `<div class="wm-box"><p class="text-sm">Le monde ouvert n’a pas pu se charger. Vérifiez la connexion, puis réessayez.</p><button type="button" class="btn mt-3" data-a="world-cancel">Fermer</button></div>`; });
@@ -19904,6 +19923,54 @@ if (typeof document !== 'undefined' && document.head) document.head.insertAdjace
 .wm-mode.on{border-color:var(--neon);box-shadow:0 0 18px rgba(0,240,255,.18) inset}
 .wm-mode:hover{border-color:var(--neon)}
 </style>`);
+
+/* ==========================================================================
+   Profil intérieur et liens (construits en parlant aux habitants du monde ouvert)
+   ========================================================================== */
+const SOC_TYPES = {
+  ISTJ: ['Le Gardien du serment', 'Fiable, méthodique, fidèle à sa parole. Vous tenez ce que vous promettez, même quand personne ne regarde.', 'Attention à la rigidité : toutes les règles ne méritent pas d’être tenues.'],
+  ISFJ: ['Le Protecteur', 'Attentif, discret, dévoué. Vous remarquez ce dont les autres ont besoin avant qu’ils le disent.', 'Attention à vous oublier : prendre soin de soi n’est pas égoïste.'],
+  INFJ: ['Le Veilleur', 'Profond, intuitif, guidé par des valeurs. Vous cherchez le sens derrière les choses et derrière les gens.', 'Attention à porter seul ce que vous ressentez : dites-le.'],
+  INTJ: ['Le Stratège', 'Indépendant, lucide, tourné vers un but. Vous voyez loin et construisez pas à pas.', 'Attention à la distance : les autres ne lisent pas vos plans.'],
+  ISTP: ['L’Artisan', 'Calme, pratique, habile. Vous comprenez les choses en les démontant et réglez les problèmes sans bruit.', 'Attention à garder vos émotions sous clé trop longtemps.'],
+  ISFP: ['Le Poète', 'Sensible, libre, sincère. Vous vivez selon ce que vous ressentez et cherchez la beauté dans le présent.', 'Attention à fuir les conflits nécessaires.'],
+  INFP: ['Le Rêveur', 'Idéaliste, bienveillant, fidèle à ses valeurs. Vous croyez à ce qui pourrait être.', 'Attention à l’écart entre le rêve et le pas suivant : faites-le, ce pas.'],
+  INTP: ['Le Chercheur', 'Curieux, logique, inventif. Vous voulez comprendre comment tout fonctionne, et pourquoi.', 'Attention à rester dans votre tête : le monde attend aussi vos mains.'],
+  ESTP: ['L’Aventurier', 'Énergique, direct, dans l’action. Vous apprenez en essayant et vous adaptez vite.', 'Attention aux décisions prises trop vite.'],
+  ESFP: ['Le Joyeux', 'Chaleureux, spontané, vivant. Vous rendez les moments plus légers pour tout le monde.', 'Attention à remettre à demain ce qui pèse.'],
+  ENFP: ['L’Éclaireur', 'Enthousiaste, inventif, ouvert. Vous voyez des possibles partout et entraînez les autres.', 'Attention à commencer mille choses : finissez-en quelques-unes.'],
+  ENTP: ['L’Inventeur', 'Vif, audacieux, joueur d’idées. Vous aimez questionner, débattre et inventer autrement.', 'Attention à l’argument pour l’argument.'],
+  ESTJ: ['Le Bâtisseur', 'Organisé, responsable, concret. Vous faites avancer les choses et tenez les structures debout.', 'Attention à écouter avant de trancher.'],
+  ESFJ: ['L’Hôte', 'Généreux, sociable, attentionné. Vous créez du lien et prenez soin du groupe.', 'Attention à dépendre du regard des autres.'],
+  ENFJ: ['Le Guide', 'Inspirant, empathique, tourné vers les autres. Vous aidez chacun à grandir.', 'Attention à porter les autres au point de vous épuiser.'],
+  ENTJ: ['Le Commandant', 'Décidé, ambitieux, stratège. Vous voyez le but et organisez le chemin pour y arriver.', 'Attention à l’impatience envers ceux qui vont moins vite.']
+};
+const SOC_AX = [['E', 'I', 'Tourné vers les autres', 'Tourné vers soi'], ['S', 'N', 'Concret', 'Intuitif'], ['T', 'F', 'Raison', 'Cœur'], ['J', 'P', 'Organisé', 'Ouvert']];
+function socType(ax) { return SOC_AX.map(([a, b]) => ((ax && ax[a]) || 0) >= 0 ? a : b).join(''); }
+function viewSocialCard() {
+  const S = state.social; if (!S || !(S.n > 0 || S.spouse || S.partner)) return '';
+  const ty = socType(S.ax), T = SOC_TYPES[ty], fd = k => fromKey(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  const bars = SOC_AX.map(([a, b, la, lb]) => { const v = (S.ax && S.ax[a]) || 0, tot = Math.max(6, Math.abs(v) + 6), pct = Math.round(50 + v / tot * 50);
+    return `<div class="text-[11px] mt-1.5"><div class="flex justify-between"><span class="${v >= 0 ? 'glow-umbra' : 'muted'}">${la}</span><span class="${v < 0 ? 'glow-umbra' : 'muted'}">${lb}</span></div><div class="bar" style="height:6px"><i style="width:${pct}%;background:linear-gradient(90deg,#b07cff,#ff9cc6)"></i></div></div>`; }).join('');
+  const R = S.r || {}, friends = Object.values(R).filter(r => r.a >= 30).length, close = Object.values(R).filter(r => r.a >= 70).length;
+  let fam = '';
+  if (S.spouse) fam += `<div class="mt-2">Marié${heroLook().gender === 'f' ? 'e' : ''} depuis le ${esc(fd(S.wed))} · humeur du foyer : <b style="color:${S.mood >= 55 ? '#4ade80' : S.mood >= 30 ? '#f59e0b' : '#ff4d6d'}">${S.mood >= 80 ? 'heureuse' : S.mood >= 55 ? 'sereine' : S.mood >= 30 ? 'pensive' : 'triste'}</b> (${Math.round(S.mood)}/100)</div>`;
+  else if (S.partner) fam += `<div class="mt-2">Une histoire d’amour a commencé. Avec une bague de fiançailles (joaillerie de la ville), vous pourrez demander sa main.</div>`;
+  if ((S.kids || []).length) fam += `<div class="mt-1">Enfants : ${S.kids.map(k => esc(k.name)).join(', ')}</div>`;
+  if (S.preg) fam += `<div class="mt-1">Un enfant s’annonce : naissance prévue le ${esc(fd(S.preg.due))}${S.preg.due <= dk() ? ' (entrez dans le monde ouvert pour l’accueillir)' : ''}.</div>`;
+  const gifts = Object.entries(S.gifts || {}).filter(([, n]) => n > 0).length;
+  return `<details class="sys" data-det="soc" style="border-color:rgba(255,156,198,.45)">
+    <summary class="flex items-center justify-between gap-2"><span class="sys-title" style="color:#ff9cc6">${icon('heart-handshake', 'w-4 h-4')}Profil intérieur</span><span class="text-xs f-mono" style="color:#ffc2dd">${esc(T[0])} · ${ty}</span></summary>
+    <div class="mt-3 text-sm">
+      <p>${esc(T[1])}</p><p class="text-[12px] muted mt-1">${esc(T[2])}</p>
+      ${bars}
+      <p class="text-[11px] muted mt-2">${S.n || 0} réponse${(S.n || 0) > 1 ? 's' : ''} données aux habitants · ${friends} ami${friends > 1 ? 's' : ''} dont ${close} proche${close > 1 ? 's' : ''}${gifts ? ` · cadeaux en réserve : ${Object.values(S.gifts).reduce((a, b) => a + b, 0)}` : ''}</p>
+      ${fam ? `<div class="text-[12px]">${fam}</div>` : ''}
+      ${(S.log || []).length ? `<details class="mt-2"><summary class="text-[11px] underline muted" style="list-style:none;cursor:pointer">Vos dernières réponses</summary><ul class="text-[11px] mt-1 flex flex-col gap-1">${S.log.slice(0, 12).map(l => `<li><span class="muted">${esc(l.who.split(' ')[0])} : ${esc(l.q)}</span><br>→ ${esc(l.a)}</li>`).join('')}</ul></details>` : ''}
+      <p class="text-[10px] muted mt-2">Seize profils inspirés des typologies de personnalité. C’est un miroir pour réfléchir à vos choix, pas un diagnostic : ces modèles ont une valeur scientifique limitée, et votre profil change avec vos réponses.</p>
+    </div>
+  </details>`;
+}
 
 /* ==========================================================================
    PERSONNAGES — puissance, statistiques, classement de tout le lore,
@@ -20248,6 +20315,14 @@ const GUIDE = [
     'Le repos fait partie de l’entraînement. Dans « Réglages → Pause », tu peux mettre le jeu en pause pour aujourd’hui, pour le week-end, pour 7 ou 14 jours, ou pour les dates que tu veux.',
     'Pendant une pause, pas de pénalité et ta série de jours n’est pas cassée. Si tu fais quand même du sport ou si tu notes tes repas, tu gagnes quand même ton XP et tes kinahs.',
     'Le mode souple (« Réglages → Mode souple », facultatif) évite de tout mettre en pause chaque week-end. Les jours sans séance exigée (seulement le week-end, ou tous les jours de repos, au choix), tu manges plus librement : si tu notes tes repas et tiens tes macros, tu gagnes les récompenses habituelles ; sinon tu ne gagnes rien, mais tu ne perds rien et ta série tient.'
+  ] },
+  { id: 'habitants', icon: 'heart-handshake', t: 'Habitants, profil intérieur et liens', p: [
+    'Le monde ouvert compte environ 400 habitants : en ville, dans la campagne, le désert, les montagnes, la forêt et l’Ancienne Cité. Chacun a un métier utile au monde et sa propre histoire. « Faire connaissance » la raconte peu à peu. Les secrets ne se confient qu’aux amis (lien de 40 et plus).',
+    'Ils vous posent des questions sur la vie, la mort, le sens, vos ambitions et vos projets (deux par jour et par personne). Chaque réponse fait évoluer votre profil intérieur sur quatre axes : tourné vers les autres ou vers soi, concret ou intuitif, raison ou cœur, organisé ou ouvert. Cela donne 16 profils, à retrouver dans Statut. C’est un miroir pour réfléchir, pas un diagnostic.',
+    'On se rapproche de ceux qui partagent nos valeurs. Le lien monte aussi en parlant chaque jour et en offrant des cadeaux. Six marchands de la ville en vendent : fleuriste, joaillier, confiseur, papetier, marchand de jouets, parfumeur. Chaque habitant a ses goûts.',
+    'Avec un adulte dont le lien atteint 70, « Déclarer mes sentiments » peut faire naître une histoire d’amour (il faut un lien d’au moins 75 pour un oui). Avec une bague de fiançailles et un lien de 90, vous pouvez demander sa main. Votre époux ou épouse vient alors vivre dans votre demeure.',
+    '« Lui prendre la main » : la personne vous suit, en ville comme dans la demeure. Dans la chambre du maître, la nuit ensemble se passe en fondu au noir. Elle rend le foyer plus heureux, et un enfant peut s’annoncer : il naît 9 jours plus tard et vit dans la demeure.',
+    'L’humeur du foyer baisse les jours où vous ne passez pas voir votre époux ou épouse. Elle remonte avec les visites, les cadeaux, les réponses sincères et le temps passé ensemble.'
   ] },
   { id: 'xparene', icon: 'scale', t: 'XP de la séance et de l’arène', p: [
     'La séance complète et la nutrition complète rapportent chacune au moins autant d’XP que ta meilleure journée d’arène. Exemple : si ton record est de 4 000 XP en une journée d’arène, la séance rapporte 4 000 XP et la nutrition 4 000 XP, soit 8 000 XP pour les deux. Une séance ou une nutrition partielle rapporte la même proportion.',
