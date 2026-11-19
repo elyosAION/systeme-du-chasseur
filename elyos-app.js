@@ -657,7 +657,16 @@ function statValues(t = totals()) {
 }
 /* Points de statistiques par niveau : +3 au rang E, +6 au rang D, +9 au rang C, +12 au B, +15 au A, +18 au S */
 function pointsPerLevel(pl) { let i = 0; POWER_RANKS.forEach((x, j) => { if (pl >= x.min) i = j; }); return POWER_RANKS[i].pts || POINTS_PER_LEVEL * (i + 1); }
-function pointsEarned(level) { let n = 0; for (let L = 2; L <= level; L++) n += pointsPerLevel(L); return n; }
+/* somme par tranches de rang (calcul direct : une boucle niveau par niveau bloquait l'appli aux très hauts niveaux) */
+function pointsEarned(level) {
+  level = Math.floor(level); if (!(level >= 2)) return 0;
+  let n = 0;
+  for (let j = 0; j < POWER_RANKS.length; j++) {
+    const lo = Math.max(2, POWER_RANKS[j].min), hi = Math.min(level, j + 1 < POWER_RANKS.length ? POWER_RANKS[j + 1].min - 1 : Infinity);
+    if (hi >= lo) n += (hi - lo + 1) * pointsPerLevel(lo);
+  }
+  return n;
+}
 /* Répartition qui donne le plus de dégâts : tous les points disponibles entre Force et Agilité,
    en essayant chaque partage (la Force donne l'Attaque, l'Agilité le critique, plafonné à 50 %, et la force des critiques). */
 function bestSplit(n) {
