@@ -4,7 +4,7 @@ ELYOS SYSTEM — MISE EN LIGNE SUR VERCEL
 Mettre à jour le site
 1. Dézippe ce fichier.
 2. Remplace le contenu de ton projet Vercel par le contenu du dossier
-   (index.html, elyos3d.js, sw.js, manifest.webmanifest, vercel.json,
+   (index.html, elyos-app.js, elyos-data.js, elyos3d.js, sw.js, manifest.webmanifest, vercel.json,
    dossier icons). Le fichier elyos3d.js est le moteur 3D (personnage et
    monde ouvert) : sans lui, l'appli marche mais sans la 3D.
    - Si ton projet Vercel est relié à GitHub : sur GitHub, « Add file →
