@@ -228,7 +228,17 @@
   .rank { font-family: var(--font-display); font-weight: 800; display: grid; place-items: center; width: 56px; height: 56px; font-size: 30px;
     border: 2px solid currentColor; text-shadow: 0 0 14px currentColor; box-shadow: 0 0 18px -4px currentColor inset, 0 0 16px -6px currentColor; flex: none; }
 
-  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .hdr-l { min-width: 96px; flex: 1 1 auto; }
+  .hdr-date { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr-r { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .hdr-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; white-space: nowrap; }
+  .hdr-cur { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+  .hdr-lv { font-size: 15px; }
+  /* l'application défile dans son propre conteneur : la barre d'onglets reste en bas, qu'on monte ou qu'on descende */
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  .scroller { position: fixed; inset: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; z-index: 2; padding-top: env(safe-area-inset-top, 0px); }
+  .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; transform: translateZ(0);
     background: rgba(10, 10, 12, .94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     border-top: 1px solid rgba(0, 240, 255, .25);
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -334,7 +344,7 @@
   .alloc-n:focus{outline:none;border-color:#00f0ff}
 </style>
 
-<meta name="description" content="Fitness RPG : entraînement, macros, XP et rangs.">
+<div id="scroll" class="scroller"><meta name="description" content="Fitness RPG : entraînement, macros, XP et rangs.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -344,7 +354,7 @@
 <meta name="apple-mobile-web-app-title" content="Elyos">
 </head>
 <body>
-<div id="app" class="wrap"></div>
+<div id="app" class="wrap"></div></div>
 <div id="elx" class="elx" role="dialog" aria-label="Elyos System"><canvas id="elx-c" aria-hidden="true"></canvas><div class="elx-beam" aria-hidden="true"></div><div class="elx-ui"><div class="elx-top"><div class="elx-kicker">[ Système ]</div><h1 class="elx-title" aria-label="Elyos System"><span class="elx-t1"><b style="--i:0">E</b><b style="--i:1">L</b><b style="--i:2">Y</b><b style="--i:3">O</b><b style="--i:4">S</b></span><span class="elx-t2">SYSTEM</span></h1></div><div class="elx-bottom"><blockquote class="elx-verse">Pourquoi suis-je venu, et il n’y a eu personne ? Pourquoi ai-je appelé, et il n’y a eu personne qui réponde ?<cite>Ésaïe 50.2</cite></blockquote><div class="elx-login" id="elx-login"></div><button type="button" class="elx-tap" data-a="elx-tap">Toucher pour s’éveiller</button><div class="elx-skip" aria-hidden="true">Toucher l’écran pour passer</div></div></div></div>
 <script>try{var _m=JSON.parse(localStorage.getItem('elyos-music-v1')||'{}');if(_m.splash===false){var _e=document.getElementById('elx');if(_e)_e.remove();}}catch(_x){}</script>
 <div id="timer" class="timer" hidden></div>
@@ -11175,6 +11185,11 @@ const COSMETICS = [
   C_('ail_wb15', 'ailes', 7, 'Ailes du Roi des Ruines', { type: 'eternal', txt: 'Vaincre le Roi des Ruines sans combat automatique' }),
   C_('tit_wb16', 'titre', 7, 'Celui qui n’a pas fermé les yeux', { type: 'eternal', txt: 'Vaincre l’Éternel du Sommet sans combat automatique' }),
   C_('aur_wb16', 'aura', 7, 'Lumière du Sommet', { type: 'eternal', txt: 'Vaincre l’Éternel du Sommet sans combat automatique' }),
+  C_('tit_pr1', 'titre', 4, 'Le Discipliné', { type: 'prestige', txt: 'Boutique du prestige' }),
+  C_('tit_pr2', 'titre', 5, 'Celui qui n’a pas lâché', { type: 'prestige', txt: 'Boutique du prestige (niveau de prestige 10)' }),
+  C_('tit_pr3', 'titre', 7, 'La Parole tenue', { type: 'prestige', txt: 'Boutique du prestige (niveau de prestige 30)' }),
+  C_('aur_pr', 'aura', 6, 'Flamme de constance', { type: 'prestige', txt: 'Boutique du prestige' }),
+  C_('ail_pr', 'ailes', 6, 'L’Aube tenue', { type: 'prestige', txt: 'Boutique du prestige' }),
   C_('tit_bas', 'titre', 3, 'Client des bas-fonds', { type: 'merchant', txt: 'Marchand louche des galeries souterraines' }),
   C_('aur_contre', 'aura', 4, 'Fumée de contrebande', { type: 'merchant', txt: 'Marchand louche des galeries souterraines' }),
   C_('ail_wb16', 'ailes', 7, 'Ailes du Sommet', { type: 'eternal', txt: 'Vaincre l’Éternel du Sommet sans combat automatique' }),
@@ -11815,21 +11830,36 @@ const STATS = {
   int: { name: 'Intelligence', icon: 'brain' }
 };
 /* CLASSES : voir le codex (12 classes) */
+/* Rangs, sur la courbe de niveaux d'Aion Classic (niveau maximal 999) */
 const RANKS = [
   { r: 'E', min: 1,  color: '#8b8f9c', title: 'Chasseur de rang E' },
   { r: 'D', min: 10, color: '#5fd3e0', title: 'Chasseur de rang D' },
   { r: 'C', min: 20, color: '#00f0ff', title: 'Chasseur de rang C' },
-  { r: 'B', min: 35, color: '#9f7bff', title: 'Chasseur de rang B' },
-  { r: 'A', min: 50, color: '#c4a8ff', title: 'Chasseur de rang A' },
-  { r: 'S', min: 70, color: '#f2f6ff', title: 'Chasseur de rang S' },
-  /* au-dessus de S : la montée en puissance change d'échelle (pts : points par niveau ; k : multiplicateur de toutes les statistiques) */
-  { r: 'Nation', s: 'N', min: 100, color: '#ffd56a', title: 'Chasseur de rang Nation', pts: 60, k: 2 },
-  { r: 'Divin', s: 'Ω', min: 150, color: '#9ffcff', title: 'Monarque · rang Divin (cosmique)', pts: 180, k: 5 }
+  { r: 'B', min: 30, color: '#9f7bff', title: 'Chasseur de rang B' },
+  { r: 'A', min: 40, color: '#c4a8ff', title: 'Chasseur de rang A' },
+  { r: 'S', min: 50, color: '#f2f6ff', title: 'Chasseur de rang S' },
+  { r: 'Nation', s: 'N', min: 60, color: '#ffd56a', title: 'Chasseur de rang Nation' },
+  { r: 'Divin', s: 'Ω', min: 65, color: '#9ffcff', title: 'Monarque · Rang Divin' }
 ];
+/* La puissance (points de statistiques, multiplicateur de toutes les statistiques) suit toujours l'ancienne échelle,
+   calculée sur l'XP totale : passer à la courbe d'Aion n'a rien retiré à personne.
+   « Palier de puissance » = l'ancien niveau. pts : points par palier ; k : multiplicateur. */
+const POWER_RANKS = [{ min: 1 }, { min: 10 }, { min: 20 }, { min: 35 }, { min: 50 }, { min: 70 }, { min: 100, pts: 60, k: 2 }, { min: 150, pts: 180, k: 5 }];
+/* XP pour passer au niveau suivant, niveaux 1 → 65 (Aion Classic 1.0 à 4.0) */
+const AION_XP = [400, 1033, 2355, 4500, 7600, 11910, 17700, 25270, 34940, 47170, 62470, 81360, 104420, 132280, 165630, 205220, 251870, 306470, 369980, 443440, 527970, 624770, 735120, 685000, 760511,
+  845779, 1034611, 1258952, 1524214, 1836691, 2203655, 2633434, 3135524, 3720676, 4401051, 5190361, 6104034, 7159384, 8375811, 9775011, 11381200, 13221384, 15325655, 17727511, 20464214, 23577184, 27112434, 31121051, 35659691,
+  40791051, 46584434, 53116384, 60471384, 68742434, 78031691, 88451184, 100123511, 113182511, 127773984,
+  153328780, 199327414, 279058379, 418587568, 669740108];
+const LEVEL_MAX = 999, LEVEL_MAX_TITLE = 'Au-delà de l’Échelle';
+/* au-delà de 65 : dans la continuité (+60 % au 64 → 65), la hausse ralentit vers +6 % par niveau, sans jamais s'arrêter */
+const XP_NEED = (() => { const a = [0]; for (let L = 1; L < LEVEL_MAX; L++) { if (L <= AION_XP.length) a.push(AION_XP[L - 1]); else { const g = 1.06 + 0.54 * Math.exp(-(L - 64) / 6); a.push(Math.round(a[L - 1] * g)); } } return a; })();
+const XP_CUM = (() => { const c = [0, 0]; for (let L = 1; L < LEVEL_MAX; L++) c.push(c[L] + XP_NEED[L]); return c; })();
+const lvlTxt = L => L >= LEVEL_MAX ? LEVEL_MAX_TITLE : String(L);
 /* lettre du badge (« N » et « Ω » pour les rangs au nom long) */
 const rankBadge = rk => rk.s || rk.r;
 /* multiplicateur de toutes les statistiques donné par le rang */
-const rankStatK = level => rankOf(level).k || 1;
+const powerRank = pl => { let r = POWER_RANKS[0]; for (const x of POWER_RANKS) if (pl >= x.min) r = x; return r; };
+const rankStatK = pl => powerRank(pl).k || 1;
 const SYSTEM_LINES = [
   'Entraînez-vous pour ne pas stagner. Le Système suit chacun de vos mouvements.',
   'La faiblesse est un état temporaire. La stagnation est un choix.',
@@ -12372,7 +12402,7 @@ function totals() {
     kin += Math.round(dk_);
     if (r.success) success.push(k);
   }
-  for (const p of state.penalties) { xp -= p.xp; kin -= (p.kinah || 0); }
+  /* les pénalités ne touchent plus l'XP ni les kinahs : seulement le prestige (prestige.js) */
   for (const b of state.bonus || []) { kin += b.k; xp += b.x || 0; } /* x : XP gagnée hors journées (arène) */
   for (const b of state.buys || []) kin -= b.price;
   _memo = { xp: Math.max(0, xp), gains, kinah: kin, success: success.sort(), sessions, nutrition, keysEarned: keys };
@@ -12390,18 +12420,20 @@ function primeK(base) {
   if (F.odile && dk() >= F.odile.date) m *= 1.1;
   return Math.round(base * m);
 }
-function xpForNext(level) { return 200 + 50 * level; }
-function levelInfo(xp) { let L = 1, rem = xp; while (rem >= xpForNext(L)) { rem -= xpForNext(L); L++; } return { level: L, into: rem, need: xpForNext(L) }; }
+function xpForNext(level) { return level >= LEVEL_MAX ? 0 : XP_NEED[level]; }
+function levelInfo(xp) { let lo = 1, hi = LEVEL_MAX; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (XP_CUM[m] <= xp) lo = m; else hi = m - 1; } return { level: lo, into: xp - XP_CUM[lo], need: xpForNext(lo), max: lo >= LEVEL_MAX }; }
+/* palier de puissance : l'ancienne échelle (200 + 50 × palier d'XP par palier), qui donne les points de statistiques */
+function powerLvl(xp = totals().xp) { const x = Math.max(0, xp); return 1 + Math.floor((-225 + Math.sqrt(225 * 225 + 100 * x)) / 50 + 1e-9); }
 function rankOf(level) { let r = RANKS[0]; for (const x of RANKS) if (level >= x.min) r = x; return r; }
 function statValues(t = totals()) {
   const out = {}, cls = state.profile ? CLASSES[state.profile.cls] : null;
   /* les cosmétiques portés augmentent toutes les statistiques d'un pourcentage */
-  const ck = (1 + (typeof cosmStatPct === 'function' ? cosmStatPct() : 0) / 100) * rankStatK(levelInfo(t.xp).level);
+  const ck = (1 + (typeof cosmStatPct === 'function' ? cosmStatPct() : 0) / 100) * rankStatK(powerLvl(t.xp));
   for (const s in STATS) out[s] = Math.round((BASE_STAT + (cls && cls.stat === s ? CLASS_BONUS : 0) + t.gains[s] + (state.alloc[s] || 0)) * ck);
   return out;
 }
 /* Points de statistiques par niveau : +3 au rang E, +6 au rang D, +9 au rang C, +12 au B, +15 au A, +18 au S */
-function pointsPerLevel(level) { let i = 0; RANKS.forEach((x, j) => { if (level >= x.min) i = j; }); return RANKS[i].pts || POINTS_PER_LEVEL * (i + 1); }
+function pointsPerLevel(pl) { let i = 0; POWER_RANKS.forEach((x, j) => { if (pl >= x.min) i = j; }); return POWER_RANKS[i].pts || POINTS_PER_LEVEL * (i + 1); }
 function pointsEarned(level) { let n = 0; for (let L = 2; L <= level; L++) n += pointsPerLevel(L); return n; }
 /* Répartition qui donne le plus de dégâts : tous les points disponibles entre Force et Agilité,
    en essayant chaque partage (la Force donne l'Attaque, l'Agilité le critique, plafonné à 50 %, et la force des critiques). */
@@ -12413,6 +12445,7 @@ function bestSplit(n) {
   if (score(n) >= bv) best = n;
   return { str: best, agi: n - best, gain: bv / dpsScore(playerCombat()) };
 }
+/* l'argument est le palier de puissance (powerLvl), pas le niveau affiché */
 function availablePoints(level) { const spent = Object.values(state.alloc).reduce((a, b) => a + b, 0); return Math.max(0, pointsEarned(level) - spent); }
 /* Pause : jours exclus des pénalités et de la série */
 function isPaused(k) { return (state.pauses || []).some(p => k >= p.from && (!p.to || k <= p.to)); }
@@ -12442,7 +12475,9 @@ function evaluateQuests() {
     if (reasons.length) {
       const guarded = !!(state.followers && state.followers.ysolde);
       const g = 1 - Math.min(60, boosts().garde) / 100;
-      const p = { date: k, xp: Math.round((guarded ? 100 : PENALTY_XP) * g), kinah: Math.round((guarded ? 50 : 100) * g), reasons, guarded: guarded || g < 1 };
+      const gk = (guarded ? 0.66 : 1) * g, seal = (state.prSeals || 0) > 0;
+      const p = { date: k, pp: seal ? 0 : Math.round(PR_PEN_PTS * gk), pxp: seal ? 0 : Math.round(PR_PEN_XP * gk), reasons, guarded: guarded || g < 1, sealed: seal };
+      if (seal) state.prSeals--;
       state.penalties.push(p); fails.push(p);
     }
   }
@@ -12606,22 +12641,29 @@ function render() {
   if (typeof heroAfterRender === 'function') heroAfterRender();
 }
 
+/* défilement : c'est le conteneur #scroll qui défile, plus la page (voir .scroller) */
+(function () { const o = window.scrollTo.bind(window); window.scrollTo = function (a, b) { const el = document.getElementById('scroll'); if (!el) return o(a, b); if (a && typeof a === 'object') el.scrollTo(a); else el.scrollTo(a || 0, b || 0); }; })();
 function viewHeader() {
   const li = levelInfo(totals().xp), rk = rankOf(li.level);
   const canInstall = deferredPrompt && !isStandalone();
   return `
-  <header class="flex items-center justify-between gap-3 mb-4">
-    <div class="min-w-0">
+  <header class="hdr mb-4">
+    <div class="hdr-l">
       <button type="button" class="label sys-home" data-a="elx-home" aria-label="Revenir à l’écran d’accueil" title="Revenir à l’écran d’accueil">[ Système ]</button>
-      <div class="f-display text-sm capitalize truncate">${esc(prettyDate(dk()))}</div>
+      <div class="f-display text-sm capitalize hdr-date">${esc(prettyDate(dk()))}</div>
     </div>
-    <div class="flex items-center gap-2 f-display text-sm">
-      ${canInstall ? `<button type="button" class="btn sm" data-a="install">${icon('download', 'w-3.5 h-3.5')}Installer</button>` : ''}
-      ${typeof musHeaderBtn === 'function' ? musHeaderBtn() : ''}
-      <button type="button" class="ibtn" data-a="guide-open" aria-label="Guide du débutant" title="Guide du débutant">${icon('circle-help', 'w-4 h-4')}</button>
-      <button type="button" data-a="go-shop" class="flex items-center gap-1 f-mono ${kinahs() < 0 ? 'red' : 'kinah'}" aria-label="Kinahs : ouvrir la boutique">${icon('gem', 'w-3.5 h-3.5')}${fmtK(kinahs())}</button>
-      <span class="muted">Niv.</span><span class="glow font-bold text-lg f-mono">${li.level}</span>
-      <span class="px-2 py-0.5 border font-bold" style="color:${rk.color};border-color:${rk.color}">${rankBadge(rk)}</span>
+    <div class="hdr-r f-display text-sm">
+      <div class="hdr-row">
+        ${canInstall ? `<button type="button" class="btn sm" data-a="install">${icon('download', 'w-3.5 h-3.5')}Installer</button>` : ''}
+        ${typeof musHeaderBtn === 'function' ? musHeaderBtn() : ''}
+        <button type="button" class="ibtn" data-a="guide-open" aria-label="Guide du débutant" title="Guide du débutant">${icon('circle-help', 'w-4 h-4')}</button>
+        <span class="glow font-bold f-mono hdr-lv" title="Niveau">${li.level >= LEVEL_MAX ? '∞' : 'Niv. ' + li.level}</span>
+        <span class="px-1.5 py-0.5 border font-bold" style="color:${rk.color};border-color:${rk.color}">${rankBadge(rk)}</span>
+      </div>
+      <div class="hdr-row">
+        <button type="button" data-a="go-shop" class="hdr-cur f-mono ${kinahs() < 0 ? 'red' : 'kinah'}" aria-label="Kinahs : ${fmtK(kinahs())}. Ouvrir la boutique" title="${fmtK(kinahs())} kinahs">${icon('gem', 'w-3.5 h-3.5')}${fmtShort(kinahs())}</button>
+        <button type="button" data-a="go-prestige" class="hdr-cur f-mono" style="color:${prestigePts() < 0 ? '#ff4d6d' : '#ffd56a'}" aria-label="Points de prestige : ${fmtK(prestigePts())}. Ouvrir la boutique du prestige" title="${fmtK(prestigePts())} points de prestige">${icon('award', 'w-3.5 h-3.5')}${fmtShort(prestigePts())}</button>
+      </div>
     </div>
   </header>`;
 }
@@ -12663,7 +12705,7 @@ function viewAwakening() {
 
 /* ---------- Statut ---------- */
 function viewStatus() {
-  const t = totals(), li = levelInfo(t.xp), rk = rankOf(li.level), vals = statValues(t), pts = availablePoints(li.level);
+  const t = totals(), li = levelInfo(t.xp), rk = rankOf(li.level), vals = statValues(t), pts = availablePoints(powerLvl(t.xp)), PR = prestigeInfo();
   const cls = CLASSES[state.profile.cls] || CLASSES.shadow;
   const nextRank = RANKS.find(r => r.min > li.level);
   const statSrc = s => {
@@ -12688,22 +12730,27 @@ function viewStatus() {
         </div>
         <div class="text-right">
           <div class="label">Niveau</div>
-          <div class="f-display text-4xl font-extrabold glow f-mono leading-none">${li.level}</div>          ${typeof combatPower === 'function' ? `<div class="label mt-2">Puissance</div><div class="f-mono text-lg glow leading-none">${combatPower().power.toLocaleString('fr-FR')}</div>` : ''}
+          <div class="f-display ${li.max ? 'text-base' : 'text-4xl'} font-extrabold glow f-mono leading-none">${esc(lvlTxt(li.level))}</div>          ${typeof combatPower === 'function' ? `<div class="label mt-2">Puissance</div><div class="f-mono text-lg glow leading-none">${combatPower().power.toLocaleString('fr-FR')}</div>` : ''}
         </div>
       </div>
       <div class="mt-4">
-        <div class="flex justify-between text-xs mb-1.5"><span class="label">Expérience</span><span class="f-mono muted">${li.into} / ${li.need} XP</span></div>
-        <div class="bar"><i style="width:${Math.min(100, li.into / li.need * 100)}%"></i></div>
-        <div class="text-xs muted mt-1.5 f-mono">${t.xp} XP au total${nextRank ? ` · rang ${nextRank.r} au niveau ${nextRank.min}` : ' · rang maximal'}</div>
+        <div class="flex justify-between text-xs mb-1.5"><span class="label">Expérience</span><span class="f-mono muted">${li.max ? 'niveau maximal' : `${fmtK(li.into)} / ${fmtK(li.need)} XP`}</span></div>
+        <div class="bar"><i style="width:${li.max ? 100 : Math.min(100, li.into / li.need * 100)}%"></i></div>
+        <div class="text-xs muted mt-1.5 f-mono">${fmtK(t.xp)} XP au total${nextRank ? ` · rang ${nextRank.s || nextRank.r} au niveau ${nextRank.min}` : li.max ? '' : ' · niveau maximal : 999'}</div>
+      </div>
+      <div class="mt-3">
+        <div class="flex justify-between text-xs mb-1.5"><span class="label" style="color:#ffd56a">${icon('award', 'w-3.5 h-3.5 inline -mt-0.5')} Prestige · niveau ${PR.level}</span><span class="f-mono muted">${PR.need ? `${fmtK(PR.into)} / ${fmtK(PR.need)}` : 'maximal'}</span></div>
+        <div class="bar"><i style="width:${PR.need ? Math.min(100, PR.into / PR.need * 100) : 100}%;background:linear-gradient(90deg,#b8860b,#ffd56a);box-shadow:0 0 10px rgba(255,213,106,.5)"></i></div>
+        <div class="text-xs muted mt-1.5"><span class="f-mono" style="color:${PR.pts < 0 ? '#ff4d6d' : '#ffd56a'}">${fmtK(PR.pts)}</span> points de prestige · gagnés seulement au Donjon et en Nutrition, perdus à chaque pénalité</div>
       </div>
     </div>
-    ${typeof viewPowerCard === 'function' ? `<div class="sys" style="padding-top:4px">${viewPowerCard()}</div>` : ''}
     ${typeof viewHeroCard === 'function' ? viewHeroCard() : ''}
+    ${typeof viewPowerCard === 'function' ? `<div class="sys" style="padding-top:4px">${viewPowerCard()}</div>` : ''}
     ${viewQuest()}
     <div class="sys umbra">
       <div class="flex items-center justify-between gap-2 mb-3">
         <div class="sys-title u">Statistiques</div>
-        <div class="flex items-center gap-2">${pts > 0 ? `<div class="text-xs f-display glow">${pts} point${pts > 1 ? 's' : ''} à répartir</div>` : `<div class="text-xs muted">+${pointsPerLevel(levelInfo(totals().xp).level)} points par niveau</div>`}${Object.values(state.alloc).some(Boolean) ? (ui.armed === 'respec' ? `<button type="button" class="btn sm danger" data-a="respec">Confirmer</button>` : `<button type="button" class="ibtn" data-a="arm" data-k="respec" title="Réinitialiser les points" aria-label="Réinitialiser les points">${icon('rotate-ccw', 'w-4 h-4')}</button>`) : ''}</div>
+        <div class="flex items-center gap-2">${pts > 0 ? `<div class="text-xs f-display glow">${pts} point${pts > 1 ? 's' : ''} à répartir</div>` : `<div class="text-xs muted">les points arrivent avec l’XP</div>`}${Object.values(state.alloc).some(Boolean) ? (ui.armed === 'respec' ? `<button type="button" class="btn sm danger" data-a="respec">Confirmer</button>` : `<button type="button" class="ibtn" data-a="arm" data-k="respec" title="Réinitialiser les points" aria-label="Réinitialiser les points">${icon('rotate-ccw', 'w-4 h-4')}</button>`) : ''}</div>
       </div>
       ${typeof viewOptimizer === 'function' ? viewOptimizer() : ''}
       ${pts > 0 ? `<div class="flex items-center gap-2 mb-2 flex-wrap"><button type="button" class="btn sm u" data-a="alloc-best">${icon('swords', 'w-3.5 h-3.5')}Répartir pour le plus de dégâts</button><span class="text-[11px] muted">Calcule le meilleur partage Force / Agilité pour vos ${pts} points (arme, puces, cosmétiques et montures compris).</span></div>` : ''}
@@ -12752,7 +12799,7 @@ function viewQuest() {
     <div class="mt-3 flex items-center justify-between gap-2 text-xs flex-wrap">
       <span class="muted">Récompense : <b class="glow f-mono">${xpK(reward)} XP</b>${xpK(reward) > reward ? ` <span class="text-[11px]">(dont bonus +${xpK(reward) - reward})</span>` : ''}</span>
       ${r.success ? `<span class="glow f-display tracking-widest uppercase">Accomplie</span>`
-                  : `<span class="f-display tracking-wide red">${icon('triangle-alert', 'w-3.5 h-3.5 inline -mt-0.5')} Échec : −${PENALTY_XP} XP</span>`}
+                  : `<span class="f-display tracking-wide red">${icon('triangle-alert', 'w-3.5 h-3.5 inline -mt-0.5')} Échec : −${PR_PEN_PTS} prestige</span>`}
     </div>
   </div>`;
 }
@@ -13162,7 +13209,7 @@ function viewLog() {
       <div class="sys-title mb-3 ${pens.length ? 'r' : ''}">Registre des pénalités</div>
       ${pens.length ? pens.slice(0, 10).map(p => `
         <div class="py-2 border-t border-[#2a2228] first:border-0">
-          <div class="flex justify-between gap-2"><span class="f-display text-sm capitalize">${esc(prettyDate(p.date))}</span><span class="f-mono text-sm red">−${p.xp} XP${p.kinah ? ` · −${p.kinah} kinahs` : ''}</span></div>
+          <div class="flex justify-between gap-2"><span class="f-display text-sm capitalize">${esc(prettyDate(p.date))}</span><span class="f-mono text-sm red">${p.sealed ? 'sceau brisé' : `−${penPts(p)} prestige · −${penXp(p)} XP de prestige`}</span></div>
           <ul class="text-xs muted mt-0.5">${p.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
         </div>`).join('') : `<p class="text-sm muted">Aucune. Le Système n’a rien à vous reprocher pour l’instant.</p>`}
     </div>
@@ -13368,15 +13415,15 @@ function showLevelUp(level, gained, newRank) {
     <div class="sys pop w-full max-w-sm" style="padding:28px 20px">
       <div class="sys-title mb-5"><span class="bang">!</span>Notification</div>
       <div class="label">Niveau supérieur</div>
-      <div class="lvlnum my-2">${level}</div>
+      <div class="lvlnum my-2">${lvlTxt(level)}</div>
       <p class="f-display">Vous êtes monté de ${gained} niveau${gained > 1 ? 'x' : ''}.</p>
-      <p class="text-sm muted mt-1"><b class="glow">+${pointsEarned(level) - pointsEarned(level - gained)}</b> points de statistiques à répartir.</p>${newRank ? `<p class="text-xs mt-1" style="color:${newRank.color}">Rang ${newRank.r} : désormais +${pointsPerLevel(level)} points à chaque niveau${newRank.k ? ` et toutes les statistiques ×${newRank.k}` : ''}.</p>` : ''}
+      <p class="text-sm muted mt-1">${(() => { const n = availablePoints(powerLvl()); return n > 0 ? `<b class="glow">${n.toLocaleString('fr-FR')}</b> points de statistiques à répartir.` : 'Les points de statistiques arrivent avec l’XP, entre les niveaux.'; })()}</p>${newRank ? `<p class="text-xs mt-1" style="color:${newRank.color}">Rang ${newRank.r} : désormais +${pointsPerLevel(level)} points à chaque niveau${newRank.k ? ` et toutes les statistiques ×${newRank.k}` : ''}.</p>` : ''}
       ${newRank ? `<div class="mt-5 flex items-center gap-3"><div class="rank" style="color:${newRank.color};width:48px;height:48px;font-size:26px">${rankBadge(newRank)}</div><div><div class="label">Éveil</div><div class="f-display font-bold" style="color:${newRank.color}">${esc(newRank.title)}</div></div></div>` : ''}
       <button type="button" class="btn solid w-full mt-6" data-a="close-overlay">Continuer</button>
     </div>`);
 }
 function showPenalties(fails) {
-  const total = fails.reduce((a, p) => a + p.xp, 0);
+  const total = fails.reduce((a, p) => a + penPts(p), 0), totalX = fails.reduce((a, p) => a + penXp(p), 0);
   showOverlay(`
     <div class="sys danger pop w-full max-w-sm shake" style="padding:24px 20px">
       <div class="sys-title r mb-4">${icon('skull', 'w-4 h-4')}Zone de pénalité</div>
@@ -13385,7 +13432,7 @@ function showPenalties(fails) {
         ${fails.map(p => `<div class="text-sm"><div class="f-display capitalize">${esc(prettyDate(p.date))}</div><ul class="text-xs muted">${p.reasons.map(x => `<li>· ${esc(x)}</li>`).join('')}</ul></div>`).join('')}
       </div>
       <p class="text-sm muted mt-4">Le Système vous a transféré dans un désert peuplé de mille-pattes géants. Vous avez survécu, de justesse, en courant pendant quatre heures. Ne recommencez pas.</p>
-      <div class="mt-4 f-mono text-2xl font-bold red">−${total} XP · −${fails.reduce((a, p) => a + (p.kinah || 0), 0)} kinahs</div>
+      <div class="mt-4 f-mono text-2xl font-bold red">−${total} prestige · −${totalX} XP de prestige</div>${fails.some(p => p.sealed) ? `<p class="text-xs muted mt-1">Un sceau d’Ysolde s’est brisé à votre place.</p>` : ''}
       ${fails.some(p => p.guarded) ? `<p class="text-xs muted mt-1">Ysolde s’est interposée : la pénalité a été réduite.</p>` : ''}
       <button type="button" class="btn danger w-full mt-5" data-a="close-overlay">J’ai compris</button>
     </div>`);
@@ -13626,13 +13673,13 @@ const handlers = {
 
   /* Statistiques */
   'alloc-best': () => {
-    const L = levelInfo(totals().xp).level, n = availablePoints(L); if (n <= 0) return;
+    const L = powerLvl(), n = availablePoints(L); if (n <= 0) return;
     const before = dpsScore(playerCombat()), b = bestSplit(n); state.alloc.str = (state.alloc.str || 0) + b.str; state.alloc.agi = (state.alloc.agi || 0) + b.agi;
     bumpStats = ['str', 'agi']; save(); render();
     toast(`${b.str} point${b.str > 1 ? 's' : ''} en Force, ${b.agi} en Agilité · dégâts moyens ×${(dpsScore(playerCombat()) / before).toFixed(2)}`);
   },
   'alloc': el => {
-    const L = levelInfo(totals().xp).level;
+    const L = powerLvl();
     if (availablePoints(L) <= 0) return;
     const s = el.dataset.stat, inp = document.getElementById('alloc-n-' + s);
     /* on écrit le nombre de points voulu, puis + : tout est attribué d'un coup */
@@ -14447,7 +14494,7 @@ function avatarLine() {
   const V = heroVis(), t = V.titre ? cosmOf('titre') : null, te = V.tenue ? cosmOf('tenue') : null, ac = cosmOf('accessoire'), w = invItem(state.gear.main);
   return `<div class="text-[11px] mt-1 leading-snug">
     ${t ? titleHTML(t.name, t.r) : ''}
-    <span class="muted block">${te ? esc(te.name) : ''}${ac ? ` · ${esc(ac.name)}` : ''}${w ? ` · ${esc(itemName(w))}${w.up ? ` +${w.up}` : ''}` : ''}</span></div>`;
+    </div>`;
 }
 
 /* ---------- Amélioration / recyclage ---------- */
@@ -14702,7 +14749,7 @@ function viewExpeditions() {
 }
 
 /* ---------- Boutique ---------- */
-const SHOP_TABS = [['armurerie', 'Armurerie', 'swords'], ['puces', 'Puces', 'cpu'], ['runes', 'Runes', 'gem'], ['materiaux', 'Matériaux', 'cog'], ['cosm', 'Cosmétiques', 'sparkles'], ['mount', 'Montures', 'rabbit'], ['instrument', 'Instruments', 'music-2'], ['house', 'Demeures', 'castle']];
+const SHOP_TABS = [['prestige', 'Prestige', 'award'], ['armurerie', 'Armurerie', 'swords'], ['puces', 'Puces', 'cpu'], ['runes', 'Runes', 'gem'], ['materiaux', 'Matériaux', 'cog'], ['cosm', 'Cosmétiques', 'sparkles'], ['mount', 'Montures', 'rabbit'], ['instrument', 'Instruments', 'music-2'], ['house', 'Demeures', 'castle']];
 const CHIP_PRICES = [150, 450, 1200, 3000, 7500, 18000, 45000];
 /* prix à l'unité ; les gros lots sont un peu moins chers */
 const MAT_UNIT = { ferraille: 20, ether: 150, coeur: 1500, cendre: 5000 };
@@ -14715,7 +14762,8 @@ function viewShop() {
   if (!SHOP_TABS.some(t => t[0] === cat)) cat = 'armurerie';
   const k = kinahs(), L = curLevel();
   let body = '';
-  if (cat === 'runes') {
+  if (cat === 'prestige') body = viewPrestigeShop();
+  else if (cat === 'runes') {
     const G = typeof arenaState === 'function' ? arenaState().glory : 0;
     body = `<p class="text-[11px] muted px-1">Une rune se sertit dans une arme ou une armure Légendaire, Mythique, Éternelle ou De toute éternité, pour toujours : elle ne peut plus être retirée. Un objet porté à +4 reçoit deux runes. Les effets de même type s’additionnent. La rareté « De toute éternité » s’achète avec la gloire de l’arène (vous en avez ${G.toLocaleString('fr-FR')}).</p>` +
       Object.entries(RUNE_TYPES).map(([t, T]) => `<div class="card"><div class="flex items-center gap-2"><span class="glow-umbra">${icon(T.icon, 'w-4 h-4')}</span><span class="f-display font-semibold">${esc(T.name)}</span></div>
@@ -15090,7 +15138,7 @@ function powerTrack(cp) {
 function viewPowerLog() {
   const L = state.powerLog || []; if (!L.length) return '';
   const fmt = n => n.toLocaleString('fr-FR');
-  return `<div class="mt-2"><div class="label">Pourquoi ma puissance a changé</div>${L.slice(0, 3).map(x => { const d = x.to - x.from, up = d > 0; return `<div class="text-[11px] mt-1" style="border-left:2px solid ${up ? '#4ade80' : '#ff4d6d'};padding-left:6px"><b class="f-mono" style="color:${up ? '#4ade80' : '#ff8a9a'}">${fmt(x.from)} → ${fmt(x.to)} (${up ? '+' : ''}${Math.round(d / Math.max(1, x.from) * 100)} %)</b> · ${x.why.map(esc).join(' · ')}${x.comp.length ? `<div class="muted">${x.comp.map(esc).join(' · ')}</div>` : ''}</div>`; }).join('')}</div>`;
+  return `<details class="mt-2 pw-log"><summary class="label" style="cursor:pointer">Pourquoi ma puissance a changé ${icon('chevron-down', 'w-3.5 h-3.5 inline -mt-0.5')}</summary>${L.slice(0, 3).map(x => { const d = x.to - x.from, up = d > 0; return `<div class="text-[11px] mt-1" style="border-left:2px solid ${up ? '#4ade80' : '#ff4d6d'};padding-left:6px"><b class="f-mono" style="color:${up ? '#4ade80' : '#ff8a9a'}">${fmt(x.from)} → ${fmt(x.to)} (${up ? '+' : ''}${Math.round(d / Math.max(1, x.from) * 100)} %)</b> · ${x.why.map(esc).join(' · ')}${x.comp.length ? `<div class="muted">${x.comp.map(esc).join(' · ')}</div>` : ''}</div>`; }).join('')}</details>`;
 }
 /* carte « Puissance de combat » (Statut et Royaume) */
 function viewPowerCard(c) {
@@ -15578,7 +15626,7 @@ function toughness(F, A, E, L, raw) {
   const g = s => typeof invItem === 'function' && state.gear ? invItem(state.gear[s]) : null;
   let a = 0; for (const s of ['casque', 'plastron', 'jambieres']) { const it = g(s); a += it ? ARMOR_TOUGH[it.r] + (it.up || 0) * 0.0375 : 0.5; } a /= 3;
   const sh = g('off'); if (sh && sh.type === 'bouclier') a += 0.05 + sh.r * 0.015;
-  if (L == null) L = levelInfo(totals().xp).level;
+  if (L == null) L = powerLvl();
   const share = E / (E + 20 * L + 200), v = a * (0.9 + 1.5 * share);
   return raw ? v : Math.round(v * 100) / 100;
 }
@@ -16064,7 +16112,7 @@ function optBase() {
   state.chipEq = []; state.alloc = { str: 0, agi: 0, end: 0, int: 0 }; _bm = null;
   try {
     const b = boosts(), pc = playerCombat(), sv = statValues();
-    const L = levelInfo(totals().xp).level;
+    const L = powerLvl();
     const ck = (1 + cosmStatPct() / 100) * rankStatK(L);
     const e = { str: effStat('str'), agi: effStat('agi'), end: effStat('end') };
     const W = weaponStats(pc.weapon);
@@ -16176,7 +16224,7 @@ const OPT_ARMOR = ['casque', 'plastron', 'jambieres', 'bottes', 'bijou', 'ceintu
 let _optNRef = 0;
 function optPlan(goal, shop) {
   if (!shop) _optNRef = combatPower().power;
-  const c = curClass(), L = levelInfo(totals().xp).level, n = pointsEarned(L);
+  const c = curClass(), L = powerLvl(), n = pointsEarned(L);
   const armor = {}; for (const a of OPT_ARMOR) armor[a] = optPiece(a, [], shop);
   let best = null;
   for (const [mt, ot] of c.loadouts) {
@@ -16324,7 +16372,7 @@ function optApply(goal) {
   /* l'Égide (survie) et la Céleste (combat en vol) ne changent pas le chiffre de puissance : on leur donne un petit poids pour ne pas les jeter */
   const worth = () => { const R = runePerks(); return power() * (1 + 0.10 * Math.min(1, R.egide / 60) + 0.05 * (R.celeste > 0 ? 1 : 0)); };
   if (goal === 'combat') { optRefineGear(worth);
-    const g = {}; for (const s in state.gear) g[s] = invItem(state.gear[s]); const n = pointsEarned(levelInfo(totals().xp).level), r2 = optEval(goal, g, false, n);
+    const g = {}; for (const s in state.gear) g[s] = invItem(state.gear[s]); const n = pointsEarned(powerLvl()), r2 = optEval(goal, g, false, n);
     const keepA = { ...state.alloc }, keepC = state.chipEq.slice(), p1 = power();
     state.alloc = { str: r2.x.str, agi: r2.x.agi, end: r2.x.end, int: r2.x.int }; state.chipEq = r2.chips.slice(); _bm = null;
     if (power() < p1) { state.alloc = keepA; state.chipEq = keepC; _bm = null; } }
@@ -17393,6 +17441,106 @@ function estateTreasure(hid, r) {
   _memo = null; save();
   return { title: 'Trésor de la demeure', msg: `+${k.toLocaleString('fr-FR')} kinahs · ${mats.map(([m, n]) => n + ' ' + MATERIALS[m].name.toLowerCase()).join(', ')}` };
 }
+
+/* ==========================================================================
+   Prestige : la marque des Chasseurs sérieux et disciplinés.
+   - Points de prestige et XP de prestige ne se gagnent QUE par le Donjon (séances) et la Nutrition.
+     Ni le monde ouvert, ni l'arène, ni la boutique n'en donnent.
+   - Les pénalités (quête quotidienne manquée) retirent des points et de l'XP de prestige, plus rien d'autre.
+   - Les points se dépensent dans la Boutique du prestige ; l'XP de prestige donne le niveau de prestige.
+   Tout est recalculé depuis l'historique des journées : les jours passés comptent.
+   ========================================================================== */
+const PR_SESSION = 10, PR_SESSION_DONE = 15, PR_NUTRI = 10, PR_NUTRI_DONE = 15, PR_DAY_DONE = 10;   /* points par jour : 60 au plus */
+const PR_PEN_PTS = 40, PR_PEN_XP = 400;
+const PRESTIGE_MAX = 100;
+/* XP de prestige pour passer au niveau suivant : 1 200, puis +12 % par niveau */
+const PR_NEED = (() => { const a = [0]; for (let L = 1; L < PRESTIGE_MAX; L++) a.push(Math.round(1200 * Math.pow(1.12, L - 1))); return a; })();
+const penPts = p => p.pp != null ? p.pp : Math.round(PR_PEN_PTS * (p.guarded ? 0.66 : 1));
+const penXp = p => p.pxp != null ? p.pxp : Math.round(PR_PEN_XP * (p.guarded ? 0.66 : 1));
+let _prMemo = null, _prKey = null;
+function prestigeInfo() {
+  const key = _memo; if (_prMemo && _prKey === key && key) return _prMemo;
+  let pts = 0, xp = 0, days = 0;
+  for (const k in state.days) {
+    const r = dayResult(k); let p = 0, x = 0;
+    if (r.plan.sid && r.n > 0) { p += Math.round(PR_SESSION * r.exDone / r.n) + (r.workoutDone ? PR_SESSION_DONE : 0); x += Math.round(WORKOUT_PART * r.exDone / r.n) + (r.workoutDone ? WORKOUT_BONUS : 0); }
+    p += Math.round(PR_NUTRI * r.nu.metCount / 4) + (r.nu.done ? PR_NUTRI_DONE : 0); x += Math.round(NUTRI_PART * r.nu.metCount / 4) + (r.nu.done ? NUTRI_BONUS : 0);
+    if (r.success) p += PR_DAY_DONE;
+    if (p > 0) days++;
+    pts += p; xp += x;
+  }
+  let penP = 0, penX = 0; for (const p of state.penalties) { penP += penPts(p); penX += penXp(p); }
+  const spent = (state.prBuys || []).reduce((a, b) => a + b.price, 0);
+  const totalXp = Math.max(0, xp - penX);
+  let L = 1, rem = totalXp; while (L < PRESTIGE_MAX && rem >= PR_NEED[L]) { rem -= PR_NEED[L]; L++; }
+  _prKey = key; _prMemo = { pts: pts - penP - spent, earned: pts, penP, penX, spent, xp: totalXp, level: L, into: rem, need: L < PRESTIGE_MAX ? PR_NEED[L] : 0, days };
+  return _prMemo;
+}
+const prestigePts = () => prestigeInfo().pts;
+/* montant compact pour l'en-tête : 12 345 → 12,3 k ; 4 560 000 → 4,56 M ; 1,2 Md */
+function fmtShort(n) {
+  const a = Math.abs(n), s = n < 0 ? '−' : '';
+  const f = (v, u) => s + (v >= 100 ? Math.round(v) : v >= 10 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100).toLocaleString('fr-FR') + ' ' + u;
+  if (a < 10000) return s + Math.round(a).toLocaleString('fr-FR');
+  if (a < 1e6) return f(a / 1e3, 'k'); if (a < 1e9) return f(a / 1e6, 'M'); if (a < 1e12) return f(a / 1e9, 'Md'); return f(a / 1e12, 'T');
+}
+
+/* ---------- Boutique du prestige ---------- */
+const PR_SHOP = [
+  { id: 'pr_seal', name: 'Sceau d’Ysolde', kind: 'seal', price: 250, r: 4, rep: true, desc: 'Se brise à la place de la prochaine pénalité : ni points ni XP de prestige perdus. Se cumule.' },
+  { id: 'tit_pr1', name: 'Titre « Le Discipliné »', kind: 'cosm', price: 300, r: 4, desc: 'Le premier titre qu’on ne peut pas acheter avec des kinahs.' },
+  { id: 'pr_letter1', name: 'Lettre de Rose, I', kind: 'lore', price: 150, r: 3, desc: 'Une lettre de la grand-mère, jamais envoyée. Inédite.' },
+  { id: 'pr_letter2', name: 'Lettre de Rose, II', kind: 'lore', price: 300, r: 4, lvl: 5, desc: 'La deuxième lettre. Inédite.' },
+  { id: 'pr_letter3', name: 'Lettre de Rose, III', kind: 'lore', price: 600, r: 5, lvl: 10, desc: 'La dernière lettre. Inédite.' },
+  { id: 'aur_pr', name: 'Aura « Flamme de constance »', kind: 'cosm', price: 1500, r: 6, lvl: 5, desc: 'Une flamme blanche et calme, qui ne vacille pas.' },
+  { id: 'tit_pr2', name: 'Titre « Celui qui n’a pas lâché »', kind: 'cosm', price: 2000, r: 5, lvl: 10, desc: 'Pour ceux qui reviennent, même les jours sans envie.' },
+  { id: 'ail_pr', name: 'Ailes « L’Aube tenue »', kind: 'cosm', price: 3500, r: 6, lvl: 15, desc: 'Des ailes de plumes dorées, gagnées jour après jour.' },
+  { id: 'pr_ws', name: 'Forge de la discipline : skin d’arme De toute éternité', kind: 'ws', price: 3000, r: 7, lvl: 12, rep: true, desc: 'Pour l’arme que vous tenez en main. D’ordinaire payé en gloire.' },
+  { id: 'pr_gear', name: 'Forge de la discipline : armure De toute éternité au choix', kind: 'gear', price: 6000, r: 7, lvl: 20, rep: true, desc: 'Une pièce que la boutique ne vend jamais, du type que vous choisissez (choisi ci-dessous).' },
+  { id: 'tit_pr3', name: 'Titre « La Parole tenue »', kind: 'cosm', price: 10000, r: 7, lvl: 30, desc: 'Le titre le plus rare de la boutique.' }
+];
+const PR_LETTERS = {
+  pr_letter1: ['Lettre de Rose, I', 'Mon petit. Ton grand-père disait que la force, c’est de la patience qui a pris des muscles. Il se trompait sur beaucoup de choses, mais pas sur celle-là. Tu vas avoir envie de tout faire en un jour. Fais-en un peu, tous les jours. Le reste vient seul, comme le pain qui lève pendant qu’on dort.'],
+  pr_letter2: ['Lettre de Rose, II', 'Il y aura des matins où tu n’auras pas envie. Ce ne sont pas les pires. Les pires, ce sont ceux où tu te diras que ça ne sert à rien. Ces matins-là, fais la moitié. Une moitié, c’est déjà une promesse tenue, et une promesse tenue en appelle une autre. Je t’ai vu tenir une cuillère avant de savoir marcher : tu sais recommencer.'],
+  pr_letter3: ['Lettre de Rose, III', 'Je n’enverrai pas ces lettres, tu les trouveras quand il faudra. Je voulais seulement te dire que je ne suis pas fière de toi parce que tu es fort. Je suis fière de toi parce que tu reviens. Tous les jours, tu reviens. C’est la seule chose qu’on ne peut pas te voler. Prends le petit d’abord, et puis reviens. — Rose']
+};
+function prOwned(it) {
+  if (it.kind === 'cosm') return cosmOwned(it.id);
+  if (it.kind === 'lore') return !!(state.prLore || {})[it.id];
+  return false;
+}
+function prWeap() { const w = invItem(state.gear.main); return w && WEAPON_TYPES[w.type] ? w.type : null; }
+function viewPrestigeShop() {
+  const P = prestigeInfo(), fmt = n => Math.round(n).toLocaleString('fr-FR'), seals = state.prSeals || 0;
+  return `<div class="sys" style="border-color:rgba(255,213,106,.5)">
+    <div class="flex items-center justify-between gap-2 mb-1"><div class="sys-title" style="color:#ffd56a">${icon('award', 'w-4 h-4')} Boutique du prestige</div><div class="f-mono text-sm" style="color:${P.pts < 0 ? '#ff4d6d' : '#ffd56a'}">${icon('award', 'w-3.5 h-3.5 inline -mt-0.5')} ${fmt(P.pts)}</div></div>
+    <p class="text-[11px] muted mb-3">Les points de prestige se gagnent seulement au Donjon et en Nutrition, jamais dans le monde ouvert : ce qui se vend ici ne s’obtient nulle part ailleurs.${seals ? ` · ${seals} sceau${seals > 1 ? 'x' : ''} d’Ysolde en réserve` : ''}</p>
+    <div class="flex flex-col gap-2">${PR_SHOP.map(it => {
+      const own = !it.rep && prOwned(it), lock = it.lvl && P.level < it.lvl, need = it.kind === 'ws' && (!prWeap() || cosmOwned('ws_' + prWeap() + '_7')), can = !own && !lock && !need && P.pts >= it.price;
+      const extra = it.kind === 'gear' ? `<select class="pr-sel" id="pr-gear-type" aria-label="Type de pièce">${Object.entries(ARMOR_TYPES).map(([k, a]) => `<option value="${k}" ${ui.prGear === k ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>` : '';
+      return `<div class="res" style="cursor:default;align-items:flex-start"><span class="flex-1 min-w-0"><span class="block f-display text-sm" style="color:${RARITIES[it.r].color}">${esc(it.name)}</span><span class="block text-[11px] muted">${esc(it.desc)}${lock ? ` · niveau de prestige ${it.lvl}` : ''}${need && it.kind === 'ws' ? ' · prenez une arme dont vous n’avez pas encore le skin' : ''}</span>${extra}</span>
+        ${own ? `<span class="text-xs muted">${it.kind === 'lore' ? `<button type="button" class="btn sm ghost" data-a="pr-read" data-id="${it.id}">Relire</button>` : 'Possédé'}</span>` : `<button type="button" class="btn sm" data-a="pr-buy" data-id="${it.id}" ${can ? '' : 'disabled'}>${fmt(it.price)}</button>`}</div>`; }).join('')}</div>
+  </div>`;
+}
+function prReadLetter(id) { const L = PR_LETTERS[id]; if (!L) return; showOverlay(`<div class="sys pop w-full max-w-sm" style="padding:24px 20px;border-color:rgba(255,213,106,.5)"><div class="sys-title mb-3" style="color:#ffd56a">${esc(L[0])}</div><p class="text-sm leading-relaxed" style="font-family:Georgia,serif">${esc(L[1])}</p><button type="button" class="btn solid w-full mt-5" data-a="close-overlay">Plier la lettre</button></div>`); }
+Object.assign(handlers, {
+  'pr-buy': el => {
+    const it = PR_SHOP.find(x => x.id === el.dataset.id); if (!it) return; const P = prestigeInfo();
+    if ((!it.rep && prOwned(it)) || (it.lvl && P.level < it.lvl) || P.pts < it.price) return;
+    let got = it.name;
+    if (it.kind === 'cosm') state.cosm[it.id] = dk();
+    else if (it.kind === 'lore') { state.prLore = state.prLore || {}; state.prLore[it.id] = dk(); }
+    else if (it.kind === 'seal') state.prSeals = (state.prSeals || 0) + 1;
+    else if (it.kind === 'ws') { const t = prWeap(); if (!t || cosmOwned('ws_' + t + '_7')) return; state.cosm['ws_' + t + '_7'] = dk(); }
+    else if (it.kind === 'gear') { const sel = document.getElementById('pr-gear-type'), t = sel && ARMOR_TYPES[sel.value] ? sel.value : 'plastron'; const g = makeItem(7, t); state.inv.push(g); got = itemName(g); }
+    (state.prBuys = state.prBuys || []).push({ id: it.id, price: it.price, date: dk() }); _prMemo = null;
+    save(); render(); toast(`${icon('award', 'w-4 h-4')}<span>Prestige : ${esc(got)}</span>`);
+    if (it.kind === 'lore') prReadLetter(it.id);
+  },
+  'pr-read': el => prReadLetter(el.dataset.id),
+  'go-prestige': () => { state.tab = 'realm'; state.realmTab = 'shop'; ui.shopCat = 'prestige'; save(); render(); window.scrollTo({ top: 0 }); }
+});
+document.addEventListener('change', e => { if (e.target && e.target.id === 'pr-gear-type') ui.prGear = e.target.value; });
 
 /* ==========================================================================
    LECTEUR — relecture du chemin parcouru, polices, tailles, papiers, progression
@@ -18866,7 +19014,7 @@ const TENUES = {
   ten_roi: { cut: 'coat', c: ["#0e0b16", "#050308", "#c9a8ff"], glow: true }
 };
 const ART_ACC = { acc_lunettes: 'lunettes', acc_bandeau: 'bandeau', acc_couteau: 'couteau', acc_echarpe: 'echarpe', acc_medaille: 'medaille', acc_petrin: 'gant', acc_corbeau: 'masque', acc_avion: 'avion', acc_montre: 'montre', acc_gant: 'gant', acc_partition: 'partition', acc_lanterne: 'lanterne', acc_verre: 'boucle', acc_plume: 'plume', acc_monocle: 'monocle', acc_couronne: 'couronne', acc_croc: 'croc', acc_clefantome: 'cle', acc_mesures: 'broche', acc_toujours: 'couronne', acc_kitsune: 'masque', acc_jade: 'broche', acc_lunettes_or: 'lunettes', acc_agrafe: 'broche', acc_phenix: 'plume', acc_gant_runes: 'gant', acc_cle_abysses: 'cle', acc_epines: 'couronne', acc_oeil: 'monocle', acc_croc_dragon: 'croc', acc_lanterne_ames: 'lanterne', acc_echarpe_vent: 'echarpe', acc_medaille_heros: 'medaille', acc_boucle_sang: 'boucle', acc_couronne_aube: 'couronne', acc_aureole: 'broche', acc_plume_aion: 'plume', acc_partition_eternelle: 'partition', acc_montre_temps: 'montre', acc_masque_roi: 'masque', acc_cle_monde: 'cle' };
-const ART_AURA = { aur_contre: ['#9a7cd8', 'dust'], aur_wb6: ['#e8c48a', 'dust'], aur_wb7: ['#ffd56a', 'spark'], aur_wb8: ['#e8f6ff', 'snow'], aur_wb9: ['#d9a85a', 'wave'], aur_wb10: ['#7ad06a', 'leaf'], aur_wb16: ['#fff1b8', 'ray'], aur_lampe: ['#ffd27a', 'spark'], aur_soupe: ['#d9e2e6', 'steam'], aur_farine: ['#f3ecd9', 'dust'], aur_braise: ['#ff7a3c', 'flame'], aur_bruine: ['#7fb8d8', 'drop'], aur_bougie: ['#ffc861', 'flame'], aur_givre: ['#bfeaff', 'snow'], aur_ether: ['#38bdf8', 'bolt'], aur_pluie: ['#8fa9bd', 'drop'], aur_ombre: ['#8b5cf6', 'smoke'], aur_corbeaux: ['#3a3340', 'bird'], aur_chene: ['#7fae4e', 'leaf'], aur_sang: ['#d32f4a', 'drop'], aur_boreale: ['#5dffb5', 'wave'], aur_notes: ['#ffd479', 'note'], aur_abysses: ['#1f6f8f', 'wave'], aur_flammes: ['#5b4a6b', 'flame'], aur_tempete: ['#7ad7ff', 'bolt'], aur_aube: ['#ffe9b0', 'ray'], aur_toujours: ['#9ffcff', 'ray'], aur_sakura: ['#ffb7d0', 'leaf'], aur_lucioles: ['#e8ff7a', 'spark'], aur_neige: ['#eaf6ff', 'snow'], aur_eclairs: ['#4fb8ff', 'bolt'], aur_encre: ['#4a4a5a', 'smoke'], aur_runes: ['#c8b6ff', 'note'], aur_sable: ['#e0b870', 'dust'], aur_phenix: ['#ff7a2a', 'flame'], aur_dragon: ['#ff4d2a', 'flame'], aur_galaxie: ['#8a7bff', 'spark'], aur_ombres_mon: ['#5a3a90', 'smoke'], aur_maree: ['#2a9dd8', 'wave'], aur_lune_sang: ['#c2183a', 'drop'], aur_chaines: ['#b9bcc6', 'bolt'], aur_soleil: ['#ffd56a', 'ray'], aur_celeste: ['#fff1b8', 'ray'], aur_etoiles: ['#fff6d8', 'spark'], aur_aurore: ['#7fffd0', 'wave'], aur_seraph: ['#ffffff', 'leaf'], aur_regne: ['#6a3cff', 'smoke'], aur_ether_aion: ['#7fe0ff', 'bolt'] };
+const ART_AURA = { aur_pr: ['#fff6e0', 'ray'], aur_contre: ['#9a7cd8', 'dust'], aur_wb6: ['#e8c48a', 'dust'], aur_wb7: ['#ffd56a', 'spark'], aur_wb8: ['#e8f6ff', 'snow'], aur_wb9: ['#d9a85a', 'wave'], aur_wb10: ['#7ad06a', 'leaf'], aur_wb16: ['#fff1b8', 'ray'], aur_lampe: ['#ffd27a', 'spark'], aur_soupe: ['#d9e2e6', 'steam'], aur_farine: ['#f3ecd9', 'dust'], aur_braise: ['#ff7a3c', 'flame'], aur_bruine: ['#7fb8d8', 'drop'], aur_bougie: ['#ffc861', 'flame'], aur_givre: ['#bfeaff', 'snow'], aur_ether: ['#38bdf8', 'bolt'], aur_pluie: ['#8fa9bd', 'drop'], aur_ombre: ['#8b5cf6', 'smoke'], aur_corbeaux: ['#3a3340', 'bird'], aur_chene: ['#7fae4e', 'leaf'], aur_sang: ['#d32f4a', 'drop'], aur_boreale: ['#5dffb5', 'wave'], aur_notes: ['#ffd479', 'note'], aur_abysses: ['#1f6f8f', 'wave'], aur_flammes: ['#5b4a6b', 'flame'], aur_tempete: ['#7ad7ff', 'bolt'], aur_aube: ['#ffe9b0', 'ray'], aur_toujours: ['#9ffcff', 'ray'], aur_sakura: ['#ffb7d0', 'leaf'], aur_lucioles: ['#e8ff7a', 'spark'], aur_neige: ['#eaf6ff', 'snow'], aur_eclairs: ['#4fb8ff', 'bolt'], aur_encre: ['#4a4a5a', 'smoke'], aur_runes: ['#c8b6ff', 'note'], aur_sable: ['#e0b870', 'dust'], aur_phenix: ['#ff7a2a', 'flame'], aur_dragon: ['#ff4d2a', 'flame'], aur_galaxie: ['#8a7bff', 'spark'], aur_ombres_mon: ['#5a3a90', 'smoke'], aur_maree: ['#2a9dd8', 'wave'], aur_lune_sang: ['#c2183a', 'drop'], aur_chaines: ['#b9bcc6', 'bolt'], aur_soleil: ['#ffd56a', 'ray'], aur_celeste: ['#fff1b8', 'ray'], aur_etoiles: ['#fff6d8', 'spark'], aur_aurore: ['#7fffd0', 'wave'], aur_seraph: ['#ffffff', 'leaf'], aur_regne: ['#6a3cff', 'smoke'], aur_ether_aion: ['#7fe0ff', 'bolt'] };
 /* Skins d'armes : effet + [lame, lueur, effet 1, effet 2] — utilisés aussi par le moteur 3D */
 const SKIN_FX = {
   skn_toujours: { fx: 'prism', c: ['#f8feff', '#9ffcff', '#ffffff', '#ffd56a'] },
@@ -18913,7 +19061,7 @@ const SKIN_FX = {
 };
 /* Ailes : forme + [principale, secondaire] — utilisées aussi par le moteur 3D */
 const WING_FX = {
-  ail_wb11: { kind: 'meca', c: ['#b0603a', '#ffb070'] }, ail_wb12: { kind: 'plume', c: ['#f4f8ff', '#bfd6ea'] }, ail_wb13: { kind: 'cristal', c: ['#ffe9b8', '#9ffcff'] }, ail_wb14: { kind: 'papillon', c: ['#6a8a5a', '#e8d8a0'] }, ail_wb15: { kind: 'ombre', c: ['#3a2a4a', '#ffd56a'] }, ail_wb16: { kind: 'lumiere', c: ['#ffffff', '#fff1b8'] },
+  ail_pr: { kind: 'plume', c: ['#fff4d6', '#ffd56a'] }, ail_wb11: { kind: 'meca', c: ['#b0603a', '#ffb070'] }, ail_wb12: { kind: 'plume', c: ['#f4f8ff', '#bfd6ea'] }, ail_wb13: { kind: 'cristal', c: ['#ffe9b8', '#9ffcff'] }, ail_wb14: { kind: 'papillon', c: ['#6a8a5a', '#e8d8a0'] }, ail_wb15: { kind: 'ombre', c: ['#3a2a4a', '#ffd56a'] }, ail_wb16: { kind: 'lumiere', c: ['#ffffff', '#fff1b8'] },
   ail_toujours: { kind: 'lumiere', c: ['#e8fdff', '#9ffcff'] },
   ail_moineau: { kind: 'plume', c: ["#8a6a4a", "#c8a882"] },
   ail_papier: { kind: 'plume', c: ["#efe8d6", "#c8bfa8"] },
@@ -19263,12 +19411,12 @@ const HERO_MOVES = { neutre: ['Course', 'Course normale, rapide'], ninja: ['Ninj
 const HERO = { view: null, cv: null, loading: null, failed: false, last: '', draft: null, zoom: 'body', armed: false };
 
 /* Titre porté + nom, au-dessus du personnage (fiche et monde ouvert) */
-function plateData() { const t = heroVis().titre ? cosmOf('titre') : null; return { name: (state.profile && state.profile.name) || '', title: t ? t.name : '', color: t ? t.color : '', r: t ? t.r : 0 }; }
+function plateData() { const V = heroVis(), t = V.titre ? cosmOf('titre') : null; return { name: V.pseudo !== false && state.profile ? state.profile.name || '' : '', title: t ? t.name : '', color: t ? t.color : '', r: t ? t.r : 0 }; }
 /* titre stylé selon sa rareté (même dessin que dans le monde ouvert : w3d/src/titles.js) */
 function titleHTML(name, r) { r = Math.max(0, Math.min(7, r | 0)); return `<span class="ttl ttl-r${r}"><i class="l"></i><b>« ${esc(name)} »</b><i class="r"></i></span>`; }
 function heroPlate() { const P = plateData(); if (!P.title && !P.name) return ''; return `<div class="hero-plate">${P.title ? `<div class="hp-t">${titleHTML(P.title, P.r)}</div>` : ''}${P.name ? `<div class="hp-n">${esc(P.name)}</div>` : ''}</div>`; }
 /* Ce qu'on affiche sur le personnage (les bonus restent actifs même masqués) */
-const HERO_VIS = { tenue: 'Tenue', casque: 'Casque', plastron: 'Plastron', jambieres: 'Jambières', bouclier: 'Bouclier', armes: 'Armes', skin: 'Skin d’arme', ailes: 'Ailes', aura: 'Aura', titre: 'Titre' };
+const HERO_VIS = { tenue: 'Tenue', casque: 'Casque', plastron: 'Plastron', jambieres: 'Jambières', bouclier: 'Bouclier', armes: 'Armes', skin: 'Skin d’arme', ailes: 'Ailes', aura: 'Aura', titre: 'Titre', pseudo: 'Pseudo' };
 function heroVis() {
   const L = (state.profile && state.profile.look) || {}, v = Object.assign({}, L.vis || {}), out = {};
   for (const k in HERO_VIS) out[k] = v[k] !== false;
@@ -19427,7 +19575,7 @@ if (typeof document !== 'undefined' && document.head) document.head.insertAdjace
 .hero-slot{position:relative;height:min(52vh,420px);margin-top:10px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#1d1d30 0%,#0c0c14 62%,#07070b 100%);overflow:hidden}
 .hero-cv{width:100%;height:100%;display:block;cursor:grab;touch-action:pan-y}
 .hero-plate{position:relative;z-index:2;text-align:center;pointer-events:none;line-height:1.25;padding:4px 0 8px}
-.ttl{display:inline-flex;align-items:center;justify-content:center;gap:.4em;position:relative;isolation:isolate;font:700 13px/1.25 'Oxanium','Barlow',sans-serif;letter-spacing:.05em;white-space:nowrap;padding:2px 8px;vertical-align:middle}
+.ttl{display:inline-flex;align-items:center;justify-content:center;gap:.4em;position:relative;isolation:isolate;overflow:hidden;max-width:100%;border-radius:3px;font:700 13px/1.25 'Oxanium','Barlow',sans-serif;letter-spacing:.05em;white-space:nowrap;padding:2px 8px;vertical-align:middle}
 .ttl b{font-weight:700}
 .ttl i{font-style:normal;display:none;flex:none}
 .ttl-r0 b{color:#c3c7d0;text-shadow:0 1px 2px #000}
@@ -19449,12 +19597,12 @@ if (typeof document !== 'undefined' && document.head) document.head.insertAdjace
 .ttl-r6 i,.ttl-r7 i{display:inline-block;font-size:.95em;line-height:1}
 .ttl-r6 i::before{content:'✧';color:#fff1b8;text-shadow:0 0 8px #ffd56a}
 .ttl-r6 i{animation:ttlSpin 7s linear infinite}
-.ttl-r6::before{content:'';position:absolute;left:50%;top:50%;width:150%;height:260%;transform:translate(-50%,-50%);z-index:-1;background:radial-gradient(ellipse,rgba(255,236,170,.5),transparent 62%);animation:ttlPulse 3s ease-in-out infinite}
+.ttl-r6::before{content:'';position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%);z-index:-1;background:radial-gradient(ellipse,rgba(255,236,170,.5),transparent 62%);animation:ttlPulse 3s ease-in-out infinite}
 .ttl-r7 b{background-image:linear-gradient(90deg,#9ffcff,#ffffff,#ffd56a,#ffb3f2,#9ffcff);background-size:300% 100%;filter:drop-shadow(0 0 6px #9ffcff) drop-shadow(0 0 14px rgba(159,252,255,.6));animation:ttlSweep 3.4s ease-in-out infinite alternate}
 .ttl-r7 i::before{content:'✦';color:#fff;text-shadow:0 0 6px #9ffcff,0 0 12px #9ffcff}
 .ttl-r7 i{animation:ttlTw 1.6s ease-in-out infinite}
 .ttl-r7 i.r{animation-delay:-.8s}
-.ttl-r7::before{content:'';position:absolute;left:50%;top:50%;width:120%;height:420%;transform:translate(-50%,-50%);z-index:-1;background:repeating-conic-gradient(rgba(159,252,255,.32) 0 5deg,transparent 5deg 16deg);-webkit-mask:radial-gradient(closest-side,#000 25%,transparent);mask:radial-gradient(closest-side,#000 25%,transparent);animation:ttlRot 16s linear infinite}
+.ttl-r7::before{content:'';position:absolute;left:50%;top:50%;width:140%;height:600%;transform:translate(-50%,-50%);z-index:-1;background:repeating-conic-gradient(rgba(159,252,255,.32) 0 5deg,transparent 5deg 16deg);-webkit-mask:radial-gradient(closest-side,#000 25%,transparent);mask:radial-gradient(closest-side,#000 25%,transparent);animation:ttlRot 16s linear infinite}
 @keyframes ttlSweep{from{background-position:0% 0}to{background-position:100% 0}}
 @keyframes ttlFlick{0%,100%{transform:none}35%{transform:translateY(-.6px)}70%{transform:translateY(.3px)}}
 @keyframes ttlFlame{from{transform:scale(.82,.78) skewX(-5deg)}to{transform:scale(1.06,1.16) skewX(6deg)}}
@@ -19971,11 +20119,15 @@ const GUIDE = [
     'Habitants : une centaine de personnes vivent à Vespérane (rues, parc, hameaux) ; des enfants jouent au ballon ou au chat. Approche-toi et appuie sur E : chacun parle de son métier, de sa vie et de ce qu’il pense de l’existence.',
     'Exploration : 130 archives à trouver (30 affiches sur les murs, 30 lettres, 30 livres, 20 photos, 20 vins rares), 40 clés et 60 coffres (10 de chaque : à 1, 5, 10, 20, 30 et 40 clés). Les clés ne s’usent pas : un coffre s’ouvre dès que tu en possèdes assez. Les coffres à 40 clés contiennent un objet De toute éternité, une rune Éternelle et 2 millions de kinahs. Un ✦ après le nom d’une maison signale qu’il y reste quelque chose. Tout ce que tu ramasses se relit dans Codex → Exploration.',
     'Carte : bouton « Carte » (touche K), ou touche la mini-carte. Trois vues : le monde entier, la ville, ou les environs. On y voit les régions, les quartiers, tes demeures, l’arène, les lieux à visiter, les bouches d’égout, les manèges et les quinze Éternels (gris et cochés une fois vaincus).',
-    'Demeures : leur taille suit la rareté. Commun : une maison d’habitant avec étage et cave. Raffiné : deux fois plus de pièces. Rare : le monastère en ruine, où la nature reprend ses droits, avec son jardin de fleurs de lune. Épique et au-delà : salons, bibliothèques, salle de bal, cabinet secret (tirer le livre rouge de la bibliothèque) et salle du trésor fermée par un mot de passe (l’indice est sur un bureau de la bibliothèque). Le trésor se remplit une fois par jour. La maison aux nombreuses demeures flotte au-dessus des nuages : on y monte en volant ou par téléportation.',
+    'Demeures : de vraies maisons, sur le plan des grandes demeures françaises. Un vestibule à l’entrée, un long couloir sur toute la largeur, les pièces de part et d’autre, un immense salon côté jardin avec le piano à queue et vos instruments, une bibliothèque, une salle à manger ; à l’étage, les chambres le long du couloir ; en bas, les caves. Les escaliers se montent et se descendent en marchant, sans bouton. Le jardin s’ouvre derrière le grand salon. Plus la demeure est rare, plus tout est grand : Raffiné (maison de maître), Rare (abbaye en ruine et cloître des fleurs de lune), Épique (hôtel particulier et jardin à la française, façon Vaux-le-Vicomte), Légendaire (château, trois niveaux), Mythique (forteresse), Éternel (palais, façon Versailles, au-dessus des nuages).',
+    'Le refuge : chaque demeure cache une pièce secrète, derrière la bibliothèque (tirer le livre rouge) ou au fond de l’armoire de la chambre du maître pour la plus petite. Un feu, des fauteuils, un ciel d’étoiles au plafond, une fontaine. « Se ressourcer » : votre personnage s’assoit près du feu, une harpe joue, et un guide de respiration en cohérence cardiaque (5 secondes pour inspirer, 5 pour expirer) s’affiche. Bougez pour revenir.',
     'Téléportation : Menu → les boutons marqués ✦ mènent directement à l’intérieur de chacune de vos demeures. Depuis la cave de chaque demeure, une grille descend dans les galeries souterraines, et une échelle des galeries remonte dans chacune de vos demeures.',
     'Instruments : dans la salle de musique de vos demeures, approchez-vous d’un instrument que vous possédez et choisissez un morceau (quatre par instrument, œuvres du domaine public), joué en solo avec le son enregistré de l’instrument (échantillons Musyng Kite, licence CC BY-SA 3.0). La première fois, l’instrument met quelques secondes à se charger. La musique d’accueil des demeures se règle dans la Salle de musique (♪) : morceau intégré, aucune, ou l’un de vos fichiers.',
     'Le marchand louche : quelque part dans les galeries souterraines, derrière un rideau rouge. Quatre objets par jour, introuvables ailleurs : runes De toute éternité contre des kinahs, une armure De toute éternité par semaine, l’orgue de Barbarie, une aura, un titre, une boussole qui montre les trésors sur la carte, un passe-partout.',
     'Arène : une fois le défi lancé, l’arène est verrouillée : ni l’esquive ni le combat automatique ne peuvent vous en faire sortir. Pour partir : Menu → « Abandonner le défi de l’arène », ou une téléportation.',
+    'Plan des intérieurs : dans une maison, une demeure, la cathédrale, la bibliothèque ou les galeries, la mini-carte devient le plan de l’étage. La carte (K, ou toucher la mini-carte) montre le plan complet avec le nom des pièces, les sorties, les escaliers, les instruments, la salle du trésor, et un bouton par étage.',
+    'Jouer d’un instrument : choisissez un morceau, votre personnage va s’asseoir, prend l’instrument et joue (la caméra se place devant lui). Bougez ou sautez pour vous lever : la musique s’arrête.',
+    'Pseudo et titre : Statut → Personnage → Affichage, pour montrer ou cacher votre pseudo et votre titre au-dessus de votre personnage.',
     'Commandes : sur PC, Menu → Touches du clavier pour changer chaque touche. Sur mobile, Menu → Disposition et taille des boutons : glissez un bouton pour le déplacer, réglez sa taille ou celle de tous les boutons.',
     'Allures : trois façons de se déplacer, Marche, Course et Sprint. Sur téléphone, le bouton d’allure passe de l’une à l’autre ; sur PC, Maj (maintenue) fait sprinter et Ctrl bascule entre marche et course. L’allure compte aussi à cheval (marche lente, course, sprint +20 %) et en vol. Montures : plus elles sont rares, plus elles vont vite (× la course : Commun 1,8, Peu commun 2,2, Rare 2,8, Épique 3,6, Légendaire 5, Mythique 7,5, Éternel 12, De toute éternité 20). Bottes (emplacement « Bottes ») : vitesse à pied de +4 % (Commun) à +210 % (De toute éternité), en vol de +10 % à +500 %, +10 % de ces valeurs par amélioration.',
     'Les Éternels : quinze gardiens dispersés dans les régions, de la puissance de la vague 200 (le Veilleur de Brune-Lande) à celle de la vague 10 000 (le Roi des Ruines), et l’Éternel du Sommet, tout en haut des Monts du Silence, puissance 100 000. Ils résistent aux dégâts en % des PV et à l’exécution, ne se laissent pas enchaîner par les contrôles, ne s’esquivent pas en combat automatique, lancent des ondes au sol (sors du cercle), appellent des ombres aux deux tiers et au tiers de leur vie, et entrent en fureur sous 35 %. En combat automatique, ton personnage esquive absolument tout (même l’Éternel du Sommet) et cible l’Éternel en priorité, mais la victoire ne compte pas « sans filet ». Vaincu sans jamais activer le combat automatique pendant l’affrontement, chaque Éternel donne en plus une archive inédite (Codex → Exploration → Éternels), un trophée, une rune et de la gloire supplémentaires, et une récompense unique : un titre (I à V), une aura (VI à X), des ailes (XI à XV), la monture Cerf aux mille bois (V), et pour l’Éternel du Sommet un titre, une aura, des ailes et la monture Le Silence du Sommet. Les seize sans filet : titre « Les Seize sans filet ». Si tu t’enfuis trop loin, ils se soignent. Première victoire : kinahs, gloire, objets Mythiques à De toute éternité et runes ; ensuite 10 % une fois par jour. Ils reviennent 5 minutes après leur chute.',
@@ -19996,7 +20148,8 @@ const GUIDE = [
     'Classement des Chasseurs : un million de Chasseurs du Système (simulés, ce ne sont pas d’autres joueurs). Au départ, le n° 1 est à la vague 2500, le 100e à 157, le 10 000e à 10, et tous progressent chaque jour. Saison chaque semaine, du lundi au dimanche : ta meilleure vague de la semaine est classée, et la place finale rapporte de la gloire (6 000 pour la 1re place). 32 trophées d’arène donnent des bonus et des titres.',
     'Régénération : dans l’arène, tes PV ne remontent pas tout seuls (sauf 30 % entre deux vagues). La puce « Régénération » (Arsenal → Puces, Boutique, butin) te rend des PV en continu, pour toutes les classes : +2 % toutes les 10 secondes pour une Commune, jusqu’à +25 % pour une Éternelle, et elles s’additionnent. Une puce Commune t’est offerte à ta première entrée dans le monde. En combat au tour par tour, elle rend un quart de sa valeur à chaque action.',
     'Douze classes, douze façons de jouer. Templier : le tank, garde permanente et bouclier qui bloque, il attire l’ennemi à lui (Capture), le jette à terre et brise son armure. Gladiateur : grands coups de zone, l’ennemi tombe sur un coup critique, enchaînement de trois coups, posture de rage. Rôdeur : arc uniquement (plus de double lame), pièges posés au sol (enracinent, ralentissent, font taire), tir de précision toujours critique, camouflage court. Assassin : lames très rapides qui gravent des runes sur la cible (5 au plus) ; Embuscade le place dans le dos de la cible et étourdit tout le groupe autour, puis le même bouton devient Balayage (tout le monde à terre) ; Frappe runique étourdit le groupe trois fois, puis le même bouton devient Explosion de runes (étourdit d’autant plus longtemps qu’il y a de runes) ; frapper de dos donne +25 % de chance de critique et des critiques plus lourds ; longue dissimulation dont le premier coup frappe triple. Sorcier : incantations lentes et lourdes (tu avances au ralenti pendant le sort), Sommeil, Racines de glace, Métamorphose en arbre, Météore. Spiritualiste : dégâts qui durent, quatre esprits géants à tour de rôle (Feu, Terre qui encaisse, Vent, Eau qui te soigne), Peur, Absorption. Clerc : soins instantanés et continus, grande guérison à incanter sans bouger, paralysie, et une résurrection toutes les 90 secondes. Aède : mantra permanent (attaque +10 %, PV qui remontent), bâton au corps à corps, Jugement inéluctable qui étourdit à distance, chant qui augmente tes critiques et ralentit les gestes ennemis. Pistolero : tir en courant, balles à ricochets, Canon magique, tir entravant, saut de recul. Éthertech : il invoque un Mecha et monte dedans ; le Mecha frappe fort et encaisse à sa place pendant 20 secondes, avec grappin et champ d’entrave. Barde : chaque note s’accumule sur la cible et la blesse en continu (5 au plus), l’Accord final les fait éclater, Berceuse endort, Mélodie de vie soigne et remplit la jauge. Peintre : mi-distance, un coup de sangle sur trois qui te fige un instant, Marque de couleur (la cible subit +35 %), Lien gravitationnel qui attire et immobilise, Toile d’absorption.',
-    'Rangs au-dessus de S : rang Nation au niveau 100 (badge N), puis rang Divin, celui des Monarques et des dirigeants cosmiques, au niveau 150 (badge Ω). La montée en puissance change alors d’échelle : 60 points de statistiques par niveau en rang Nation et toutes les statistiques ×2 ; 180 points par niveau en rang Divin et toutes les statistiques ×5 (au rang S, c’est 18 points par niveau).',
+    'Niveaux et rangs : la courbe suit Aion Classic. Rang E du niveau 1 à 10, D de 10 à 20, C de 20 à 30, B de 30 à 40, A de 40 à 50, S de 50 à 60, Nation (badge N) de 60 à 65, puis Divin (badge Ω, « Monarque · Rang Divin ») à partir de 65. Chaque niveau demande de plus en plus d’XP (2,75 milliards au total pour le 65), et au-delà la hausse continue jusqu’au niveau 999, qui remplace le numéro par le titre « Au-delà de l’Échelle ». Ta puissance (points de statistiques, multiplicateur) se calcule sur ton XP totale : changer de courbe ne t’a rien retiré, et les points arrivent avec l’XP, même entre deux niveaux.',
+    'Prestige : seuls le Donjon et la Nutrition en donnent (jusqu’à 60 points par jour, et autant d’XP de prestige que d’XP de base). Il s’affiche en haut à côté des kinahs, et son niveau dans le Statut. Les pénalités retirent maintenant 40 points et 400 XP de prestige, et plus rien d’autre. Les points se dépensent dans la Boutique du prestige (Royaume → Boutique → Prestige, ou toucher le compteur en haut) : sceaux d’Ysolde qui absorbent une pénalité, titres, aura, ailes, lettres inédites, skin d’arme et armure De toute éternité au choix.',
     'Puissance des classes (dégâts sur 30 secondes contre une cible ; cet ordre vaut à tous les niveaux, car la part en % des PV se compte à la seconde : 2 × la puissance de classe par seconde, plus la vitesse de la ceinture, quelle que soit l’arme) : Assassin 110 %, Gladiateur 109 %, Sorcier 108 %, Pistolero 99 %, Rôdeur 98 %, Spiritualiste 97 %, Barde et Peintre 95 %, toutes les autres classes 90 %. L’Assassin, le Gladiateur et le Sorcier frappent par gros coups soudains capables d’effacer un groupe : l’Assassin avec Embuscade, Balayage, Explosion de runes et sa sortie de Dissimulation (×4) ; le Gladiateur avec Enchaînement (trois coups tournoyants de zone) et Onde entravante ; le Sorcier avec Racines de glace et Météore, au prix d’incantations lentes. Leurs ultimes sont 35 à 40 % plus forts. Le Spiritualiste empoisonne : une grande partie de ses dégâts arrive sur la durée. Pour l’assassin, la meilleure combinaison est la dague en main droite et l’épée en main gauche ; deux dagues ou épée et dague : 95 % de celle-ci ; deux épées : 93 %. Dans les combats du Système (au tour par tour), les dégâts suivent les mêmes pourcentages. Au corps à corps, chaque coup de base qui touche te rend des PV.',
     'Répartir ses points pour le plus de dégâts : seules la Force et l’Agilité comptent. La Force donne l’Attaque (1,1 par point) ; l’Agilité donne le critique (0,18 % par point, plafonné à 50 % au total) et la force des critiques (+0,4 % par point, sans plafond). L’Endurance donne des PV et de la Défense, l’Intelligence des gains d’XP et de kinahs : rien pour les dégâts. La règle : 1) tout en Force au début ; 2) quand la Force dépasse environ 400, monte l’Agilité jusqu’au plafond de critique (environ 195 d’Agilité avec une dague, 220 avec les autres armes, moins avec des puces Critique) ; 3) ensuite, garde la Force au-dessus de l’Agilité d’un écart fixe et monte les deux au même rythme : 820 avec une dague, 770 avec épée, masse ou pistolet, 700 avec espadon, guisarme, bâton, arc ou anneaux, 620 avec orbe, grimoire, répercuteur, harpe ou lame-clé. Le bouton « Répartir pour le plus de dégâts », dans le Statut, fait ce calcul exactement avec ton arme, tes puces, tes cosmétiques et ta monture.',
     'Optimisation automatique (fiche du personnage et Arsenal) : quatre objectifs. Dégâts maximum ; Combat équilibré (le meilleur produit dégâts × résistance : PV, défense, esquive, régénération) ; Polyvalent (dégâts, résistance et gains d’XP et de kinahs à parts égales) ; Progression rapide (XP, kinahs et dégâts, sans résistance, pensé pour le combat automatique). Un toucher redistribue tous tes points, équipe la meilleure arme, les armures, le bijou, la ceinture et les puces que tu possèdes. Si le plan idéal demande des pièces ou des puces Éternelles que tu n’as pas, elles sont listées avec leur prix : un bouton les achète et les équipe aussitôt.',
@@ -20074,7 +20227,7 @@ const RESUME_KEY = 'elyos-resume-v1', RESUME_MS = 30 * 60 * 1000;
 function saveResume() {
   try {
     localStorage.setItem(RESUME_KEY, JSON.stringify({
-      t: Date.now(), y: window.scrollY || 0,
+      t: Date.now(), y: (document.getElementById('scroll') || {}).scrollTop || 0,
       timer: timer.end > Date.now() ? { end: timer.end, total: timer.total, label: timer.label } : null,
       mus: typeof musSnapshot === 'function' ? musSnapshot() : null,
       splash: !!document.getElementById('elx')
