@@ -1533,6 +1533,7 @@ function viewSettings() {
   const diff = macroKcal - N.kcal;
   return `
   <section class="flex flex-col gap-4">
+    ${isStandalone() ? '' : `<button type="button" class="item w-full text-left" data-a="install">${icon('download', 'w-5 h-5')}<span class="flex-1"><span class="f-display">Installer l’application</span><span class="block text-[11px] muted">${deferredPrompt ? 'Prête à installer sur cet appareil.' : 'Si le navigateur ne propose rien, la marche à suivre s’affiche.'}</span></span>${icon('chevron-right', 'w-4 h-4 muted')}</button>`}
     <button type="button" class="item w-full text-left" data-a="guide-open">${icon('graduation-cap', 'w-5 h-5')}<span class="flex-1"><span class="f-display">Guide du débutant</span><span class="block text-[11px] muted">Musculation, nutrition et tous les outils de l’appli, expliqués simplement.</span></span>${icon('chevron-right', 'w-4 h-4 muted')}</button>
     <button type="button" class="item w-full text-left" data-a="mus-open">${icon('music', 'w-5 h-5')}<span class="flex-1"><span class="f-display">Salle de musique</span><span class="block text-[11px] muted">Choisir la musique d’accueil, lecture en boucle, ajouter mes propres musiques.</span></span>${icon('chevron-right', 'w-4 h-4 muted')}</button>
     <label class="item w-full flex items-start gap-3 cursor-pointer">${icon('moon', 'w-5 h-5')}<span class="flex-1"><span class="f-display">Rester active en arrière-plan</span><span class="block text-[11px] muted">Désactivé : quitter l’appli la met en veille, la musique s’arrête et l’écran de connexion revient à chaque retour. Activé : la musique continue et l’appli reprend là où vous étiez.</span></span><input type="checkbox" data-mus-opt="bg" ${typeof MUS !== 'undefined' && MUS.bg ? 'checked' : ''} style="margin-top:4px;accent-color:var(--neon)"></label>
@@ -1670,11 +1671,11 @@ function viewInstall() {
     other: 'Ouvre le site dans Chrome, Edge ou Safari, puis utilise l’option d’installation du navigateur.'
   };
   return `
-  <details class="sys" data-det="install">
+  <details class="sys" data-det="install" ${ui.openInstall ? 'open' : ''}>
     <summary class="flex items-center justify-between gap-2"><span class="sys-title">Installer l’application</span><span class="chev muted">${icon('chevron-down')}</span></summary>
     <div class="mt-4 flex flex-col gap-3 text-sm">
       ${standalone ? `<p class="glow f-display">L’application est installée sur cet appareil.</p>` : `
-        ${deferredPrompt ? `<button type="button" class="btn solid" data-a="install">${icon('download')}Installer sur cet appareil</button>` : ''}
+        <button type="button" class="btn solid" data-a="install">${icon('download')}Installer sur cet appareil</button>
         <p><b class="f-display">Sur cet appareil :</b> <span class="muted">${steps[pf]}</span></p>`}
       <ul class="text-xs muted flex flex-col gap-1">
         <li><b class="text-[#cfd3dc]">Android :</b> ${steps.android}</li>
@@ -1682,7 +1683,7 @@ function viewInstall() {
         <li><b class="text-[#cfd3dc]">Mac :</b> ${steps['mac-chrome']} ${steps['mac-safari']}</li>
         <li><b class="text-[#cfd3dc]">iPhone / iPad :</b> ${steps.ios}</li>
       </ul>
-      <p class="text-xs muted">L’installation fonctionne depuis l’adresse Netlify. Une fois installée, l’appli s’ouvre dans sa propre fenêtre et marche hors connexion. Les données restent propres à chaque appareil : utilise la sauvegarde pour les transférer.</p>
+      <p class="text-xs muted">L’installation fonctionne depuis l’adresse du site (elyos-system.vercel.app). Une fois installée, l’appli s’ouvre dans sa propre fenêtre et marche hors connexion. Les données restent propres à chaque appareil : utilise la sauvegarde pour les transférer.</p>
     </div>
   </details>`;
 }
@@ -1816,7 +1817,12 @@ function restoreFrom(text) {
 const handlers = {
   'tab': el => { state.tab = el.dataset.tab; ui.guide = false; save(); render(); window.scrollTo({ top: 0 }); },
   'install': async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      /* le navigateur n'a pas (encore) proposé l'installation : après une désinstallation, Chrome attend parfois avant de la reproposer */
+      const pf = platform(), how = pf === 'ios' ? 'Safari : bouton Partager → « Sur l’écran d’accueil ».' : pf === 'mac-safari' ? 'Safari : menu Fichier → « Ajouter au Dock ».' : 'Chrome : menu ⋮ en haut à droite → « Installer l’application » (ou « Ajouter à l’écran d’accueil »). Si l’option manque, ferme l’onglet, rouvre le site et réessaie.';
+      toast(`${icon('download', 'w-4 h-4')}<span>${how}</span>`, 'umbra');
+      state.tab = 'settings'; ui.openInstall = true; render(); setTimeout(() => { const d = document.querySelector('[data-det=install]'); if (d) d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60); return;
+    }
     deferredPrompt.prompt();
     try { await deferredPrompt.userChoice; } catch (e) {}
     deferredPrompt = null; render();
@@ -2038,6 +2044,7 @@ document.addEventListener('toggle', ev => {
   if (t.dataset.sess) { if (t.open) ui.openSessions.add(t.dataset.sess); else ui.openSessions.delete(t.dataset.sess); }
   if (t.dataset.det === 'program') ui.openProgram = t.open;
   if (t.dataset.det === 'nutri') ui.openNutri = t.open;
+  if (t.dataset.det === 'install') ui.openInstall = t.open;
 }, true);
 
 /* Saisie en direct : recherche d'aliments et aperçu des grammes */
@@ -7789,6 +7796,9 @@ const HERO_LIPS = ['#b9695f', '#c9837a', '#a8483f', '#d0567a', '#8a3a36', '#7a50
 const HERO_HAIR_NAMES = { court: 'Court', brosse: 'En brosse', 'mi-long': 'Mi-long', long: 'Long', queue: 'Queue de cheval', chignon: 'Chignon', boucles: 'Boucles', rase: 'Rasé' };
 const HERO_STANCES = { neutre: ['Neutre', 'Bras le long du corps'], ninja: ['Ninja', 'Fléchi, mains jointes devant la poitrine'], souverain: ['Souverain', 'Majestueux, poings sur les hanches'], digne: ['Digne', 'Bras croisés, aura maximale'], humble: ['Humble', 'Serviteur : buste incliné, mains jointes'], timide: ['Timide', 'Tête baissée, un bras replié'] };
 const HERO_MOVES = { neutre: ['Course', 'Course normale, rapide'], ninja: ['Ninja', 'Penché en avant, bras en arrière, petits pas rapides'], levitation: ['Lévitation', 'Glisse au-dessus du sol, comme sur des patins volants'] };
+/* options d'affichage : 3D automatique (oui par défaut), rotation automatique (non par défaut) */
+function heroOpt() { const o = (state && state.heroOpt) || {}; return { auto: o.auto !== false, spin: o.spin === true }; }
+function heroWant() { return HERO.on || !!HERO.view || heroOpt().auto; }
 const HERO = { on: false, view: null, cv: null, loading: null, failed: false, last: '', draft: null, zoom: 'body', armed: false };
 
 /* Titre porté + nom, au-dessus du personnage (fiche et monde ouvert) */
@@ -7831,7 +7841,7 @@ function heroEnsure() {
   return load3D().then(E => {
     if (!HERO.view) {
       HERO.cv = document.createElement('canvas'); HERO.cv.id = 'hero-cv'; HERO.cv.className = 'hero-cv';
-      HERO.view = E.avatarView(HERO.cv, heroDesc(), { spin: true });
+      HERO.view = E.avatarView(HERO.cv, heroDesc(), { spin: heroOpt().spin });
       HERO.last = JSON.stringify(heroDesc());
     }
     return HERO.view;
@@ -7841,7 +7851,7 @@ function heroEnsure() {
 function heroAfterRender() {
   if (typeof document === 'undefined' || !document.getElementById) return;
   const slot = document.getElementById('hero-slot');
-  if (!slot || HERO.failed || HERO.draft || !(HERO.on || HERO.view)) return;
+  if (!slot || HERO.failed || HERO.draft || !heroWant()) return;
   heroEnsure().then(v => {
     const s = document.getElementById('hero-slot'); if (!s || HERO.draft) return;
     const d = heroDesc(); d.armed = !!HERO.armed; const j = JSON.stringify(d);
@@ -7873,7 +7883,11 @@ function viewHeroCard() {
     </div>
     ${HERO.showPanel ? `<div class="flex flex-wrap gap-1.5 mt-2">${Object.entries(HERO_VIS).map(([k, n]) => { const on = heroVis()[k]; return `<button type="button" class="btn sm ${on ? 'u' : 'ghost'}" data-a="hero-vis" data-k="${k}" aria-pressed="${on}">${on ? '✓' : '✕'} ${n}</button>`; }).join('')}</div><p class="text-[11px] muted mt-1">Masquer un élément ne retire pas ses bonus. Tenue masquée : l’uniforme de Chasseur s’affiche.</p>` : ''}
     ${isNew ? `<p class="text-xs mt-2" style="color:var(--kinah)">Créez votre personnage : homme ou femme, morphologie, visage, cheveux.</p>` : ''}
-    <div style="position:relative">${heroPlate()}<div id="hero-slot" class="hero-slot">${HERO.on || HERO.view ? '<div class="hero-load">Chargement du personnage…</div>' : `<button type="button" class="hero-load hero-on" data-a="hero-on">${icon('box', 'w-6 h-6')}<span>Afficher mon personnage en 3D</span><small>Chargé seulement à la demande, pour garder l’appli rapide</small></button>`}</div></div>
+    <div style="position:relative">${heroPlate()}<div id="hero-slot" class="hero-slot">${heroWant() ? '<div class="hero-load">Chargement du personnage…</div>' : `<button type="button" class="hero-load hero-on" data-a="hero-on">${icon('box', 'w-6 h-6')}<span>Afficher mon personnage en 3D</span><small>Affichage automatique désactivé (case ci-dessous)</small></button>`}</div></div>
+    <div class="hero-opts">
+      <label><input type="checkbox" data-a="hero-opt" data-k="auto" ${heroOpt().auto ? '' : 'checked'}><span>Ne plus afficher la 3D automatiquement</span></label>
+      <label><input type="checkbox" data-a="hero-opt" data-k="spin" ${heroOpt().spin ? 'checked' : ''}><span>Rotation automatique du personnage</span></label>
+    </div>
     <div class="hero-tiles">${heroGearTiles()}</div>
     <button type="button" class="btn solid w-full mt-3" data-a="world-open">${icon('globe', 'w-4 h-4')}Entrer dans le monde ouvert</button>
   </div>`;
@@ -7949,16 +7963,19 @@ Object.assign(handlers, {
   'hero-draw': () => { HERO.armed = !HERO.armed; render(); },
   'hero-armor': () => { const L = heroLook(); L.showArmor = L.showArmor === false; state.profile.look = L; save(); render(); },
   'hero-on': () => { HERO.on = true; render(); },
+  'hero-opt': el => { const k = el.dataset.k, o = state.heroOpt = Object.assign({}, state.heroOpt);
+    if (k === 'auto') o.auto = !el.checked; else if (k === 'spin') { o.spin = !!el.checked; if (HERO.view && HERO.view.setSpin) HERO.view.setSpin(o.spin); }
+    save(); render(); },
   'hero-show': () => { HERO.showPanel = !HERO.showPanel; render(); },
   'hero-vis': el => { const L = heroLook(), v = Object.assign({}, heroVis()); v[el.dataset.k] = !v[el.dataset.k]; L.vis = v; delete L.showArmor; state.profile.look = L; save(); render(); }
 });
 
 if (typeof document !== 'undefined' && document.head) document.head.insertAdjacentHTML('beforeend', `<style>
-.hero-load.hero-on{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:none;border:0;color:var(--neon);font:600 14px var(--font-display);cursor:pointer}.hero-load.hero-on small{color:var(--muted);font:400 11px var(--font-body)}.hero-slot{position:relative;height:min(52vh,420px);margin-top:10px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#1d1d30 0%,#0c0c14 62%,#07070b 100%);overflow:hidden}
+.hero-load.hero-on{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:none;border:0;color:var(--neon);font:600 14px var(--font-display);cursor:pointer}.hero-load.hero-on small{color:var(--muted);font:400 11px var(--font-body)}.hero-opts{display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:12px;color:var(--muted)}.hero-opts label{display:flex;align-items:center;gap:8px;cursor:pointer}.hero-opts input{accent-color:var(--neon);width:16px;height:16px;flex:none}.hero-slot{position:relative;height:min(52vh,420px);margin-top:10px;border:1px solid var(--line);background:radial-gradient(ellipse at 50% 35%,#1d1d30 0%,#0c0c14 62%,#07070b 100%);overflow:hidden}
 .hero-cv{width:100%;height:100%;display:block;cursor:grab;touch-action:pan-y}
 .hero-plate{position:relative;z-index:2;text-align:center;pointer-events:none;line-height:1.25;padding:4px 0 8px}
-.ttl{display:inline-flex;align-items:center;justify-content:center;gap:.4em;position:relative;isolation:isolate;overflow:hidden;max-width:100%;border-radius:3px;font:700 13px/1.25 'Oxanium','Barlow',sans-serif;letter-spacing:.05em;white-space:nowrap;padding:2px 8px;vertical-align:middle}
-.ttl b{font-weight:700}
+.ttl{display:inline-flex;align-items:center;justify-content:center;gap:.4em;position:relative;isolation:isolate;overflow:hidden;max-width:100%;border-radius:3px;font:700 13px/1.25 'Oxanium','Barlow',sans-serif;letter-spacing:.05em;white-space:normal;text-align:center;padding:2px 8px;vertical-align:middle}
+.ttl b{font-weight:700;min-width:0;overflow-wrap:anywhere}
 .ttl i{font-style:normal;display:none;flex:none}
 .ttl-r0 b{color:#c3c7d0;text-shadow:0 1px 2px #000}
 .ttl-r1 b{color:#4ade80;text-shadow:0 0 6px rgba(74,222,128,.6),0 1px 2px #000}
