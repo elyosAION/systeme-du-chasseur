@@ -1,6 +1,6 @@
 /* Service worker : appli disponible hors connexion */
-const CACHE = 'elyos-system-v87';
-const CORE = ['./', './index.html', './elyos3d.js', './elyos-data.js?v=87', './elyos-app.js?v=87', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
+const CACHE = 'elyos-system-v88';
+const CORE = ['./', './index.html', './elyos3d.js', './elyos-data.js?v=88', './elyos-app.js?v=88', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png', './icons/favicon-32.png'];
 const CDN = [
   'https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Barlow:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Spectral:ital,wght@0,400;0,500;1,400&family=Special+Elite&family=Caveat:wght@400;600&family=IM+Fell+English:ital@0;1&family=M+PLUS+1p:wght@300;400&display=swap'
 ];
