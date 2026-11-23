@@ -5696,6 +5696,23 @@ const WB_MANUAL = [
   { n: 'Le Roi des Ruines', lvl: 10000, cosm: ['ail_wb15'], t: 'Le trône vide', b: 'Il n’avait pas de sujets. Il régnait sur des pierres, des pigeons et du lierre, et tenait audience tous les matins devant une salle vide. Il rendait la justice aux ronces et graciait les arbres. On riait de lui, de loin. Vaincu, il a posé la couronne sur une pierre et il a dit que régner n’était pas si difficile, quand il n’y avait personne à décevoir.' },
   { n: 'L’Éternel du Sommet', lvl: 100000, cosm: ['tit_wb16', 'aur_wb16', 'ail_wb16'], mount: 'm40', t: 'Ce qu’il y a au sommet', b: 'Tout en haut, il n’y avait pas de trésor, pas de porte, pas de ciel plus proche. Il y avait un homme assis dans la neige qui avait été le plus fort du monde, et qui regardait en bas. Il avait monté toute sa vie. Il n’avait jamais appris à redescendre. Il vous a demandé si cela valait la peine. Vous êtes redescendu. C’était votre réponse.' }
 ];
+/* coffres des épreuves de sauts (monde ouvert) : grosse récompense la première fois, plus petite chaque jour ensuite */
+function jumpChest(id, name) {
+  const J = state.world.jumpc = state.world.jumpc || {}, today = dk(), first = !J[id], out = [], pick = L => L[Math.floor(Math.random() * L.length)];
+  if (!first && J[id] === today) return { title: name, msg: 'Le coffre est vide. Il se remplit de nouveau demain.' };
+  J[id] = today; (state.world.jumpf = state.world.jumpf || {})[id] = state.world.jumpf[id] || today;
+  const kin = k => { state.bonus = state.bonus || []; state.bonus.push({ date: today, k, x: 0, why: 'Coffre d’épreuve : ' + name }); out.push(`${k.toLocaleString('fr-FR')} kinahs`); };
+  const glory = g => { const A = arenaState(); A.glory += g; A.gloryTotal += g; out.push(`${g.toLocaleString('fr-FR')} gloire`); };
+  const mats = (m, n) => { state.mats[m] = (state.mats[m] || 0) + n; out.push(n + ' ' + MATERIALS[m].name.toLowerCase()); };
+  if (first) { kin(400000); glory(5000); mats('coeur', 5); mats('cendre', 3);
+    const w = [...new Set([...classMains(), ...classOffs()])].filter(t => WEAPON_TYPES[t]), arm = ['casque', 'plastron', 'jambieres', 'bottes', 'bijou', 'ceinture'];
+    const it = makeItem(6, Math.random() < 0.5 && w.length ? pick(w) : pick(arm)); state.inv.push(it); out.push(itemName(it));
+    const t = pick(Object.keys(RUNE_TYPES)); state.runes = state.runes || {}; state.runes[runeKey(t, 6)] = (state.runes[runeKey(t, 6)] || 0) + 1; out.push(`${RUNE_TYPES[t].name} ${RARITIES[6].name}`);
+    const all = Object.keys(state.world.jumpf).length; if (all >= 4) { kin(1000000); out.push('les quatre épreuves sont vaincues'); } }
+  else { kin(40000); glory(500); mats('ether', 6); }
+  _memo = null; save();
+  return { title: (first ? 'Première ascension · ' : '') + name, msg: out.join(' · ') };
+}
 function wbKill(i, lvl, name, o = {}) {
   const S = wbState(), today = dk(), first = !S.first[i], out = [];
   const w = [...new Set([...classMains(), ...classOffs()])].filter(t => WEAPON_TYPES[t]), arm = ['casque', 'plastron', 'jambieres', 'bottes', 'bijou', 'ceinture'], pick = L => L[Math.floor(Math.random() * L.length)];
@@ -8121,6 +8138,7 @@ function worldStart(mode) {
       merchant: () => mxView(),
       onMerchant: id => { const r = mxBuy(id); return r; },
       onTreasure: (hid, r) => estateTreasure(hid, r),
+      onJump: (id, name) => jumpChest(id, name),
       onHome: on => { if (typeof musHomeEnter !== 'function') return 'synth'; return on ? musHomeEnter() : (musHomeLeave(), null); },
       onInstr: on => { if (typeof musPause !== 'function') return; if (on) musPause(); else if (musRT.homeOn) musResume(); },
       onBoss: (i, lvl, name, o) => wbKill(i, lvl, name, o),
